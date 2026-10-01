@@ -1,0 +1,19 @@
+{
+  "name": "keel",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Keel — an AI-native operating core for a company",
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"pnpm --filter api dev\" \"pnpm --filter web dev\"",
+    "build": "pnpm --filter web build",
+    "test": "pnpm --filter api test && pnpm --filter web test",
+    "lint": "pnpm --filter api lint && pnpm --filter web lint",
+    "gen:types": "pnpm --filter api-types generate",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10"
+  }
+}

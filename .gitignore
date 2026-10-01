@@ -1,0 +1,35 @@
+# Env
+.env
+.env.*
+!.env.example
+
+# pnpm / Node
+node_modules/
+pnpm-lock.yaml
+dist/
+build/
+
+# Rails API (apps/api)
+apps/api/log/*
+!apps/api/log/.keep
+apps/api/tmp/*
+!apps/api/tmp/.keep
+apps/api/storage/*
+!apps/api/storage/.keep
+apps/api/.byebug_history
+apps/api/public/assets
+apps/api/public/packs
+apps/api/public/packs-test
+apps/api/coverage/
+
+# Web (apps/web)
+apps/web/dist/
+apps/web/.vite/
+
+# IDEs
+.idea/
+*.swp
+*~
+
+# macOS
+.DS_Store
