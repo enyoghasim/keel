@@ -11,9 +11,9 @@ module Api
     FIELDS = %i[id company_id kind title diff impact proposed_by agent_run_id status decided_by_id decided_at created_at].freeze
     SUPPORTED_KINDS = %w[org].freeze
 
-    before_action :set_change_proposal, only: %i[show approve reject]
-    before_action :require_current_person!, only: %i[approve reject]
-    before_action :require_hr_admin!, only: %i[approve reject]
+    before_action :set_change_proposal, only: %i[show approve reject trace]
+    before_action :require_current_person!, only: %i[approve reject trace]
+    before_action :require_hr_admin!, only: %i[approve reject trace]
 
     def index
       scope = @company.change_proposals
@@ -23,6 +23,17 @@ module Api
 
     def show
       render_success(data: serialize(@change_proposal))
+    end
+
+    # The agent run behind a proposal the agent made (AGENTS.md rule 3). Runs
+    # are private to whoever asked, but a proposal's reviewers have to be
+    # able to see what produced it, so any hr_admin — the only people who
+    # may decide — can open this one.
+    def trace
+      agent_run = @change_proposal.agent_run
+      return render_error(message: "This proposal wasn't made by the agent.", status: :not_found) if agent_run.nil?
+
+      render_success(data: agent_run.as_payload)
     end
 
     def create
@@ -87,7 +98,7 @@ module Api
     private
 
     # Only a human with the authority to change the org or its policies may
-    # decide a proposal (AGENTS.md rule 2: a human approves).
+    # decide a proposal or read the trace behind it (AGENTS.md rule 2: a human approves).
     def require_hr_admin!
       return if performed? || current_person.hr_admin?
 

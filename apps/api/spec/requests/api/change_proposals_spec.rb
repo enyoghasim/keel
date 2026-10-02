@@ -344,6 +344,42 @@ RSpec.describe "Api::ChangeProposals", type: :request do
     end
   end
 
+  describe "GET /api/companies/:company_id/change_proposals/:id/trace" do
+    let(:company) { create(:company) }
+    let(:asker) { create(:person, :hr_admin, company: company) }
+    let(:agent_run) { create(:agent_run, company: company, person: asker, status: "completed", final_text: "Proposed.") }
+    let(:proposal) { create(:change_proposal, company: company, proposed_by: "agent", agent_run: agent_run) }
+
+    before { create(:agent_step, agent_run: agent_run, position: 1, kind: "tool", tool_name: "propose_org_change") }
+
+    it "lets any hr_admin reviewer open the agent run that proposed it, though the run is someone else's" do
+      sign_in(create(:person, :hr_admin, company: company))
+
+      get "/api/companies/#{company.id}/change_proposals/#{proposal.id}/trace"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["data"]).to include("id" => agent_run.id, "person_id" => asker.id)
+      expect(response.parsed_body["data"]["steps"].first).to include("tool_name" => "propose_org_change")
+    end
+
+    it "is for the people who may decide the proposal, not anyone in the company" do
+      sign_in(create(:person, company: company))
+
+      get "/api/companies/#{company.id}/change_proposals/#{proposal.id}/trace"
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "is not found for a proposal a person made without the agent" do
+      sign_in(create(:person, :hr_admin, company: company))
+      manual = create(:change_proposal, company: company)
+
+      get "/api/companies/#{company.id}/change_proposals/#{manual.id}/trace"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe "who may decide" do
     it "forbids anyone but an hr_admin from approving or rejecting, leaving the proposal pending" do
       company = create(:company)

@@ -24,6 +24,7 @@ Rails.application.routes.draw do
       resources :change_proposals, only: [ :index, :create, :show ] do
         post :approve, on: :member
         post :reject, on: :member
+        get :trace, on: :member
       end
       resources :personal_access_tokens, only: [ :index, :create, :destroy ]
       resources :mcp_calls, only: [ :index ]
