@@ -49,6 +49,10 @@ class AssembleJob < ApplicationJob
         progress: 0.1 + 0.3 * (i + 1) / people.size
       )
     end
+
+    @company.import_issues.order(:row_number).each do |issue|
+      broadcast(stage: "graph", event: "import_issue", data: issue.as_json(only: %i[id row_number field raw_value message]), progress: 0.4)
+    end
   end
 
   def chunk_handbook
@@ -71,7 +75,16 @@ class AssembleJob < ApplicationJob
       result.rules.each do |rule|
         broadcast(
           stage: "policies", event: "rule_extracted",
-          data: { id: rule.id, key: rule.key, policy_id: rule.policy_id, category: category },
+          data: { id: rule.id, key: rule.key, policy_id: rule.policy_id, category: category, needs_input: rule.ambiguities.any? },
+          progress: 0.5 + 0.3 * (i + 1) / ALL_CATEGORIES.size
+        )
+      end
+
+      # A rule whose quote isn't in the handbook is never saved (SPEC.md section 6), but the person watching sees why a count is short.
+      result.rejected.each do |rule_data|
+        broadcast(
+          stage: "policies", event: "rule_rejected",
+          data: { key: rule_data["key"], category: category, source_quote: rule_data["source_quote"] },
           progress: 0.5 + 0.3 * (i + 1) / ALL_CATEGORIES.size
         )
       end

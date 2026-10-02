@@ -60,6 +60,40 @@ RSpec.describe AssembleJob, type: :job do
       .to have_broadcasted_to(company).from_channel(AssembleChannel).with(hash_including("stage" => "workflows", "event" => "workflow_generated"))
   end
 
+  it "broadcasts an import_issue event for each row the graph builder could not resolve" do
+    ImportIssue.create!(company: company, row_number: 78, field: "manager", raw_value: "Chidi Unknownson", message: "could not uniquely match manager 'Chidi Unknownson'")
+
+    expect { described_class.perform_now(company.id) }
+      .to have_broadcasted_to(company).from_channel(AssembleChannel).with(
+        hash_including("stage" => "graph", "event" => "import_issue",
+                       "data" => hash_including("row_number" => 78, "field" => "manager", "raw_value" => "Chidi Unknownson"))
+      )
+  end
+
+  it "broadcasts a rule_rejected event for a rule whose source quote was not in the handbook" do
+    allow(Assemble::PolicyExtractor).to receive(:call).and_return(
+      Assemble::PolicyExtractor::Result.new(
+        policy: policy, rules: [ rule ],
+        rejected: [ { "key" => "expense_cfo", "source_quote" => "The CFO must countersign." } ]
+      )
+    )
+
+    expect { described_class.perform_now(company.id) }
+      .to have_broadcasted_to(company).from_channel(AssembleChannel).with(
+        hash_including("stage" => "policies", "event" => "rule_rejected",
+                       "data" => hash_including("key" => "expense_cfo", "source_quote" => "The CFO must countersign."))
+      )
+  end
+
+  it "says in each rule_extracted event whether the rule still has a question for a person" do
+    rule.update!(ambiguities: [ { "phrase" => "up to", "question" => "Including travel?", "options" => [ "Yes", "No" ] } ])
+
+    expect { described_class.perform_now(company.id) }
+      .to have_broadcasted_to(company).from_channel(AssembleChannel).with(
+        hash_including("event" => "rule_extracted", "data" => hash_including("needs_input" => true))
+      )
+  end
+
   it "skips stages already marked complete, for a retried job" do
     company.update!(assemble_completed_stages: %w[csv_mapping graph_building])
 
