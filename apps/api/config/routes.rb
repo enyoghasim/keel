@@ -23,6 +23,8 @@ Rails.application.routes.draw do
         post :reject, on: :member
       end
       resources :insights, only: [ :index, :create, :show ]
+      resources :eval_runs, only: [ :index, :create, :show ]
+      resources :agent_runs, only: [ :create, :show ]
     end
 
     resources :step_runs, only: [] do

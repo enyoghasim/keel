@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_150157) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_153451) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -41,6 +41,35 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_150157) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "agent_runs", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "person_id", null: false
+    t.text "message", null: false
+    t.string "status", default: "pending", null: false
+    t.text "final_text"
+    t.integer "total_tokens", default: 0, null: false
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_agent_runs_on_company_id"
+    t.index ["person_id"], name: "index_agent_runs_on_person_id"
+  end
+
+  create_table "agent_steps", force: :cascade do |t|
+    t.bigint "agent_run_id", null: false
+    t.integer "position", null: false
+    t.string "kind", null: false
+    t.string "tool_name"
+    t.jsonb "input"
+    t.jsonb "output"
+    t.integer "latency_ms"
+    t.integer "tokens"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_run_id", "position"], name: "index_agent_steps_on_agent_run_id_and_position", unique: true
+    t.index ["agent_run_id"], name: "index_agent_steps_on_agent_run_id"
   end
 
   create_table "change_proposals", force: :cascade do |t|
@@ -86,6 +115,52 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_150157) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_departments_on_company_id"
+  end
+
+  create_table "eval_cases", force: :cascade do |t|
+    t.string "suite", null: false
+    t.string "key", null: false
+    t.jsonb "input", default: {}, null: false
+    t.jsonb "expected", default: {}, null: false
+    t.string "source", default: "manual", null: false
+    t.string "status", default: "active", null: false
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["suite", "key"], name: "index_eval_cases_on_suite_and_key", unique: true
+  end
+
+  create_table "eval_results", force: :cascade do |t|
+    t.bigint "eval_run_id", null: false
+    t.bigint "eval_case_id", null: false
+    t.boolean "passed", default: false, null: false
+    t.jsonb "actual"
+    t.jsonb "diff", default: [], null: false
+    t.integer "latency_ms"
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["eval_case_id"], name: "index_eval_results_on_eval_case_id"
+    t.index ["eval_run_id", "eval_case_id"], name: "index_eval_results_on_eval_run_id_and_eval_case_id", unique: true
+    t.index ["eval_run_id"], name: "index_eval_results_on_eval_run_id"
+  end
+
+  create_table "eval_runs", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "person_id"
+    t.string "suite", null: false
+    t.string "status", default: "pending", null: false
+    t.string "model"
+    t.decimal "accuracy", precision: 5, scale: 4
+    t.integer "cases_count", default: 0, null: false
+    t.integer "passed_count", default: 0, null: false
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_eval_runs_on_company_id"
+    t.index ["person_id"], name: "index_eval_runs_on_person_id"
   end
 
   create_table "import_issues", force: :cascade do |t|
@@ -236,11 +311,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_150157) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "agent_runs", "companies"
+  add_foreign_key "agent_runs", "people"
+  add_foreign_key "agent_steps", "agent_runs"
   add_foreign_key "change_proposals", "companies"
   add_foreign_key "change_proposals", "people", column: "decided_by_id"
   add_foreign_key "chunks", "source_documents"
   add_foreign_key "departments", "companies"
   add_foreign_key "departments", "people", column: "head_id"
+  add_foreign_key "eval_results", "eval_cases"
+  add_foreign_key "eval_results", "eval_runs"
+  add_foreign_key "eval_runs", "companies"
+  add_foreign_key "eval_runs", "people"
   add_foreign_key "import_issues", "companies"
   add_foreign_key "insight_queries", "companies"
   add_foreign_key "insight_queries", "people"

@@ -19,6 +19,10 @@ export function InsightAnswer({ companyId, insightId }: { companyId: string; ins
   const insightQuery = useQuery({
     queryKey,
     queryFn: () => api.get<Envelope<Insight>>(`/companies/${companyId}/insights/${insightId}`),
+    // InsightChannel sends the current state on subscribe, so a cached
+    // answer never needs refetching — and a refetch racing the channel
+    // could land late and put an answered question back to "pending".
+    staleTime: Infinity,
   })
 
   const onEvent = useCallback(

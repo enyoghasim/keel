@@ -1,5 +1,6 @@
 import { createConsumer } from '@rails/actioncable'
-import { render } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { useChannel as UseChannel } from './cable'
 
@@ -61,7 +62,7 @@ describe('useChannel', () => {
     expect(onEvent).toHaveBeenCalledWith(event)
   })
 
-  it('unsubscribes on unmount', async () => {
+  it('unsubscribes once the last component using a channel unmounts', async () => {
     const unsubscribe = vi.fn()
     vi.mocked(createConsumer).mockReturnValueOnce({
       subscriptions: { create: vi.fn(() => ({ unsubscribe })) },
@@ -71,6 +72,47 @@ describe('useChannel', () => {
     const { unmount } = render(<Harness useChannel={useChannel} onEvent={vi.fn()} />)
     unmount()
 
-    expect(unsubscribe).toHaveBeenCalled()
+    await waitFor(() => expect(unsubscribe).toHaveBeenCalledTimes(1))
+  })
+
+  // React StrictMode mounts, unmounts and remounts every effect in dev. An
+  // unsubscribe and resubscribe for the same identifier that close together
+  // race on the server, which can leave nothing streaming — so a remount
+  // reuses the live subscription instead.
+  it('keeps one live subscription through a StrictMode remount', async () => {
+    const useChannel = await importFreshUseChannel()
+    const onEvent = vi.fn()
+    render(
+      <StrictMode>
+        <Harness useChannel={useChannel} onEvent={onEvent} />
+      </StrictMode>,
+    )
+
+    const { create } = vi.mocked(createConsumer).mock.results[0]!.value.subscriptions
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(create).toHaveBeenCalledTimes(1)
+    expect(create.mock.results[0].value.unsubscribe).not.toHaveBeenCalled()
+
+    create.mock.calls[0][1].received({ event: 'run' })
+    expect(onEvent).toHaveBeenCalledTimes(1)
+  })
+
+  it('shares one subscription between components on the same channel, delivering to each', async () => {
+    const useChannel = await importFreshUseChannel()
+    const first = vi.fn()
+    const second = vi.fn()
+    render(<Harness useChannel={useChannel} onEvent={first} />)
+    const { unmount } = render(<Harness useChannel={useChannel} onEvent={second} />)
+
+    const { create } = vi.mocked(createConsumer).mock.results[0]!.value.subscriptions
+    expect(create).toHaveBeenCalledTimes(1)
+    create.mock.calls[0][1].received({ n: 1 })
+    expect(first).toHaveBeenCalledWith({ n: 1 })
+    expect(second).toHaveBeenCalledWith({ n: 1 })
+
+    unmount()
+    create.mock.calls[0][1].received({ n: 2 })
+    expect(first).toHaveBeenCalledWith({ n: 2 })
+    expect(second).not.toHaveBeenCalledWith({ n: 2 })
   })
 })

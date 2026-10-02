@@ -22,4 +22,19 @@ RSpec.describe Company, type: :model do
     expect(Department.exists?(department.id)).to be false
     expect(Person.exists?(person.id)).to be false
   end
+
+  describe "#active_rule_definitions" do
+    it "returns only active rules from active policies of that category" do
+      company = create(:company)
+      active = create(:policy, company: company, category: "expense", status: "active")
+      draft = create(:policy, company: company, category: "expense", status: "draft")
+      leave = create(:policy, company: company, category: "leave", status: "active")
+      create(:rule, policy: active, key: "live", status: "active")
+      create(:rule, policy: active, key: "not_yet", status: "extracted")
+      create(:rule, policy: draft, key: "draft_policy", status: "active")
+      create(:rule, policy: leave, key: "leave_rule", status: "active")
+
+      expect(company.active_rule_definitions("expense").map(&:key)).to eq([ "live" ])
+    end
+  end
 end

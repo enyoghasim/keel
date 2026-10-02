@@ -25,3 +25,9 @@ if (!window.ResizeObserver) {
     disconnect() {}
   }
 }
+
+// jsdom doesn't implement scrollIntoView, which cmdk (CommandBar) calls to
+// keep the selected item visible.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {}
+}

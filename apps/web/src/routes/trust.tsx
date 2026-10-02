@@ -1,6 +1,8 @@
 import { createRoute } from '@tanstack/react-router'
 import { PageHeader } from '../components/layout/page-header'
 import { PagePlaceholder } from '../components/layout/page-placeholder'
+import { TrustView } from '../components/trust/trust-view'
+import { getCurrentCompanyId } from '../lib/current-company'
 import { Route as rootRoute } from './__root'
 
 export const Route = createRoute({
@@ -10,13 +12,19 @@ export const Route = createRoute({
 })
 
 function TrustPage() {
+  const companyId = getCurrentCompanyId()
+
   return (
     <>
       <PageHeader
         title="Trust"
         subtitle="How well the AI parts actually work, measured — and where human corrections become new tests."
       />
-      <PagePlaceholder note="The scoreboard and prompt comparison land once Evals::Runner and eval_runs exist." />
+      {companyId ? (
+        <TrustView companyId={companyId} />
+      ) : (
+        <PagePlaceholder note="No company yet — assemble one on the Assemble page first." />
+      )}
     </>
   )
 }
