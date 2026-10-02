@@ -144,6 +144,16 @@ RSpec.describe Evals::Runner do
       expect(eval_run.reload.stability.to_f).to be_within(0.001).of(result.metrics["stability"])
     end
 
+    it "adds what each compile cost onto the case and the run" do
+      allow(Assemble::PolicyExtractor).to receive(:compile) { |**, &on_cost| on_cost.call(0.5).then { compiled("lte") } }
+      eval_run.update!(stability_samples: 3)
+
+      described_class.call(eval_run)
+
+      expect(eval_run.eval_results.sole.metrics["cost_usd"]).to eq(1.5)
+      expect(eval_run.reload.cost_usd).to eq(BigDecimal("1.5"))
+    end
+
     it "records a compile that fails schema validation as a failure and keeps going" do
       allow(Assemble::PolicyExtractor).to receive(:compile).and_raise(Llm::StructuredAsk::ValidationError, "rules: required")
 
@@ -207,6 +217,17 @@ RSpec.describe Evals::Runner do
 
       expect(eval_run.eval_results.sole.metrics["cost_usd"]).to eq(2.25)
       expect(eval_run.reload.cost_usd).to eq(BigDecimal("2.25"))
+    end
+
+    it "counts the judge's cost along with the agent's" do
+      add_agent_case
+      script(check.merge(tokens: [ 1_000_000, 0 ], model: "gpt-5.1"), { content: "Yes.", tokens: [ 0, 100_000 ], model: "gpt-5.1" })
+      allow(Evals::Judge).to receive(:call).and_return(Evals::Judge::Result.new(judgement.scores, judgement.mean, "Fine.", 0.5))
+
+      described_class.call(eval_run)
+
+      expect(eval_run.eval_results.sole.metrics["cost_usd"]).to eq(2.75)
+      expect(eval_run.reload.cost_usd).to eq(BigDecimal("2.75"))
     end
 
     it "fails a case where the agent used a forbidden tool, and leaves no request or run behind" do

@@ -51,12 +51,15 @@ module Evals
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       passage = eval_case.input.fetch("passage")
       chunk = Struct.new(:page, :text).new(1, passage)
+      cost = nil
       samples = Array.new([ eval_run.stability_samples, 1 ].max) do
-        Assemble::PolicyExtractor.compile(category: eval_case.input.fetch("category"), chunks: [ chunk ], prompt_version: eval_run.prompt_version)
+        Assemble::PolicyExtractor.compile(category: eval_case.input.fetch("category"), chunks: [ chunk ], prompt_version: eval_run.prompt_version) do |call_cost|
+          cost = (cost || 0) + call_cost
+        end
       end
 
       score = PolicyExtractionScorer.call(expected: eval_case.expected, actual_rules: samples.first, passage: passage)
-      metrics = score.metrics
+      metrics = score.metrics.merge("cost_usd" => cost).compact
       metrics = metrics.merge("stability" => Behaviour.agreement(samples.map { |rules| rules.map { PolicyExtractionScorer.rule_definition(_1) } })) if samples.size > 1
       actual = { "rules" => samples.first, "ambiguities" => samples.first.flat_map { |rule| (rule["ambiguities"] || []).pluck("phrase") } }
 
@@ -104,7 +107,8 @@ module Evals
 
       score = AgentScorer.call(expected: eval_case.expected, tool_calls: observed[:tool_calls])
       judged = Judge.call(message: eval_case.input.fetch("message"), tool_calls: observed[:tool_calls], answer: observed[:final_text])
-      metrics = { "judge" => judged.scores.merge("mean" => judged.mean), "judge_rationale" => judged.rationale, "cost_usd" => observed[:cost_usd] }.compact
+      metrics = { "judge" => judged.scores.merge("mean" => judged.mean), "judge_rationale" => judged.rationale,
+                  "cost_usd" => sum_costs(observed[:cost_usd], judged.cost_usd) }.compact
       if (label = eval_case.expected["judge_label"])
         metrics["judge_agreement"] = Judge.agreement(judged.scores, label)
       end
@@ -140,6 +144,10 @@ module Evals
       }
     end
     private_class_method :observe_agent
+
+    # nil when nothing was priced, rather than a false $0.
+    def self.sum_costs(*costs) = costs.compact.then { _1.empty? ? nil : _1.sum }
+    private_class_method :sum_costs
 
     def self.elapsed_ms(started) = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
     private_class_method :elapsed_ms

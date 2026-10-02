@@ -5,16 +5,21 @@ module Evals
   # to them, not whether it agrees with the model's own knowledge. Its
   # honesty is checked against hand-labelled cases (.agreement).
   class Judge
-    Result = Data.define(:scores, :mean, :rationale)
+    Result = Data.define(:scores, :mean, :rationale, :cost_usd) do
+      def initialize(scores:, mean:, rationale:, cost_usd: nil) = super
+    end
 
     DIMENSIONS = %w[correctness citation clarity no_false_claims].freeze
 
     def self.call(message:, tool_calls:, answer:)
       schema = Llm::SchemaRegistry.fetch("answer-judgement")
-      data = Llm::StructuredAsk.call(chat: RubyLLM.chat.with_schema(schema), schema: schema, prompt: prompt(message, tool_calls, answer))
+      cost = nil
+      data = Llm::StructuredAsk.call(chat: RubyLLM.chat.with_schema(schema), schema: schema, prompt: prompt(message, tool_calls, answer)) do |attempt_cost|
+        cost = (cost || 0) + attempt_cost
+      end
       scores = data.slice(*DIMENSIONS)
 
-      Result.new(scores, scores.values.sum.fdiv(scores.size), data.fetch("rationale"))
+      Result.new(scores, scores.values.sum.fdiv(scores.size), data.fetch("rationale"), cost)
     end
 
     # Share of rubric dimensions where the judge lands within one point of
