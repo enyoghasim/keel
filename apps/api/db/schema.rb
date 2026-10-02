@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_171000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_172000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -216,6 +216,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_171000) do
     t.index ["manager_id"], name: "index_people_on_manager_id"
   end
 
+  create_table "personal_access_tokens", force: :cascade do |t|
+    t.bigint "person_id", null: false
+    t.string "name", null: false
+    t.string "token_digest", null: false
+    t.datetime "last_used_at"
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["person_id"], name: "index_personal_access_tokens_on_person_id"
+    t.index ["token_digest"], name: "index_personal_access_tokens_on_token_digest", unique: true
+  end
+
   create_table "policies", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.string "title", null: false
@@ -337,6 +349,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_171000) do
   add_foreign_key "people", "companies"
   add_foreign_key "people", "departments"
   add_foreign_key "people", "people", column: "manager_id"
+  add_foreign_key "personal_access_tokens", "people"
   add_foreign_key "policies", "companies"
   add_foreign_key "requests", "companies"
   add_foreign_key "requests", "people", column: "requester_id"

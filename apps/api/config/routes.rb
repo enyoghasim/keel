@@ -22,6 +22,7 @@ Rails.application.routes.draw do
         post :approve, on: :member
         post :reject, on: :member
       end
+      resources :personal_access_tokens, only: [ :index, :create, :destroy ]
       resources :insights, only: [ :index, :create, :show ]
       resources :eval_runs, only: [ :index, :create, :show ]
       resources :agent_runs, only: [ :index, :create, :show ] do
