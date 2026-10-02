@@ -113,6 +113,25 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       expect(person.reload.manager_id).to eq(new_manager.id)
     end
 
+    it "refuses an org proposal whose manager change was computed against a manager the person no longer has" do
+      company = create(:company)
+      old_manager = create(:person, company: company)
+      moved_to = create(:person, company: company)
+      person = create(:person, company: company, manager: moved_to) # already moved by another proposal
+      hr = create(:person, :hr_admin, company: company)
+      change_proposal = create(:change_proposal, company: company, status: "pending",
+        diff: [ { "op" => "change_manager", "person_id" => person.id, "from" => old_manager.id, "to" => nil } ],
+        impact: { "rerouted" => [], "broken" => [], "self_approval" => [], "approval_load_changes" => [], "rerouted_in_flight" => [] })
+      sign_in(hr)
+
+      post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve", as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["message"]).to match(/changed since this proposal was made/)
+      expect(person.reload.manager_id).to eq(moved_to.id)
+      expect(change_proposal.reload.status).to eq("pending")
+    end
+
     it "records the signed-in person as the decider, ignoring any decided_by_id param" do
       company = create(:company)
       old_manager = create(:person, company: company)
