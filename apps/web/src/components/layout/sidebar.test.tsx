@@ -25,7 +25,7 @@ describe('Sidebar', () => {
   it('marks the current route as active and no other route', async () => {
     await renderApp('/graph')
 
-    expect(screen.getByRole('link', { name: 'Graph' }).className).toMatch(/bg-sidebar-accent/)
-    expect(screen.getByRole('link', { name: 'Assemble' }).className).not.toMatch(/bg-sidebar-accent/)
+    expect(screen.getByRole('link', { name: 'Graph' })).toHaveAttribute('data-active', 'true')
+    expect(screen.getByRole('link', { name: 'Assemble' })).toHaveAttribute('data-active', 'false')
   })
 })

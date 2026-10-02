@@ -8,9 +8,13 @@ module Api
     include CompanyScoped
 
     RECENT_LIMIT = 20
+    # Each run spends real model money, so one person gets one run at a time
+    # and a modest number per hour.
+    HOURLY_LIMIT = 30
 
     before_action :require_current_person!
     before_action :require_company_member!
+    before_action :enforce_rate_limit!, only: :create
 
     def index
       runs = @company.agent_runs.where(person: current_person)
@@ -38,6 +42,17 @@ module Api
     end
 
     private
+
+    def enforce_rate_limit!
+      return if performed?
+
+      runs = @company.agent_runs.where(person: current_person)
+      if runs.where(status: %w[pending running]).exists?
+        render_error(message: "Keel is still working on your last question. Wait for it to finish first.", status: :too_many_requests)
+      elsif runs.where(created_at: 1.hour.ago..).count >= HOURLY_LIMIT
+        render_error(message: "You've asked too many questions in the last hour. Try again a little later.", status: :too_many_requests)
+      end
+    end
 
     def own_conversation?(conversation_id)
       @company.agent_runs.where(person: current_person, conversation_id: conversation_id).exists?

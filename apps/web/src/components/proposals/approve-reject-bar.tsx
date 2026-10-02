@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ChangeProposal, Envelope } from 'api-types'
 import { useState } from 'react'
 import { api } from '../../lib/api'
+import { Button } from '@/components/ui/button'
 
 function statusNote(proposal: ChangeProposal) {
   const decidedAt = proposal.decided_at ? ` on ${new Date(proposal.decided_at).toLocaleString()}` : ''
@@ -74,22 +75,12 @@ export function ApproveRejectBar({
       )}
 
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => approve.mutate()}
-          disabled={approveDisabled || approve.isPending}
-          className="rounded bg-primary px-3.5 py-1.5 text-[13px] font-medium text-primary-foreground shadow-btn disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <Button type="button" onClick={() => approve.mutate()} disabled={approveDisabled || approve.isPending}>
           Approve
-        </button>
-        <button
-          type="button"
-          onClick={() => reject.mutate()}
-          disabled={reject.isPending}
-          className="rounded border border-border bg-card px-3.5 py-1.5 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        </Button>
+        <Button type="button" variant="outline" onClick={() => reject.mutate()} disabled={reject.isPending}>
           Reject
-        </button>
+        </Button>
       </div>
 
       {approve.isError && <p className="text-[13px] text-destructive">{(approve.error as Error).message}</p>}

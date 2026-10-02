@@ -1,4 +1,6 @@
 import type { Department, Person } from 'api-types'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
 import { PagePlaceholder } from '../layout/page-placeholder'
 
 function initials(name: string): string {
@@ -30,14 +32,14 @@ export function PersonPanel({
 }) {
   if (!person) {
     return (
-      <div className="w-72 shrink-0">
+      <div className="w-full md:w-72 md:shrink-0">
         <PagePlaceholder note="Select a person on the chart to see their details." />
       </div>
     )
   }
 
   return (
-    <div className="w-72 shrink-0 rounded-lg border border-border bg-card p-4">
+    <Card className="w-full gap-0 md:w-72 md:shrink-0">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border-strong bg-muted text-[13px] font-semibold">
           {initials(person.name)}
@@ -61,16 +63,11 @@ export function PersonPanel({
           <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Roles</dt>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {person.roles.map((role) => (
-              <span
-                key={role}
-                className="rounded border border-border-strong bg-secondary px-1.5 py-0.5 text-[11.5px] font-medium"
-              >
-                {role}
-              </span>
+              <Badge key={role}>{role}</Badge>
             ))}
           </div>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

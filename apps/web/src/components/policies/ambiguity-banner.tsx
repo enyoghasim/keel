@@ -1,5 +1,6 @@
 import type { Ambiguity } from 'api-types'
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 
 // Rules::AmbiguityResolver — the service SPEC.md section 7 describes for
 // turning an answered question into an updated rule version — doesn't exist
@@ -14,15 +15,17 @@ export function AmbiguityBanner({ ambiguity }: { ambiguity: Ambiguity }) {
       <p className="text-[12.5px] font-medium">{ambiguity.question}</p>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {ambiguity.options.map((option) => (
-          <button
+          <Button
             key={option}
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setResolution(option)}
             aria-pressed={resolution === option}
-            className="rounded border border-warning/50 bg-card px-2.5 py-1 text-[12px] font-medium hover:bg-warning-muted"
+            className="border-warning/50 hover:bg-warning-muted"
           >
             {option}
-          </button>
+          </Button>
         ))}
       </div>
       {resolution && (

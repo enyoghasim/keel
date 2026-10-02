@@ -3,6 +3,7 @@ import type { Company, Envelope } from 'api-types'
 import { useState } from 'react'
 import { api } from '../../lib/api'
 import { uploadFile } from '../../lib/direct-upload'
+import { Button } from '@/components/ui/button'
 
 export function UploadForm({ onAssembled }: { onAssembled: (companyId: string) => void }) {
   const [name, setName] = useState('')
@@ -73,13 +74,9 @@ export function UploadForm({ onAssembled }: { onAssembled: (companyId: string) =
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={!canSubmit}
-        className="rounded bg-primary px-3.5 py-1.5 text-[13px] font-medium text-primary-foreground shadow-btn disabled:cursor-not-allowed disabled:opacity-40"
-      >
+      <Button type="submit" disabled={!canSubmit}>
         {assemble.isPending ? 'Assembling…' : 'Assemble company'}
-      </button>
+      </Button>
 
       {assemble.isError && <p className="text-[13px] text-destructive">{(assemble.error as Error).message}</p>}
     </form>

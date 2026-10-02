@@ -11,6 +11,8 @@ import { RunCompare } from './run-compare'
 import { RunDetail } from './run-detail'
 import { RunList } from './run-list'
 import { Scoreboard } from './scoreboard'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 
 export function TrustView({ companyId }: { companyId: string }) {
   const queryClient = useQueryClient()
@@ -53,21 +55,21 @@ export function TrustView({ companyId }: { companyId: string }) {
 
       <Scoreboard runs={runs} meta={meta} />
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <p className="text-[13px] text-muted-foreground">
           {canRun
             ? 'Each run sends every active insights case through Insights::Interpreter and scores the result field by field.'
             : 'Only an hr_admin can start an eval run.'}
         </p>
         {canRun && (
-          <button
+          <Button
             type="button"
             onClick={() => startRun.mutate()}
             disabled={startRun.isPending || activeRuns.length > 0}
-            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground shadow-btn disabled:cursor-not-allowed disabled:opacity-40"
+            className="shrink-0"
           >
             {activeRuns.length > 0 ? 'Run in progress…' : 'Run insights suite'}
-          </button>
+          </Button>
         )}
       </div>
       {startRun.isError && <p className="text-[13px] text-destructive">{(startRun.error as Error).message}</p>}
@@ -77,7 +79,7 @@ export function TrustView({ companyId }: { companyId: string }) {
       ) : (
         <>
           <AccuracyTrend runs={runs.filter((run) => run.suite === 'insights')} />
-          <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
+          <Card>
             <RunList
               runs={runs}
               selectedRunId={shownRunId}
@@ -91,7 +93,7 @@ export function TrustView({ companyId }: { companyId: string }) {
               }
             />
             <p className="mt-2 text-[12px] text-subtle-foreground">Tick two completed runs to compare them.</p>
-          </div>
+          </Card>
           {compareIds.length === 2 ? (
             <RunCompare companyId={companyId} runIds={[compareIds[0], compareIds[1]]} />
           ) : (

@@ -49,7 +49,7 @@ RSpec.describe Agent::Runner do
 
     expect(chat.instructions).to include("Nubo", "Ngozi Okafor", "Account Executive", "Sales", "Tunde Bakare", "sales_lead", "2026-10-02")
     expect(chat.instructions).to include("Never state a policy outcome without calling check_policy")
-    expect(chat.tools.keys).to contain_exactly("search_people", "check_policy", "create_request", "run_insight")
+    expect(chat.tools.keys).to contain_exactly("search_people", "check_policy", "create_request", "run_insight", "org_lookup", "who_approves", "list_my_requests")
     expect(chat.asked).to eq("Can I expense a €1,200 flight to RubyConf?")
   end
 

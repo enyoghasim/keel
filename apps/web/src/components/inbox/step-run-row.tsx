@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Envelope, Person, Request, StepRun } from 'api-types'
 import { api } from '../../lib/api'
 import { OverrideDialog } from './override-dialog'
+import { Button } from '@/components/ui/button'
 
 function humanize(key: string) {
   return key.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
@@ -36,7 +37,7 @@ export function StepRunRow({
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-card px-4 py-3">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <div className="text-[14px] font-semibold">
             {humanize(request.kind)} request from {requester?.name ?? `person #${request.requester_id}`}
@@ -47,23 +48,13 @@ export function StepRunRow({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => act.mutate({ step_action: 'approve' })}
-            disabled={act.isPending}
-            className="rounded bg-primary px-3.5 py-1.5 text-[13px] font-medium text-primary-foreground shadow-btn disabled:cursor-not-allowed disabled:opacity-40"
-          >
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+          <Button type="button" onClick={() => act.mutate({ step_action: 'approve' })} disabled={act.isPending}>
             Approve
-          </button>
-          <button
-            type="button"
-            onClick={() => act.mutate({ step_action: 'reject' })}
-            disabled={act.isPending}
-            className="rounded border border-border bg-card px-3.5 py-1.5 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          </Button>
+          <Button type="button" variant="outline" onClick={() => act.mutate({ step_action: 'reject' })} disabled={act.isPending}>
             Reject
-          </button>
+          </Button>
           <OverrideDialog
             pending={act.isPending}
             onSubmit={(reason) => act.mutate({ step_action: 'override', reason })}

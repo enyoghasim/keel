@@ -1,4 +1,6 @@
 import type { Policy, PolicyStatus } from 'api-types'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 const STATUS_LABEL: Record<PolicyStatus, string> = {
   draft: 'Draft',
@@ -7,11 +9,11 @@ const STATUS_LABEL: Record<PolicyStatus, string> = {
   superseded: 'Superseded',
 }
 
-const STATUS_TONE: Record<PolicyStatus, string> = {
-  draft: 'border-border-strong bg-secondary text-muted-foreground',
-  active: 'border-success/40 bg-success-muted text-success',
-  needs_review: 'border-warning/40 bg-warning-muted text-warning',
-  superseded: 'border-border-strong bg-secondary text-subtle-foreground',
+const STATUS_VARIANT: Record<PolicyStatus, 'secondary' | 'success' | 'warning'> = {
+  draft: 'secondary',
+  active: 'success',
+  needs_review: 'warning',
+  superseded: 'secondary',
 }
 
 export function PolicyList({
@@ -24,31 +26,17 @@ export function PolicyList({
   onSelect: (policyId: number) => void
 }) {
   return (
-    <div className="flex flex-wrap gap-2" role="tablist" aria-label="Policies">
-      {policies.map((policy) => {
-        const active = policy.id === activePolicyId
-        return (
-          <button
-            key={policy.id}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onSelect(policy.id)}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[13px] font-medium ${
-              active ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card hover:bg-secondary'
-            }`}
-          >
+    <Tabs value={String(activePolicyId)} onValueChange={(value) => onSelect(Number(value))}>
+      <TabsList aria-label="Policies">
+        {policies.map((policy) => (
+          <TabsTrigger key={policy.id} value={String(policy.id)}>
             {policy.title}
-            <span
-              className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${
-                active ? 'border-primary-foreground/30' : STATUS_TONE[policy.status]
-              }`}
-            >
+            <Badge variant={STATUS_VARIANT[policy.status]}>
               {STATUS_LABEL[policy.status]}
-            </span>
-          </button>
-        )
-      })}
-    </div>
+            </Badge>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   )
 }

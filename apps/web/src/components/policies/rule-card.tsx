@@ -2,6 +2,7 @@ import type { Rule, RuleStatus } from 'api-types'
 import { useState } from 'react'
 import { AmbiguityBanner } from './ambiguity-banner'
 import { describeRule } from './describe-rule'
+import { Badge } from '@/components/ui/badge'
 
 const STATUS_LABEL: Record<RuleStatus, string> = {
   extracted: 'Extracted',
@@ -10,11 +11,11 @@ const STATUS_LABEL: Record<RuleStatus, string> = {
   superseded: 'Superseded',
 }
 
-const STATUS_TONE: Record<RuleStatus, string> = {
-  extracted: 'border-border-strong bg-secondary text-muted-foreground',
-  resolved: 'border-info/40 bg-info-muted text-info',
-  active: 'border-success/40 bg-success-muted text-success',
-  superseded: 'border-border-strong bg-secondary text-subtle-foreground',
+const STATUS_VARIANT: Record<RuleStatus, 'secondary' | 'info' | 'success'> = {
+  extracted: 'secondary',
+  resolved: 'info',
+  active: 'success',
+  superseded: 'secondary',
 }
 
 export function RuleCard({
@@ -38,9 +39,7 @@ export function RuleCard({
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-[13px]">{describeRule(rule.conditions, rule.actions)}</p>
-        <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-medium ${STATUS_TONE[rule.status]}`}>
-          {STATUS_LABEL[rule.status]}
-        </span>
+        <Badge variant={STATUS_VARIANT[rule.status]}>{STATUS_LABEL[rule.status]}</Badge>
       </div>
 
       <div className="mt-2 flex items-center gap-3 text-[12px] text-muted-foreground">

@@ -1,14 +1,14 @@
 import type { AgentRun, AgentStep } from 'api-types'
+import { XIcon } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { traceTotals } from './trace-totals'
 
 function stepTitle(step: AgentStep) {
   if (step.kind === 'tool') return step.tool_name ?? 'tool'
   const calls = (step.output?.tool_calls as { name: string }[] | undefined) ?? []
   return calls.length > 0 ? `Model → ${calls.map((c) => c.name).join(', ')}` : 'Model answer'
-}
-
-function Badge({ children }: { children: string }) {
-  return <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground">{children}</span>
 }
 
 function JsonBlock({ label, value }: { label: string; value: unknown }) {
@@ -27,46 +27,46 @@ function JsonBlock({ label, value }: { label: string; value: unknown }) {
  */
 export function TraceDrawer({ run, onClose }: { run: AgentRun; onClose: () => void }) {
   return (
-    <aside
-      role="dialog"
-      aria-label="Agent trace"
-      className="fixed inset-y-0 right-0 z-[60] flex w-full max-w-md flex-col border-l border-border bg-card shadow-lg"
-    >
-      <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
-        <div className="min-w-0">
-          <h2 className="text-[14px] font-semibold">Agent trace</h2>
-          <p className="truncate text-[12px] text-muted-foreground">{run.message}</p>
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent aria-label="Agent trace" showCloseButton={false} className="z-60 w-full gap-0 sm:max-w-md">
+        <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="min-w-0">
+            <SheetTitle className="text-[14px]">Agent trace</SheetTitle>
+            <SheetDescription className="truncate text-[12px]">{run.message}</SheetDescription>
+          </div>
+          <SheetClose asChild>
+            <Button variant="ghost" size="icon" aria-label="Close trace" className="size-7">
+              <XIcon />
+            </Button>
+          </SheetClose>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close trace" className="rounded px-1.5 py-0.5 text-[13px] text-muted-foreground hover:bg-secondary">
-          ✕
-        </button>
-      </div>
 
-      <ol className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
-        {run.steps.map((step) => (
-          <li key={step.id} className="relative border-l-2 border-border pl-3">
-            <span
-              aria-hidden="true"
-              className={`absolute -left-[5px] top-1.5 size-2 rounded-full ${step.kind === 'tool' ? 'bg-brand' : 'bg-chart-3'}`}
-            />
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{step.kind === 'tool' ? 'Tool' : 'Model'}</span>
-              <span className="font-mono text-[12.5px]">{stepTitle(step)}</span>
-              {step.latency_ms !== null && <Badge>{`${step.latency_ms} ms`}</Badge>}
-              {step.tokens ? <Badge>{`${step.tokens.toLocaleString('en-GB')} tokens`}</Badge> : null}
-            </div>
-            {step.kind === 'tool' && <JsonBlock label="Input" value={step.input} />}
-            <JsonBlock label="Output" value={step.output} />
-          </li>
-        ))}
-        {(run.status === 'pending' || run.status === 'running') && (
-          <li className="pl-3 text-[12px] text-muted-foreground" role="status">
-            Working…
-          </li>
-        )}
-      </ol>
+        <ol className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+          {run.steps.map((step) => (
+            <li key={step.id} className="relative border-l-2 border-border pl-3">
+              <span
+                aria-hidden="true"
+                className={`absolute -left-[5px] top-1.5 size-2 rounded-full ${step.kind === 'tool' ? 'bg-brand' : 'bg-chart-3'}`}
+              />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{step.kind === 'tool' ? 'Tool' : 'Model'}</span>
+                <span className="font-mono text-[12.5px]">{stepTitle(step)}</span>
+                {step.latency_ms !== null && <Badge className="font-mono">{`${step.latency_ms} ms`}</Badge>}
+                {step.tokens ? <Badge className="font-mono">{`${step.tokens.toLocaleString('en-GB')} tokens`}</Badge> : null}
+              </div>
+              {step.kind === 'tool' && <JsonBlock label="Input" value={step.input} />}
+              <JsonBlock label="Output" value={step.output} />
+            </li>
+          ))}
+          {(run.status === 'pending' || run.status === 'running') && (
+            <li className="pl-3 text-[12px] text-muted-foreground" role="status">
+              Working…
+            </li>
+          )}
+        </ol>
 
-      <p className="border-t border-border px-4 py-2.5 font-mono text-[11.5px] text-muted-foreground">{traceTotals(run.steps)}</p>
-    </aside>
+        <p className="border-t border-border px-4 py-2.5 font-mono text-[11.5px] text-muted-foreground">{traceTotals(run.steps)}</p>
+      </SheetContent>
+    </Sheet>
   )
 }

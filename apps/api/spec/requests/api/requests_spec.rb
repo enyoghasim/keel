@@ -123,6 +123,25 @@ RSpec.describe "Api::Requests", type: :request do
       ids = response.parsed_body["data"].map { _1["id"] }
       expect(ids).to eq([ mine.id ])
     end
+
+    it "loads workflow runs and step runs in a constant number of queries" do
+      company = create(:company)
+      requester = create(:person, company: company)
+      queries = lambda do
+        count = 0
+        counter = ->(*, payload) { count += 1 unless payload[:name] == "SCHEMA" }
+        ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
+          get "/api/companies/#{company.id}/requests"
+        end
+        count
+      end
+      2.times { create(:workflow_run, request: create(:request, company: company, requester: requester)) }
+      before_count = queries.call
+
+      5.times { create(:step_run, workflow_run: create(:workflow_run, request: create(:request, company: company, requester: requester))) }
+
+      expect(queries.call).to eq(before_count)
+    end
   end
 
   describe "GET /api/companies/:company_id/requests/:id" do
