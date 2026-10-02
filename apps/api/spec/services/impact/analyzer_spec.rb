@@ -81,6 +81,42 @@ RSpec.describe Impact::Analyzer do
     )
   end
 
+  it "flags an in-flight step run whose reference would now resolve to someone else" do
+    company = create(:company)
+    tunde = create(:person, company: company)
+    ada = create(:person, company: company)
+    ngozi = create(:person, company: company, manager: tunde)
+    request = create(:request, company: company, requester: ngozi)
+    workflow_run = create(:workflow_run, request: request, workflow: nil)
+    pending_step = create(:step_run, workflow_run: workflow_run, step_key: "manager", reference: "manager_of(requester)", resolved_person_id: tunde.id)
+
+    diff = [ { "op" => "change_manager", "person_id" => ngozi.id, "to" => ada.id } ]
+
+    report = described_class.call(snapshot: snapshot_for(company), diff: diff, scenarios: [], pending_step_runs: [ pending_step ])
+
+    expect(report.rerouted_in_flight.size).to eq(1)
+    in_flight = report.rerouted_in_flight.first
+    expect(in_flight[:step_run_id]).to eq(pending_step.id)
+    expect(in_flight[:before_person_ids]).to eq([ tunde.id ])
+    expect(in_flight[:after_person_ids]).to eq([ ada.id ])
+  end
+
+  it "does not flag an in-flight step already pinned to a concrete person" do
+    company = create(:company)
+    tunde = create(:person, company: company)
+    ada = create(:person, company: company)
+    ngozi = create(:person, company: company, manager: tunde)
+    request = create(:request, company: company, requester: ngozi)
+    workflow_run = create(:workflow_run, request: request, workflow: nil)
+    pending_step = create(:step_run, workflow_run: workflow_run, step_key: "approval", reference: "person:#{tunde.id}", resolved_person_id: tunde.id)
+
+    diff = [ { "op" => "change_manager", "person_id" => ngozi.id, "to" => ada.id } ]
+
+    report = described_class.call(snapshot: snapshot_for(company), diff: diff, scenarios: [], pending_step_runs: [ pending_step ])
+
+    expect(report.rerouted_in_flight).to eq([])
+  end
+
   it "reports nothing when the change doesn't affect any scenario's routing" do
     company = create(:company)
     manager = create(:person, company: company)
