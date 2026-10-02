@@ -26,6 +26,7 @@ function asTrace(call: McpCall): AgentRun {
     cost_usd: null,
     feedback: null,
     feedback_reason: null,
+    proposal_ids: [],
     created_at: call.created_at,
     steps: [{ id: call.id, position: 1, kind: 'tool', tool_name: call.tool_name, input: call.input, output: call.output, latency_ms: call.latency_ms, tokens: null }],
   }

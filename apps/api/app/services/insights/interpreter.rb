@@ -8,11 +8,12 @@ module Insights
   class Interpreter
     Result = Data.define(:query, :clarification)
 
-    def self.call(company:, question:, today: Date.current)
+    # Pass a block to learn what each ask cost (see Llm::StructuredAsk).
+    def self.call(company:, question:, today: Date.current, &on_cost)
       schema = Llm::SchemaRegistry.fetch("insight-query")
       chat = RubyLLM.chat.with_schema(schema)
 
-      data = Llm::StructuredAsk.call(chat: chat, schema: schema, prompt: prompt(company, question, today))
+      data = Llm::StructuredAsk.call(chat: chat, schema: schema, prompt: prompt(company, question, today), &on_cost)
       Result.new(query: data["query"], clarification: data["clarification"])
     end
 

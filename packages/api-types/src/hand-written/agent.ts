@@ -38,6 +38,8 @@ export interface AgentRun {
   feedback_reason: AgentFeedbackReason | null
   created_at: string
   steps: AgentStep[]
+  // Change proposals this run recorded (a proposal is not a change: it waits on /proposals).
+  proposal_ids: number[]
 }
 
 export type AgentChannelEvent = { event: 'run'; run: AgentRun } | { event: 'step'; step: AgentStep }

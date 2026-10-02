@@ -56,6 +56,17 @@ RSpec.describe Insights::Interpreter do
     })
   end
 
+  it "reports what each ask cost, retries included, so an eval run can count it" do
+    priced = ->(content, cost) { instance_double(RubyLLM::Message, content: content, cost: instance_double(RubyLLM::Cost, total: cost)) }
+    allow(chat).to receive(:ask).and_return(priced.call({ "query" => { "metric" => "salaries", "chart" => "bar" } }, 0.25),
+      priced.call({ "clarification" => "Which metric?" }, 0.5))
+    costs = []
+
+    described_class.call(company: company, question: "Average salary?", today: today) { costs << _1 }
+
+    expect(costs).to eq([ 0.25, 0.5 ])
+  end
+
   it "gives up with a validation error after a retry, rather than handing QueryBuilder an invalid object" do
     allow(chat).to receive(:ask).and_return(message_with({ "query" => { "metric" => "salaries", "chart" => "bar" } }))
 

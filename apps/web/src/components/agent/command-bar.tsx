@@ -13,7 +13,17 @@ import { useAgentRun } from './use-agent-run'
 
 const groupClass = 'text-[11px] text-muted-foreground [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5'
 
-function AgentTurn({ companyId, runId, onShowTrace }: { companyId: string; runId: number; onShowTrace: (runId: number) => void }) {
+function AgentTurn({
+  companyId,
+  runId,
+  onShowTrace,
+  onViewProposals,
+}: {
+  companyId: string
+  runId: number
+  onShowTrace: (runId: number) => void
+  onViewProposals: () => void
+}) {
   const run = useAgentRun(companyId, runId).data?.data
   if (!run) return <p className="px-4 py-6 text-[13px] text-muted-foreground">Loading…</p>
 
@@ -31,9 +41,16 @@ function AgentTurn({ companyId, runId, onShowTrace }: { companyId: string; runId
       {run.status === 'completed' && <p className="whitespace-pre-wrap text-[14px] leading-relaxed">{run.final_text}</p>}
       {run.status === 'completed' && <AnswerFeedback companyId={companyId} run={run} />}
       {run.status === 'failed' && <p className="text-[13px] text-destructive">{run.error_message}</p>}
-      <Button type="button" variant="outline" size="sm" onClick={() => onShowTrace(run.id)}>
-        Show trace ({run.steps.length} {run.steps.length === 1 ? 'step' : 'steps'})
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        {run.status === 'completed' && run.proposal_ids.length > 0 && (
+          <Button type="button" size="sm" onClick={onViewProposals}>
+            {run.proposal_ids.length === 1 ? 'View proposal' : 'View proposals'}
+          </Button>
+        )}
+        <Button type="button" variant="outline" size="sm" onClick={() => onShowTrace(run.id)}>
+          Show trace ({run.steps.length} {run.steps.length === 1 ? 'step' : 'steps'})
+        </Button>
+      </div>
     </section>
   )
 }
@@ -45,6 +62,7 @@ function Thread({
   sending,
   onSend,
   onShowTrace,
+  onViewProposals,
   onNewConversation,
 }: {
   companyId: string
@@ -52,6 +70,7 @@ function Thread({
   sending: boolean
   onSend: (message: string) => void
   onShowTrace: (runId: number) => void
+  onViewProposals: () => void
   onNewConversation: () => void
 }) {
   const [text, setText] = useState('')
@@ -68,7 +87,7 @@ function Thread({
     <div>
       <div className="max-h-[50vh] divide-y divide-border overflow-y-auto">
         {runs.map((run) => (
-          <AgentTurn key={run.id} companyId={companyId} runId={run.id} onShowTrace={onShowTrace} />
+          <AgentTurn key={run.id} companyId={companyId} runId={run.id} onShowTrace={onShowTrace} onViewProposals={onViewProposals} />
         ))}
         <div ref={bottom} />
       </div>
@@ -158,6 +177,10 @@ export function CommandBar({
               sending={ask.isPending}
               onSend={(message) => ask.mutate(message)}
               onShowTrace={onShowTrace}
+              onViewProposals={() => {
+                onOpenChange(false)
+                navigate({ to: '/proposals' })
+              }}
               onNewConversation={() => conversation.open(null)}
             />
             {ask.isError && <p className="border-t border-border px-4 py-2 text-[12px] text-destructive">{(ask.error as Error).message}</p>}

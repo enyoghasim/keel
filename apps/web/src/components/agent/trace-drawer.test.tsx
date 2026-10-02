@@ -16,6 +16,7 @@ const run: AgentRun = {
   cost_usd: null,
   feedback: null,
   feedback_reason: null,
+  proposal_ids: [],
   created_at: '2026-10-02T10:00:00Z',
   steps: [
     {

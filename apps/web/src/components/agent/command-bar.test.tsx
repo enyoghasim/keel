@@ -43,6 +43,7 @@ const pending: AgentRun = {
   feedback_reason: null,
   created_at: '2026-10-02T10:00:00Z',
   steps: [],
+  proposal_ids: [],
 }
 
 const toolStep = {
@@ -131,6 +132,44 @@ describe('CommandBar', () => {
     await user.click(within(answer).getByRole('button', { name: 'Show trace (1 step)' }))
     const trace = await screen.findByRole('dialog', { name: 'Agent trace' })
     expect(within(trace).getByText('check_policy')).toBeInTheDocument()
+  })
+
+  it('links an answer that made a proposal to the proposals page', async () => {
+    const user = userEvent.setup()
+    const proposed: AgentRun = { ...completed, proposal_ids: [3] }
+    mockApi({
+      'GET /api/companies/1/session': envelope(ngozi),
+      'GET /api/companies/1/agent_runs': envelope([proposed]),
+      'GET /api/companies/1/agent_runs?conversation_id=c1': envelope([proposed]),
+      'GET /api/companies/1/change_proposals': envelope([]),
+    })
+    const { router } = await renderApp('/assemble')
+
+    await user.click(screen.getByRole('button', { name: /ask keel or search/i }))
+    const bar = await screen.findByRole('dialog', { name: 'Ask Keel' })
+    await user.click(await within(bar).findByRole('option', { name: proposed.message }))
+    const answer = await within(bar).findByRole('region', { name: 'Agent answer' })
+    await user.click(within(answer).getByRole('button', { name: 'View proposal' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/proposals'))
+    expect(screen.queryByRole('dialog', { name: 'Ask Keel' })).not.toBeInTheDocument()
+  })
+
+  it('shows no proposal link on an answer that made none', async () => {
+    const user = userEvent.setup()
+    mockApi({
+      'GET /api/companies/1/session': envelope(ngozi),
+      'GET /api/companies/1/agent_runs': envelope([completed]),
+      'GET /api/companies/1/agent_runs?conversation_id=c1': envelope([completed]),
+    })
+    await renderApp('/assemble')
+
+    await user.click(screen.getByRole('button', { name: /ask keel or search/i }))
+    const bar = await screen.findByRole('dialog', { name: 'Ask Keel' })
+    await user.click(await within(bar).findByRole('option', { name: completed.message }))
+    const answer = await within(bar).findByRole('region', { name: 'Agent answer' })
+
+    expect(within(answer).queryByRole('button', { name: /view proposal/i })).not.toBeInTheDocument()
   })
 
   it('lets the person rate a finished answer', async () => {

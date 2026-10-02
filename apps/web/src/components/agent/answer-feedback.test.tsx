@@ -20,6 +20,7 @@ const run: AgentRun = {
   feedback_reason: null,
   created_at: '2026-10-02T10:00:00Z',
   steps: [],
+  proposal_ids: [],
 }
 
 function renderFeedback(current: AgentRun = run) {
