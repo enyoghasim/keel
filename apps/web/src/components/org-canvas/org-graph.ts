@@ -16,6 +16,8 @@ const SIBLING_GAP = 24
 const RANK_GAP = 40
 const STACK_GAP = 12
 const SPINE_INDENT = 28
+// A manager's reports wrap onto another row beyond this width, so a large department list doesn't run off as one line.
+const MAX_ROW_WIDTH = 1500
 
 const DEPARTMENT_COLORS = [
   'bg-chart-1/15 border-chart-1 text-chart-1',
@@ -45,6 +47,18 @@ interface Block {
   placed: Placed[]
   /** Centre of the manager's own card, relative to the block's left. */
   anchorX: number
+}
+
+const rowWidth = (row: Block[]) => row.reduce((sum, slot) => sum + slot.width, 0) + SIBLING_GAP * Math.max(0, row.length - 1)
+
+function wrapRows(slots: Block[]): Block[][] {
+  const rows: Block[][] = []
+  for (const slot of slots) {
+    const last = rows[rows.length - 1]
+    if (last && rowWidth([...last, slot]) <= MAX_ROW_WIDTH) last.push(slot)
+    else rows.push([slot])
+  }
+  return rows
 }
 
 /**
@@ -87,21 +101,24 @@ function layoutTree(people: Person[], peopleIds: Set<number>): Placed[] {
       if (!seen.has(leader.id)) slots.push(layout(leader))
     }
 
-    const rowWidth = slots.reduce((sum, slot) => sum + slot.width, 0) + SIBLING_GAP * Math.max(0, slots.length - 1)
-    const width = Math.max(rowWidth, NODE_WIDTH)
-    const rowLeft = (width - rowWidth) / 2
-    const childrenTop = NODE_HEIGHT + RANK_GAP
+    const rows = wrapRows(slots)
+    const rowWidths = rows.map((row) => rowWidth(row))
+    const width = Math.max(NODE_WIDTH, ...rowWidths)
 
     const placed: Placed[] = []
-    let cursor = rowLeft
-    for (const slot of slots) {
-      for (const item of slot.placed) placed.push({ id: item.id, x: cursor + item.x, y: childrenTop + item.y })
-      cursor += slot.width + SIBLING_GAP
-    }
+    let top = NODE_HEIGHT + RANK_GAP
+    rows.forEach((row, index) => {
+      let cursor = (width - rowWidths[index]) / 2
+      for (const slot of row) {
+        for (const item of slot.placed) placed.push({ id: item.id, x: cursor + item.x, y: top + item.y })
+        cursor += slot.width + SIBLING_GAP
+      }
+      top += Math.max(...row.map((s) => s.height)) + RANK_GAP
+    })
 
-    // The manager sits centred over the row; with nobody beneath, it is the whole block.
+    // The manager sits centred over the widest row; with nobody beneath, it is the whole block.
     placed.push({ id: String(person.id), x: (width - NODE_WIDTH) / 2, y: 0 })
-    const height = slots.length === 0 ? NODE_HEIGHT : childrenTop + Math.max(...slots.map((s) => s.height))
+    const height = rows.length === 0 ? NODE_HEIGHT : top - RANK_GAP
     return { width, height, placed, anchorX: width / 2 }
   }
 
@@ -155,6 +172,9 @@ export function buildOrgGraph(
       id: String(person.id),
       type: 'person',
       position: { x: position.x, y: position.y },
+      // Known up front, so the first fit-view has real bounds instead of waiting on measurement.
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
       data: {
         person,
         departmentName: department?.name ?? null,

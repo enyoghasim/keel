@@ -174,4 +174,17 @@ describe('buildOrgGraph compact layout', () => {
     expect(width / height).toBeLessThan(4)
     expect(width).toBeLessThan(3000)
   })
+
+  it('wraps a manager\'s many team leads onto further rows instead of one endless line', () => {
+    const people: Person[] = [person({ id: 1, name: 'Director' })]
+    for (let i = 0; i < 12; i += 1) {
+      people.push(person({ id: 10 + i, name: `Lead ${i}`, manager_id: 1 }), person({ id: 100 + i, name: `Member ${i}`, manager_id: 10 + i }))
+    }
+    const { nodes } = buildOrgGraph(people, [])
+    const leadTops = new Set(nodes.filter((n) => Number(n.id) >= 10 && Number(n.id) < 100).map((n) => n.position.y))
+    const right = Math.max(...nodes.map((n) => n.position.x + NODE_WIDTH))
+
+    expect(leadTops.size).toBeGreaterThan(1)
+    expect(right).toBeLessThan(2000)
+  })
 })
