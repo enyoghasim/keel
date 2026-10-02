@@ -12,7 +12,10 @@ module Agent
     MAX_TURNS = 8
     # How many earlier question-and-answer pairs of a conversation the model sees.
     HISTORY_TURNS = 5
-    TOOLS = [ Tools::SearchPeople, Tools::CheckPolicy, Tools::CreateRequest, Tools::RunInsight ].freeze
+    TOOLS = [
+      Tools::SearchPeople, Tools::OrgLookup, Tools::CheckPolicy, Tools::WhoApproves,
+      Tools::CreateRequest, Tools::ListMyRequests, Tools::RunInsight
+    ].freeze
 
     def self.call(agent_run, &on_step) = new(agent_run, on_step).call
 
@@ -106,6 +109,8 @@ module Agent
         - Always use tools for facts about people, policies, requests and numbers. Never guess.
         - Never state a policy outcome without calling check_policy first, and cite the handbook
           page it returns when there is one.
+        - Use who_approves for "who approves…" or "who is it waiting on" questions about a future request, and
+          list_my_requests for the status of requests already submitted.
         - Only call create_request when the person clearly asks to submit something. Never claim a
           request was submitted, approved or changed unless a tool result says so.
         - If a tool returns an error, explain it plainly instead of retrying the same call.
