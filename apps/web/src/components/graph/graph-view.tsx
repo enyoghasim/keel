@@ -43,7 +43,7 @@ export function GraphView({ companyId }: { companyId: string }) {
     selectedPerson?.manager_id != null ? (people.find((p) => p.id === selectedPerson.manager_id) ?? null) : null
 
   return (
-    <div className="flex items-start gap-4">
+    <div className="flex flex-col items-stretch gap-4 md:flex-row md:items-start">
       <div className="min-w-0 flex-1 space-y-3">
         <label className="flex w-fit items-center gap-2 text-[13px] font-medium">
           <input
