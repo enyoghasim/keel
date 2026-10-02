@@ -1,9 +1,5 @@
 import type { AgentStep } from 'api-types'
-
-function formatCost(usd: number) {
-  if (usd < 0.001) return '<$0.001'
-  return `$${usd.toFixed(usd >= 1 ? 2 : 3)}`
-}
+import { formatCost } from '../trust/format'
 
 // The trace footer: "4 steps · 2.1 s · 3,412 tokens · $0.006" (SPEC.md
 // section 9). The cost is left off when the model had no known pricing.

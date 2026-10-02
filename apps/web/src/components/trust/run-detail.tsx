@@ -3,10 +3,22 @@ import type { EvalResult, EvalRunWithResults, Envelope } from 'api-types'
 import { api } from '../../lib/api'
 import { caseQuestion } from './compare-runs'
 import { evalRunQueryKey } from './eval-query-keys'
-import { formatAccuracy } from './format'
+import { describeDiffEntry, describeMetrics, formatAccuracy } from './format'
 
 function json(value: unknown) {
   return JSON.stringify(value, null, 2)
+}
+
+function MetricsLine({ result }: { result: EvalResult }) {
+  const labels = describeMetrics(result.metrics)
+  if (labels.length === 0 && !result.metrics.judge_rationale) return null
+
+  return (
+    <div className="space-y-1">
+      {labels.length > 0 && <p className="font-mono text-[11.5px] text-muted-foreground">{labels.join(' · ')}</p>}
+      {result.metrics.judge_rationale && <p className="text-[12px] text-muted-foreground">Judge: {result.metrics.judge_rationale}</p>}
+    </div>
+  )
 }
 
 /** One case's failure: what was asked, what was expected, what came back, and which fields differed. */
@@ -14,11 +26,12 @@ function FailureDrilldown({ result }: { result: EvalResult }) {
   return (
     <div className="mt-2 space-y-2">
       {result.error_message && <p className="text-[12px] text-destructive">{result.error_message}</p>}
+      <MetricsLine result={result} />
       {result.diff.length > 0 && (
         <ul aria-label="Fields that differed" className="flex flex-wrap gap-1.5">
-          {result.diff.map((entry) => (
-            <li key={entry.field} className="rounded-full border border-destructive/30 bg-destructive-muted px-2 py-0.5 text-[11px] text-destructive">
-              {entry.field}
+          {result.diff.map((entry, index) => (
+            <li key={index} className="rounded-full border border-destructive/30 bg-destructive-muted px-2 py-0.5 text-[11px] text-destructive">
+              {describeDiffEntry(entry)}
             </li>
           ))}
         </ul>

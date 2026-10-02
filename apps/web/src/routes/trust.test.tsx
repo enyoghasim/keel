@@ -123,8 +123,61 @@ describe('/trust', () => {
     expect(within(detail).getByText('Failed (1)')).toBeInTheDocument()
     await user.click(within(detail).getByText('Leave days last fiscal quarter'))
     const differed = within(detail).getByRole('list', { name: 'Fields that differed' })
-    expect(within(differed).getByText('clarification')).toBeInTheDocument()
+    expect(within(differed).getByText(/^clarification: expected true, got/)).toBeInTheDocument()
     expect(within(detail).getByText('Passed (1)')).toBeInTheDocument()
+  })
+
+  it('shows stability, judge and cost on the scoreboard, and what each failing probe got wrong', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    const extraction = run(5, {
+      suite: 'policy_extraction',
+      accuracy: 0,
+      passed_count: 0,
+      cases_count: 1,
+      stability: 0.8667,
+      stability_samples: 5,
+      cost_usd: 0.0123,
+    })
+    const agent = run(4, { suite: 'agent', judge_score: 4.5, judge_agreement: 0.75 })
+    mockApi({
+      'GET /api/companies/1/session': envelope(person(['hr_admin'])),
+      'GET /api/companies/1/eval_runs': envelope([extraction, agent], { active_cases: { policy_extraction: 1, agent: 1 }, runnable_suites: ['policy_extraction', 'agent'] }),
+      'GET /api/companies/1/eval_runs/5': envelope({
+        ...extraction,
+        results: [
+          result('conf', 'ignored', false, {
+            input: { category: 'expense', passage: 'Engineers attending conferences are automatically approved up to €1,000.' },
+            metrics: { behaviour: 0.667, quotes_verified: 1, ambiguity_recall: 1 },
+            diff: [
+              {
+                field: 'behaviour',
+                probe: { 'payload.amount_eur': 1000 },
+                expected: 'auto_approve',
+                actual: 'require_approval (manager_of(requester))',
+              },
+            ],
+          }),
+        ],
+      }),
+    })
+
+    await renderApp('/trust')
+
+    const extractionCard = await screen.findByRole('region', { name: 'Policy extraction suite' })
+    const scores = within(extractionCard).getByRole('list', { name: 'Policy extraction scores' })
+    expect(within(scores).getByText('Stability 86.7% over 5 compiles')).toBeInTheDocument()
+    expect(within(scores).getByText('Cost $0.012')).toBeInTheDocument()
+    const agentScores = within(screen.getByRole('region', { name: 'Agent suite' })).getByRole('list', { name: 'Agent scores' })
+    expect(within(agentScores).getByText('Judge 4.5 / 5')).toBeInTheDocument()
+    expect(within(agentScores).getByText('Judge agrees with hand labels 75%')).toBeInTheDocument()
+
+    const detail = await screen.findByRole('region', { name: 'Run #5' })
+    await user.click(within(detail).getByText(/Engineers attending conferences/))
+    expect(within(detail).getByText('Behaviour 66.7% · Quotes verified 100% · Ambiguity recall 100%')).toBeInTheDocument()
+    expect(
+      within(detail).getByText('behaviour at payload.amount_eur=1000: expected auto_approve, got require_approval (manager_of(requester))'),
+    ).toBeInTheDocument()
   })
 
   it('starts a run and fills it in live from EvalChannel', async () => {

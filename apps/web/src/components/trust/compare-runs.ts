@@ -11,8 +11,14 @@ export interface RunComparison {
   unchanged: number
 }
 
+// What a case asked, whichever suite it belongs to: an insights question, an
+// agent message, or the start of a handbook passage.
 export function caseQuestion(result: EvalResult) {
-  return typeof result.input.question === 'string' ? result.input.question : result.case_key
+  const { question, message, passage } = result.input
+  if (typeof question === 'string') return question
+  if (typeof message === 'string') return message
+  if (typeof passage === 'string') return passage.length > 90 ? `${passage.slice(0, 90)}…` : passage
+  return result.case_key
 }
 
 /**
