@@ -13,7 +13,9 @@ module Api
     before_action :require_company_member!
 
     def index
-      recent = @company.agent_runs.where(person: current_person).includes(:agent_steps).order(created_at: :desc, id: :desc).limit(RECENT_LIMIT)
+      runs = @company.agent_runs.where(person: current_person)
+      runs = runs.where(conversation_id: params[:conversation_id]) if params[:conversation_id].present?
+      recent = runs.includes(:agent_steps).order(created_at: :desc, id: :desc).limit(RECENT_LIMIT)
       render_success(data: recent.map(&:as_payload))
     end
 
@@ -24,6 +26,11 @@ module Api
 
     def create
       agent_run = @company.agent_runs.new(person: current_person, message: params[:message].to_s.strip)
+      if params[:conversation_id].present?
+        return render_error(message: "That conversation doesn't exist.", status: :not_found) unless own_conversation?(params[:conversation_id])
+
+        agent_run.conversation_id = params[:conversation_id]
+      end
       return render_error(message: "Type a message first.", errors: agent_run.errors.full_messages) unless agent_run.save
 
       AgentJob.perform_later(agent_run.id)
@@ -31,6 +38,10 @@ module Api
     end
 
     private
+
+    def own_conversation?(conversation_id)
+      @company.agent_runs.where(person: current_person, conversation_id: conversation_id).exists?
+    end
 
     def require_company_member!
       return if performed? || current_person.company_id == @company.id

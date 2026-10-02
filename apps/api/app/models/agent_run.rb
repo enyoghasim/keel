@@ -11,7 +11,7 @@ class AgentRun < ApplicationRecord
   validates :message, presence: true
   validates :status, inclusion: { in: STATUSES }
 
-  FIELDS = %i[id person_id message status final_text total_tokens error_message created_at].freeze
+  FIELDS = %i[id conversation_id person_id message status final_text total_tokens error_message created_at].freeze
 
   # Shared by Api::AgentRunsController and AgentChannel.
   def as_payload = as_json(only: FIELDS).merge("steps" => agent_steps.map(&:as_payload))

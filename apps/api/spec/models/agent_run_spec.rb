@@ -17,4 +17,14 @@ RSpec.describe AgentRun, type: :model do
 
     expect(agent_run.reload.as_payload["steps"].map { _1["position"] }).to eq([ 1, 2 ])
   end
+
+  it "starts its own conversation unless it continues one, and exposes the conversation in its payload" do
+    first = create(:agent_run)
+    second = create(:agent_run, company: first.company, person: first.person, conversation_id: first.conversation_id)
+
+    expect(first.conversation_id).to be_present
+    expect(second.conversation_id).to eq(first.conversation_id)
+    expect(create(:agent_run).conversation_id).not_to eq(first.conversation_id)
+    expect(second.as_payload).to include("conversation_id" => first.conversation_id)
+  end
 end
