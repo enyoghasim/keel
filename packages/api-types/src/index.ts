@@ -25,3 +25,12 @@ export type {
 } from './hand-written/policy'
 export type { Condition, Action, Ambiguity } from './generated/policy-rules'
 export type { Request, RequestStatus, WorkflowRun, WorkflowRunStatus, StepRun, StepRunStatus } from './hand-written/request'
+export type {
+  Workflow,
+  WorkflowStatus,
+  WorkflowTrigger,
+  WorkflowStep,
+  WorkflowStepType,
+  WorkflowTestRunResult,
+  WorkflowTestRunStep,
+} from './hand-written/workflow'
