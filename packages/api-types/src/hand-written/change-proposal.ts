@@ -1,8 +1,7 @@
-// Mirrors Api::ChangeProposalsController::FIELDS and its #serialize_impact
-// (apps/api/app/controllers/api/change_proposals_controller.rb). Only "org"
-// diffs are implemented end to end today (SPEC.md section 10) — "rule" and
-// "workflow" kinds exist as statuses but have no diff shape wired up yet,
-// so OrgDiffOp is the only diff type, not ChangeProposal["diff"] in general.
+// Mirrors Api::ChangeProposalsController::FIELDS, #serialize_impact's
+// replacement Impact::OrgImpact and Impact::RuleImpact (apps/api/app/services/impact/).
+// "org" and "rule" proposals are implemented end to end (SPEC.md section 10);
+// "workflow" exists as a kind but has no diff shape or impact yet.
 //
 // This isn't generated from packages/schemas: that pipeline is for shapes
 // an LLM is allowed to produce, and change_proposals is a plain Rails
@@ -11,6 +10,7 @@ export type OrgDiffOp =
   | { op: 'change_manager'; person_id: number; from?: number; to: number | null }
   | { op: 'set_department_head'; department_id: number; to: number | null }
   | { op: 'assign_role'; person_id: number; role: string }
+  | { op: 'move_person'; person_id: number; department_id: number }
 
 // Mirrors Rules::Engine::Decision (apps/api/app/services/rules/engine.rb).
 export interface Decision {
@@ -49,19 +49,78 @@ export interface ImpactReport {
   override_reason?: string
 }
 
+// One rule as stored in a rule proposal's diff (Agent::Tools::ProposeRuleChange).
+// The rewritten rule keeps its original handbook quote and chunk.
+export interface RuleSnapshot {
+  key: string
+  priority: number
+  conditions: Record<string, unknown>
+  actions: Record<string, unknown>
+  source_quote: string
+  source_chunk_id: number
+}
+
+// Only the rules that change: before[i] and after[i] share a key.
+export interface RuleDiff {
+  policy_id: number
+  instruction: string
+  before: RuleSnapshot[]
+  after: RuleSnapshot[]
+}
+
+export interface BacktestFlip {
+  request_id: number | null
+  requester_id: number
+  payload: Record<string, unknown>
+  before: Decision['outcome']
+  after: Decision['outcome']
+}
+
+// Mirrors Impact::RuleImpact: past requests replayed through the old and
+// new rules. `summary` is a template sentence, not LLM text.
+export interface RuleImpactReport {
+  backtest: {
+    kind: string
+    total: number
+    flipped_count: number
+    flipped: BacktestFlip[]
+    summary: string
+  }
+}
+
 export type ChangeProposalKind = 'org' | 'rule' | 'workflow'
 export type ChangeProposalStatus = 'pending' | 'approved' | 'rejected'
 
-export interface ChangeProposal {
+interface ChangeProposalBase {
   id: number
   company_id: number
-  kind: ChangeProposalKind
   title: string
-  diff: OrgDiffOp[]
-  impact: ImpactReport
   proposed_by: 'agent' | 'user'
+  // The agent run (trace) that proposed it, when the agent did.
+  agent_run_id: number | null
   status: ChangeProposalStatus
   decided_by_id: number | null
   decided_at: string | null
   created_at: string
 }
+
+export interface OrgChangeProposal extends ChangeProposalBase {
+  kind: 'org'
+  diff: OrgDiffOp[]
+  impact: ImpactReport
+}
+
+export interface RuleChangeProposal extends ChangeProposalBase {
+  kind: 'rule'
+  diff: RuleDiff
+  impact: RuleImpactReport
+}
+
+// Reserved: the API accepts the kind but has no diff shape or impact yet.
+export interface WorkflowChangeProposal extends ChangeProposalBase {
+  kind: 'workflow'
+  diff: unknown
+  impact: Record<string, unknown>
+}
+
+export type ChangeProposal = OrgChangeProposal | RuleChangeProposal | WorkflowChangeProposal

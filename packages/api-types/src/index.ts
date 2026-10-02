@@ -7,7 +7,14 @@ export type {
   ChangeProposal,
   ChangeProposalKind,
   ChangeProposalStatus,
+  OrgChangeProposal,
+  RuleChangeProposal,
+  WorkflowChangeProposal,
   OrgDiffOp,
+  RuleDiff,
+  RuleSnapshot,
+  RuleImpactReport,
+  BacktestFlip,
   ImpactReport,
   ImpactClassification,
   ApprovalLoadChange,
@@ -46,4 +53,11 @@ export type {
   EvalRunsMeta,
   EvalChannelEvent,
 } from './hand-written/eval'
-export type { AgentRun, AgentRunStatus, AgentStep, AgentChannelEvent } from './hand-written/agent'
+export type {
+  AgentRun,
+  AgentRunStatus,
+  AgentStep,
+  AgentChannelEvent,
+  AgentFeedbackRating,
+  AgentFeedbackReason,
+} from './hand-written/agent'
