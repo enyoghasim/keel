@@ -11,7 +11,7 @@ module Evals
     }.freeze
 
     # Which prompt_versions key each suite's AI service reads.
-    PROMPT_KEYS = { "policy_extraction" => Assemble::PolicyExtractor::PROMPT_KEY }.freeze
+    PROMPT_KEYS = { "policy_extraction" => Assemble::PolicyExtractor::PROMPT_KEY, "agent" => Agent::Runner::PROMPT_KEY }.freeze
 
     def self.call(eval_run, &on_progress)
       run_case = SUITES.fetch(eval_run.suite) { raise ArgumentError, "the #{eval_run.suite} suite isn't runnable" }
@@ -96,7 +96,7 @@ module Evals
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       observed = nil
       ActiveRecord::Base.transaction(requires_new: true) do
-        observed = observe_agent(eval_run.company, eval_case)
+        observed = observe_agent(eval_run.company, eval_case, eval_run.prompt_version)
         raise ActiveRecord::Rollback
       end
 
@@ -121,7 +121,7 @@ module Evals
     end
     private_class_method :run_agent_case
 
-    def self.observe_agent(company, eval_case)
+    def self.observe_agent(company, eval_case, prompt_version)
       input = eval_case.input
       person = if input["person_email"]
         company.people.find_by(email: input["person_email"]) or raise ActiveRecord::RecordNotFound, "Nobody with the email #{input['person_email']} in this company"
@@ -135,7 +135,7 @@ module Evals
           status: "completed", created_at: (Array(input["history"]).size - i).hours.ago)
       end
       agent_run = company.agent_runs.create!(person: person, conversation_id: conversation_id, message: input.fetch("message"))
-      Agent::Runner.call(agent_run)
+      Agent::Runner.call(agent_run, prompt_version: prompt_version)
       agent_run.reload
 
       {

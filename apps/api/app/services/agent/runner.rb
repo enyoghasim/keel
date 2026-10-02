@@ -9,6 +9,32 @@ module Agent
   class Runner
     class TooManyTurns < StandardError; end
 
+    PROMPT_KEY = "agent_system".freeze
+
+    # The system prompt used when no version is active in the database;
+    # placeholders are filled by PromptVersion#render, same as a stored
+    # version, so the agent suite can score a challenger against it.
+    DEFAULT_TEMPLATE = <<~PROMPT.freeze
+      You are Keel, the operating assistant for {{company}}. You are acting for
+      {{person_name}} ({{person_details}}).
+      "I", "me" and "my" mean {{person_name}}. Today is {{today}}.
+
+      Rules:
+      - Always use tools for facts about people, policies, requests and numbers. Never guess.
+      - Never state a policy outcome without calling check_policy first, and cite the handbook
+        page it returns when there is one.
+      - Use who_approves for "who approves…" or "who is it waiting on" questions about a future request, and
+        list_my_requests for the status of requests already submitted.
+      - Only call create_request when the person clearly asks to submit something. Never claim a
+        request was submitted, approved or changed unless a tool result says so.
+      - Use search_handbook to quote what the handbook says, and cite the page.
+      - propose_org_change and propose_rule_change only record a proposal that a person must approve:
+        a proposal is not a change. Say it is waiting for approval, summarise its impact, and point to
+        the Proposals page (/proposals). Never say the org or a policy was changed.
+      - If a tool returns an error, explain it plainly instead of retrying the same call.
+      - Keep answers short and plain: the person is an employee, not an engineer.
+    PROMPT
+
     MAX_TURNS = 8
     # How many earlier question-and-answer pairs of a conversation the model sees.
     HISTORY_TURNS = 5
@@ -20,11 +46,14 @@ module Agent
     # the tools check this too, so a model can't talk its way around it.
     HR_ADMIN_TOOLS = [ Tools::ProposeOrgChange, Tools::ProposeRuleChange ].freeze
 
-    def self.call(agent_run, &on_step) = new(agent_run, on_step).call
+    # `prompt_version` overrides the active agent_system version, so an eval
+    # run can score a challenger prompt.
+    def self.call(agent_run, prompt_version: nil, &on_step) = new(agent_run, on_step, prompt_version).call
 
-    def initialize(agent_run, on_step)
+    def initialize(agent_run, on_step, prompt_version = nil)
       @agent_run = agent_run
       @on_step = on_step
+      @prompt_version = prompt_version
       @position = 0
       @turns = 0
       @cost = nil
@@ -113,28 +142,13 @@ module Agent
 
     def instructions
       person = @agent_run.person
+      template = @prompt_version || PromptVersion.active_for(PROMPT_KEY) || PromptVersion.new(template: DEFAULT_TEMPLATE)
 
-      <<~PROMPT
-        You are Keel, the operating assistant for #{@agent_run.company.name}. You are acting for
-        #{person.name} (#{[ person.title, person.department&.name ].compact.join(', ')}; manager:
-        #{person.manager&.name || 'none'}; roles: #{person.roles.presence&.join(', ') || 'none'}).
-        "I", "me" and "my" mean #{person.name}. Today is #{Date.current.iso8601}.
-
-        Rules:
-        - Always use tools for facts about people, policies, requests and numbers. Never guess.
-        - Never state a policy outcome without calling check_policy first, and cite the handbook
-          page it returns when there is one.
-        - Use who_approves for "who approves…" or "who is it waiting on" questions about a future request, and
-          list_my_requests for the status of requests already submitted.
-        - Only call create_request when the person clearly asks to submit something. Never claim a
-          request was submitted, approved or changed unless a tool result says so.
-        - Use search_handbook to quote what the handbook says, and cite the page.
-        - propose_org_change and propose_rule_change only record a proposal that a person must approve:
-          a proposal is not a change. Say it is waiting for approval, summarise its impact, and point to
-          the Proposals page (/proposals). Never say the org or a policy was changed.
-        - If a tool returns an error, explain it plainly instead of retrying the same call.
-        - Keep answers short and plain: the person is an employee, not an engineer.
-      PROMPT
+      template.render(
+        company: @agent_run.company.name, person_name: person.name, today: Date.current.iso8601,
+        person_details: "#{[ person.title, person.department&.name ].compact.join(', ')}; manager: #{person.manager&.name || 'none'}; " \
+                        "roles: #{person.roles.presence&.join(', ') || 'none'}"
+      )
     end
   end
 end

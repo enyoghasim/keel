@@ -219,6 +219,25 @@ RSpec.describe Evals::Runner do
       expect(eval_run.reload.cost_usd).to eq(BigDecimal("2.25"))
     end
 
+    it "runs the agent with the run's prompt version, or else the active one, recording which was used" do
+      add_agent_case
+      version = create(:prompt_version, key: "agent_system", version: 1, template: "Challenger for {{person_name}}")
+      active = create(:prompt_version, key: "agent_system", version: 2, template: "Active for {{person_name}}", active: true)
+      chat = script(check, { content: "Yes." })
+      eval_run.update!(prompt_version: version)
+
+      described_class.call(eval_run)
+
+      expect(chat.instructions).to eq("Challenger for Ngozi Okafor")
+
+      other_run = create(:eval_run, company: company, suite: "agent")
+      chat = script(check, { content: "Yes." })
+      described_class.call(other_run)
+
+      expect(chat.instructions).to eq("Active for Ngozi Okafor")
+      expect(other_run.reload.prompt_version).to eq(active)
+    end
+
     it "counts the judge's cost along with the agent's" do
       add_agent_case
       script(check.merge(tokens: [ 1_000_000, 0 ], model: "gpt-5.1"), { content: "Yes.", tokens: [ 0, 100_000 ], model: "gpt-5.1" })
