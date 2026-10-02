@@ -14,8 +14,10 @@ Write the RSpec example before the implementation. This is non-negotiable for an
 
 `app/services/` is split into two families (SPEC.md section 3) — keep new code on the correct side of the line:
 
-- **Deterministic** (`org/`, `rules/`, `workflows/`, `impact/`, `insights/`): no LLM calls, 100% unit-tested, pure Ruby. These make every decision.
-- **AI** (`assemble/`, `agent/`, `evals/`): call the LLM via `ruby_llm`, validate output against a `packages/schemas` schema with `json_schemer`, then hand structured data to the deterministic side. An AI service never decides an outcome itself.
+- **Deterministic** (`org/`, `rules/`, `workflows/`, `impact/`, `insights/query_builder.rb`): no LLM calls, 100% unit-tested, pure Ruby. These make every decision.
+- **AI** (`assemble/`, `agent/`, `evals/`, `insights/interpreter.rb`): call the LLM via `ruby_llm`, validate output against a `packages/schemas` schema with `json_schemer`, then hand structured data to the deterministic side. An AI service never decides an outcome itself.
+
+`insights/` is the one folder that holds both families, per SPEC.md section 3's tree: `Insights::Interpreter` (AI) only turns a question into a schema-validated query object, and `Insights::QueryBuilder` (deterministic) is the only thing that computes an answer from the database. Keep it that way — `interpreter.rb` reads only the vocabulary the LLM may filter on (department names, expense categories), never the records an answer is computed from, and nothing in `query_builder.rb` calls the LLM.
 
 Controllers stay thin: validate input, enqueue a job or call a service, render. Anything that touches an LLM runs in a Solid Queue job — web requests never wait on a model.
 

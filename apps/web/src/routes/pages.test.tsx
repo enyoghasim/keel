@@ -4,11 +4,6 @@ import { renderApp } from '../test/render-app'
 
 const pages = [
   {
-    path: '/insights',
-    heading: 'Insights',
-    note: /Insights::Interpreter and QueryBuilder/,
-  },
-  {
     path: '/trust',
     heading: 'Trust',
     note: /Evals::Runner and eval_runs/,
