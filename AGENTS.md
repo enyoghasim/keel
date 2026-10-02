@@ -26,5 +26,3 @@ Write the failing spec first, then the implementation. This matters most for the
 ## Commits
 
 Small, scoped commits — not one giant commit per feature. Scope each commit to the single subproject or concern you were working in; don't stage changes across unrelated apps/packages together. A task that touches two subprojects is multiple commits, not one.
-
-Don't hide AI involvement in commit authorship — co-author commits normally.
