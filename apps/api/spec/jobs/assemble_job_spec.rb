@@ -94,6 +94,17 @@ RSpec.describe AssembleJob, type: :job do
       )
   end
 
+  it "tells the page why it stopped, in words a person can act on, when a stage fails" do
+    allow(Assemble::CsvMapper).to receive(:call).and_raise(RubyLLM::ConfigurationError, "Missing configuration for OpenAI: openai_api_key")
+
+    expect { described_class.perform_now(company.id) }
+      .to have_broadcasted_to(company).from_channel(AssembleChannel)
+      .with(hash_including("event" => "failed", "data" => { "message" => Llm::Failure::NO_MODEL }))
+      .and raise_error(RubyLLM::ConfigurationError)
+
+    expect(company.reload.assemble_events.last["event"]).to eq("failed")
+  end
+
   it "skips stages already marked complete, for a retried job" do
     company.update!(assemble_completed_stages: %w[csv_mapping graph_building])
 

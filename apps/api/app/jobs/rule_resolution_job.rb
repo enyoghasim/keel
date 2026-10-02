@@ -25,6 +25,6 @@ class RuleResolutionJob < ApplicationJob
     resolution.update!(status: "failed", error_message: INVALID)
   rescue StandardError => e
     Rails.logger.error("[RuleResolutionJob] #{e.class}: #{e.message}")
-    resolution.update!(status: "failed", error_message: UNEXPECTED)
+    resolution.update!(status: "failed", error_message: Llm::Failure.message_for(e, fallback: UNEXPECTED))
   end
 end

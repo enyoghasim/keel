@@ -117,6 +117,14 @@ RSpec.describe Agent::Runner do
     expect(seen).to eq([ [ "llm", nil ], [ "tool", "search_people" ], [ "llm", nil ] ])
   end
 
+  it "tells a person the deployment has no model key, not RubyLLM::ConfigurationError" do
+    allow(RubyLLM).to receive(:chat).and_raise(RubyLLM::ConfigurationError, "Missing configuration for OpenAI: openai_api_key")
+
+    described_class.call(agent_run)
+
+    expect(agent_run.reload).to have_attributes(status: "failed", error_message: Llm::Failure::NO_MODEL)
+  end
+
   it "stops a run that keeps calling tools after 8 model turns, keeping the trace so far" do
     loop_turn = { tool_calls: [ { name: "search_people", arguments: { "query" => "Tunde" } } ] }
     script(*Array.new(10, loop_turn), { content: "never reached" })

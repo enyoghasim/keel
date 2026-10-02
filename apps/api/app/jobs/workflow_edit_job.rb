@@ -34,6 +34,6 @@ class WorkflowEditJob < ApplicationJob
     edit.update!(status: "failed", error_message: INVALID)
   rescue StandardError => e
     Rails.logger.error("[WorkflowEditJob] #{e.class}: #{e.message}")
-    edit.update!(status: "failed", error_message: UNEXPECTED)
+    edit.update!(status: "failed", error_message: Llm::Failure.message_for(e, fallback: UNEXPECTED))
   end
 end

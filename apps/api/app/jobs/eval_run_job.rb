@@ -12,7 +12,7 @@ class EvalRunJob < ApplicationJob
     end
   rescue StandardError => e
     Rails.logger.error("[EvalRunJob] #{e.class}: #{e.message}")
-    eval_run&.update!(status: "failed", finished_at: Time.current, error_message: "#{e.class}: #{e.message}")
+    eval_run&.update!(status: "failed", finished_at: Time.current, error_message: Llm::Failure.message_for(e, fallback: "#{e.class}: #{e.message}"))
   ensure
     broadcast_run(eval_run) if eval_run
   end

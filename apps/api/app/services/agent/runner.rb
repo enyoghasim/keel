@@ -72,7 +72,7 @@ module Agent
       fail!("Stopped after #{MAX_TURNS} model turns without a final answer.")
     rescue StandardError => e
       Rails.logger.error("[Agent::Runner] #{e.class}: #{e.message}")
-      fail!("#{e.class}: #{e.message}")
+      fail!(Llm::Failure.message_for(e, fallback: "#{e.class}: #{e.message}"))
     end
 
     private

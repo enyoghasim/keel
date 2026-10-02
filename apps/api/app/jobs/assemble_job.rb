@@ -9,6 +9,9 @@ class AssembleJob < ApplicationJob
   ALL_CATEGORIES = %w[leave expense remote equipment onboarding].freeze
   STAGES = %w[csv_mapping graph_building handbook_chunking policy_extraction workflow_generation].freeze
   REQUEST_KIND_CATEGORIES = %w[leave expense equipment].freeze
+  # The event stage names (SPEC.md section 6's event format) the page lists, by pipeline stage.
+  STAGES_TO_EVENT_STAGE = { "csv_mapping" => "csv", "graph_building" => "graph", "handbook_chunking" => "handbook",
+                            "policy_extraction" => "policies", "workflow_generation" => "workflows" }.freeze
 
   def perform(company_id)
     @company = Company.find(company_id)
@@ -19,9 +22,22 @@ class AssembleJob < ApplicationJob
     run_stage("handbook_chunking") { chunk_handbook }
     run_stage("policy_extraction") { extract_policies }
     run_stage("workflow_generation") { generate_workflows }
+  rescue StandardError => e
+    # Say why on the page (a stage that isn't done stays resumable), then fail as usual.
+    fail_with(e)
+    raise
   end
 
   private
+
+  def fail_with(error)
+    return unless @company
+
+    message = Llm::Failure.message_for(error, fallback: "Assemble stopped unexpectedly. Check the server logs, then try again.")
+    broadcast(stage: STAGES_TO_EVENT_STAGE.fetch(next_stage, "csv"), event: "failed", data: { message: message }, progress: 0)
+  end
+
+  def next_stage = STAGES.find { !@company.assemble_completed_stages.include?(_1) }
 
   def run_stage(name)
     return if @company.assemble_completed_stages.include?(name)

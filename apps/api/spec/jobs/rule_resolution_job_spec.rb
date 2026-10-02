@@ -39,12 +39,20 @@ RSpec.describe RuleResolutionJob, type: :job do
     expect(resolution.rule.reload.status).to eq("extracted")
   end
 
-  it "fails with a plain message when the model can't be reached, not with the raw error" do
-    allow(Assemble::AmbiguityResolver).to receive(:call).and_raise(RubyLLM::ConfigurationError, "Missing configuration for OpenAI: openai_api_key")
+  it "fails with a plain message on an unexpected error, not with the raw error" do
+    allow(Assemble::AmbiguityResolver).to receive(:call).and_raise(RuntimeError, "boom")
 
     described_class.perform_now(resolution.id)
 
     expect(resolution.reload.error_message).to eq(RuleResolutionJob::UNEXPECTED)
+  end
+
+  it "says the deployment has no model key rather than showing the configuration error" do
+    allow(Assemble::AmbiguityResolver).to receive(:call).and_raise(RubyLLM::ConfigurationError, "Missing configuration for OpenAI: openai_api_key")
+
+    described_class.perform_now(resolution.id)
+
+    expect(resolution.reload.error_message).to eq(Llm::Failure::NO_MODEL)
   end
 
   it "does nothing for a resolution that already finished" do
