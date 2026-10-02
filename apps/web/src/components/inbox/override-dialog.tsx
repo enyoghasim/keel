@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 // SPEC.md section 8: "Approve and Reject buttons and an override reason
 // field" — an approver can flip the engine's decision, but only with a
@@ -15,41 +17,28 @@ export function OverrideDialog({
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="text-[12.5px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-      >
+      <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)} className="text-muted-foreground">
         Override
-      </button>
+      </Button>
     )
   }
 
   return (
-    <div className="flex flex-1 items-start gap-2">
-      <input
+    <div className="flex flex-1 flex-wrap items-start gap-2">
+      <Input
         type="text"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         placeholder="Reason for overriding the engine's decision"
         aria-label="Reason for overriding the engine's decision"
-        className="flex-1 rounded border border-border bg-card px-2.5 py-1.5 text-[13px]"
+        className="min-w-48 flex-1"
       />
-      <button
-        type="button"
-        onClick={() => onSubmit(reason)}
-        disabled={reason.trim() === '' || pending}
-        className="shrink-0 rounded border border-border bg-card px-3 py-1.5 text-[12.5px] font-medium disabled:cursor-not-allowed disabled:opacity-40"
-      >
+      <Button type="button" variant="outline" onClick={() => onSubmit(reason)} disabled={reason.trim() === '' || pending}>
         Confirm override
-      </button>
-      <button
-        type="button"
-        onClick={() => setOpen(false)}
-        className="shrink-0 text-[12.5px] text-muted-foreground hover:text-foreground"
-      >
+      </Button>
+      <Button type="button" variant="ghost" onClick={() => setOpen(false)} className="text-muted-foreground">
         Cancel
-      </button>
+      </Button>
     </div>
   )
 }
