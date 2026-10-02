@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_100835) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_123839) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -112,6 +112,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_100835) do
     t.string "roles", default: [], null: false, array: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "password_digest"
     t.index ["company_id"], name: "index_people_on_company_id"
     t.index ["department_id"], name: "index_people_on_department_id"
     t.index ["manager_id"], name: "index_people_on_manager_id"
@@ -157,6 +158,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_100835) do
     t.datetime "updated_at", null: false
     t.index ["policy_id"], name: "index_rules_on_policy_id"
     t.index ["source_chunk_id"], name: "index_rules_on_source_chunk_id"
+  end
+
+  create_table "sessions", force: :cascade do |t|
+    t.bigint "person_id", null: false
+    t.string "token_digest", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["person_id"], name: "index_sessions_on_person_id"
+    t.index ["token_digest"], name: "index_sessions_on_token_digest", unique: true
   end
 
   create_table "source_documents", force: :cascade do |t|
@@ -223,6 +234,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_100835) do
   add_foreign_key "requests", "people", column: "requester_id"
   add_foreign_key "rules", "chunks", column: "source_chunk_id"
   add_foreign_key "rules", "policies"
+  add_foreign_key "sessions", "people"
   add_foreign_key "source_documents", "companies"
   add_foreign_key "step_runs", "people", column: "resolved_person_id"
   add_foreign_key "step_runs", "workflow_runs"

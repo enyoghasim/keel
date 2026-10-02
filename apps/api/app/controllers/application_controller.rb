@@ -1,4 +1,5 @@
 class ApplicationController < ActionController::API
+  include ActionController::Cookies
   include Renderable
 
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
@@ -12,5 +13,13 @@ class ApplicationController < ActionController::API
 
   def render_argument_error(exception)
     render_error(message: exception.message, status: :unprocessable_content)
+  end
+
+  def current_session
+    @current_session ||= Session.authenticate(cookies.signed[:keel_session])
+  end
+
+  def current_person
+    @current_person ||= current_session&.person
   end
 end

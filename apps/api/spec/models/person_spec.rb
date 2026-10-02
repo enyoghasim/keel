@@ -49,4 +49,19 @@ RSpec.describe Person, type: :model do
 
     expect(manager.direct_reports).to contain_exactly(report)
   end
+
+  describe "password" do
+    it "defaults to the demo password when none is given" do
+      person = create(:person)
+
+      expect(person.authenticate(Person::DEMO_PASSWORD)).to eq(person)
+    end
+
+    it "accepts an explicit password instead of the default" do
+      person = create(:person, password: "a-custom-password")
+
+      expect(person.authenticate("a-custom-password")).to eq(person)
+      expect(person.authenticate(Person::DEMO_PASSWORD)).to be_falsey
+    end
+  end
 end

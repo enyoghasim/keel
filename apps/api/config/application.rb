@@ -40,5 +40,9 @@ module Api
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # Needed for the signed session-token cookie (see Api::SessionsController
+    # and Session) — API-only mode strips cookie support by default.
+    config.middleware.use ActionDispatch::Cookies
   end
 end

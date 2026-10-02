@@ -7,6 +7,7 @@ Rails.application.routes.draw do
 
   namespace :api do
     resources :companies, only: [ :create, :show ] do
+      resource :session, only: [ :create, :show, :destroy ]
       resources :people, only: [ :index, :show ]
       resources :departments, only: [ :index, :show ]
       resources :policies, only: [ :index, :show ] do
