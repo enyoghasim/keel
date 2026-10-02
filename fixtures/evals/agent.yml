@@ -1,0 +1,114 @@
+# Agent eval suite (SPEC.md section 12): a message sent to the agent as a
+# named person (Nubo seed data), the tools it should and shouldn't call, and
+# the outcome fields the tools should report. Scored by Evals::AgentScorer
+# on tool selection and outcome; Evals::Judge grades the wording. An agent
+# case runs for real and is rolled back afterwards, so it never files a
+# request. `judge_label` on a case is a hand-written grade (1-5) used to
+# check how closely the judge agrees with a human. Load with
+# `bin/rails evals:load`.
+- key: ask_flight_needs_manager
+  input: { message: "Can I expense a €1,200 flight to RubyConf?", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: [check_policy]
+    forbidden_tools: [create_request]
+    outputs: { check_policy: { decision: require_approval } }
+    judge_label: { correctness: 5, citation: 4, clarity: 5, no_false_claims: 5 }
+
+- key: ask_small_expense_auto
+  input: { message: "Do I need approval to expense a €300 team lunch?", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: [check_policy]
+    forbidden_tools: [create_request]
+    outputs: { check_policy: { decision: auto_approve } }
+    judge_label: { correctness: 5, citation: 4, clarity: 5, no_false_claims: 5 }
+
+- key: ask_large_expense_finance
+  input: { message: "I want to expense €2,500 for a client offsite. Who has to sign off?", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: [check_policy]
+    forbidden_tools: [create_request]
+    outputs: { check_policy: { decision: require_approval } }
+
+- key: ask_late_leave_declined
+  input: { message: "Can I take 10 days off starting in 5 days?", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: [check_policy]
+    forbidden_tools: [create_request]
+    outputs: { check_policy: { decision: reject } }
+    judge_label: { correctness: 5, citation: 5, clarity: 4, no_false_claims: 5 }
+
+- key: who_approves_my_leave
+  input: { message: "Who approves my leave if I take next week off?", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: [who_approves]
+    forbidden_tools: [create_request]
+    outputs: { who_approves: { outcome: require_approval } }
+
+- key: act_request_leave
+  input: { message: "Request 5 days of leave starting in three weeks.", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: [create_request]
+    outputs: { create_request: { kind: leave, status: pending } }
+    judge_label: { correctness: 5, citation: 3, clarity: 5, no_false_claims: 5 }
+
+- key: org_who_is_my_manager
+  input: { message: "Who is my manager?", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: []
+    forbidden_tools: [create_request, propose_org_change]
+
+- key: lookup_person_reports
+  input: { message: "Who reports to Tunde Bakare?", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: [search_people]
+    forbidden_tools: [create_request]
+
+- key: handbook_remote_policy
+  input: { message: "What does the handbook say about remote work?", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: [search_handbook]
+    forbidden_tools: [create_request]
+
+- key: employee_cannot_propose_change
+  input: { message: "Move Ngozi Eze under Ada Nwosu.", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: []
+    forbidden_tools: [propose_org_change, propose_rule_change, create_request]
+
+- key: hr_proposes_org_change
+  input: { message: "Make Ada Nwosu the new head of Sales.", person_email: ifeoma.adeyemi@nubo.test }
+  expected:
+    tools: [propose_org_change]
+    forbidden_tools: [create_request]
+    outputs: { propose_org_change: { status: pending } }
+    judge_label: { correctness: 5, citation: 3, clarity: 4, no_false_claims: 5 }
+
+- key: hr_proposes_rule_change
+  input: { message: "Raise the auto-approve limit for expenses from €500 to €800.", person_email: ifeoma.adeyemi@nubo.test }
+  expected:
+    tools: [propose_rule_change]
+    forbidden_tools: [create_request]
+    outputs: { propose_rule_change: { status: pending } }
+
+- key: insight_leave_by_department
+  input: { message: "Show me leave days by department last quarter.", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: [run_insight]
+    forbidden_tools: [create_request]
+
+- key: list_my_requests_status
+  input: { message: "What's the status of my requests?", person_email: ngozi.eze@nubo.test }
+  expected:
+    tools: [list_my_requests]
+    forbidden_tools: [create_request]
+
+- key: followup_after_greeting
+  input:
+    message: "And what about €2,000?"
+    person_email: ngozi.eze@nubo.test
+    history:
+      - { message: "Can I expense a €300 lunch?", final_text: "Yes, expenses of €500 or less are approved automatically." }
+  expected:
+    tools: [check_policy]
+    forbidden_tools: [create_request]
+    outputs: { check_policy: { decision: require_approval } }

@@ -83,4 +83,30 @@ RSpec.describe Rules::ConflictDetector do
 
     expect(described_class.call([ a, b ])).to eq([])
   end
+
+  describe ".probe_contexts" do
+    # The same boundary probing conflict detection uses, over any set of
+    # rules — what the eval harness scores compiled rules with.
+    it "crosses every threshold's boundary ±1 with every categorical value, across all the rules given" do
+      engineering_conference = rule(
+        key: "conf", priority: 10, decision: "auto_approve",
+        conditions: { "all" => [
+          { "field" => "requester.department", "op" => "eq", "value" => "Engineering" },
+          { "field" => "payload.amount_eur", "op" => "lte", "value" => 1000 }
+        ] }
+      )
+      sales = rule(key: "sales", priority: 1, decision: "require_approval",
+        conditions: { "field" => "requester.department", "op" => "eq", "value" => "Sales" })
+
+      probes = described_class.probe_contexts([ engineering_conference, sales ])
+
+      expect(probes.size).to eq(6) # 2 departments x (999, 1000, 1001)
+      expect(probes).to include({ "requester.department" => "Engineering", "payload.amount_eur" => 1000 })
+      expect(probes).to include({ "requester.department" => "Sales", "payload.amount_eur" => 1001 })
+    end
+
+    it "returns no probes when no rule has a condition" do
+      expect(described_class.probe_contexts([])).to eq([])
+    end
+  end
 end

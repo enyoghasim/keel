@@ -17,6 +17,9 @@ export interface AgentStep {
   tokens: number | null
 }
 
+export type AgentFeedbackRating = 'up' | 'down'
+export type AgentFeedbackReason = 'wrong_answer' | 'wrong_action' | 'unclear' | 'other'
+
 // Runs sharing a conversation_id are one thread: the agent sees the
 // earlier questions and answers, each run keeping its own trace.
 export interface AgentRun {
@@ -27,7 +30,12 @@ export interface AgentRun {
   status: AgentRunStatus
   final_text: string | null
   total_tokens: number
+  // USD, from ruby_llm's per-model pricing; null when the model has none.
+  cost_usd: number | null
   error_message: string | null
+  // Thumbs up/down on the answer; the reason only for a thumbs-down.
+  feedback: AgentFeedbackRating | null
+  feedback_reason: AgentFeedbackReason | null
   created_at: string
   steps: AgentStep[]
 }

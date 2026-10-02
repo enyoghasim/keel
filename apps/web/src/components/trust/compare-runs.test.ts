@@ -10,6 +10,8 @@ function result(caseKey: string, passed: boolean): EvalResult {
     input: { question: `Question for ${caseKey}` },
     expected: {},
     passed,
+    score: null,
+    metrics: {},
     actual: null,
     diff: [],
     latency_ms: 100,

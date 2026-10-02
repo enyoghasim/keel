@@ -10,7 +10,7 @@ RSpec.describe "db/seeds.rb" do
   # once for the whole file instead of once per example (the examples only
   # read). Outside the per-example transaction, hence the explicit cleanup.
   before(:all) { load Rails.root.join("db/seeds.rb") }
-  after(:all) { ActiveRecord::Base.connection.execute("TRUNCATE companies RESTART IDENTITY CASCADE") }
+  after(:all) { ActiveRecord::Base.connection.execute("TRUNCATE companies, prompt_versions RESTART IDENTITY CASCADE") }
 
   let(:company) { Company.find_by!(name: "Nubo Logistics") }
 

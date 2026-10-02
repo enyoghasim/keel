@@ -27,6 +27,8 @@ export function describeDiffOp(
     }
     case 'set_department_head':
       return `${departmentLabel(departments, op.department_id)}'s head becomes ${personLabel(people, op.to)}`
+    case 'move_person':
+      return `${personLabel(people, op.person_id)} moves to ${departmentLabel(departments, op.department_id)}`
     case 'assign_role':
       return `${personLabel(people, op.person_id)} is assigned the role "${op.role}"`
   }

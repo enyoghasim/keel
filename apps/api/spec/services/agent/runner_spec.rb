@@ -42,6 +42,25 @@ RSpec.describe Agent::Runner do
     expect(steps.map(&:latency_ms)).to all(be >= 0)
   end
 
+  it "records what the run cost, from ruby_llm's per-message pricing" do
+    script(
+      { tool_calls: [ { name: "check_policy", arguments: { "request_kind" => "expense", "payload" => { "amount_eur" => 1200 } } } ], tokens: [ 1_000_000, 0 ], model: "gpt-5.1" },
+      { content: "Yes.", tokens: [ 0, 100_000 ], model: "gpt-5.1" }
+    )
+
+    described_class.call(agent_run)
+
+    expect(agent_run.reload.cost_usd).to eq(BigDecimal("2.25")) # $1.25 for 1M input + $1.00 for 100k output
+  end
+
+  it "leaves the cost unknown when the model has no pricing" do
+    script({ content: "Hi!" })
+
+    described_class.call(agent_run)
+
+    expect(agent_run.reload.cost_usd).to be_nil
+  end
+
   it "tells the model who it's acting for, the date, the company, and the rules of behaviour" do
     chat = script({ content: "Hi!" })
 
@@ -49,8 +68,18 @@ RSpec.describe Agent::Runner do
 
     expect(chat.instructions).to include("Nubo", "Ngozi Okafor", "Account Executive", "Sales", "Tunde Bakare", "sales_lead", "2026-10-02")
     expect(chat.instructions).to include("Never state a policy outcome without calling check_policy")
-    expect(chat.tools.keys).to contain_exactly("search_people", "check_policy", "create_request", "run_insight", "org_lookup", "who_approves", "list_my_requests")
+    expect(chat.tools.keys).to contain_exactly("search_people", "check_policy", "create_request", "run_insight", "org_lookup", "who_approves", "list_my_requests", "search_handbook")
     expect(chat.asked).to eq("Can I expense a €1,200 flight to RubyConf?")
+  end
+
+  it "offers the change-proposing tools only to an hr_admin, and tells the model never to call a proposal a change" do
+    agent_run.person.update!(roles: [ "hr_admin" ])
+    chat = script({ content: "Hi!" })
+
+    described_class.call(agent_run)
+
+    expect(chat.tools.keys).to include("propose_org_change", "propose_rule_change")
+    expect(chat.instructions).to include("a proposal is not a change")
   end
 
   it "streams each step as it's recorded" do

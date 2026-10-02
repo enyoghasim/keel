@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { ChangeProposal, Department, Person } from 'api-types'
+import type { Department, OrgChangeProposal, Person, RuleChangeProposal } from 'api-types'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
@@ -47,7 +47,7 @@ const departments: Department[] = [
   { id: 20, name: 'Operations', head_id: 2 },
 ]
 
-const cleanProposal: ChangeProposal = {
+const cleanProposal: OrgChangeProposal = {
   id: 1,
   company_id: 1,
   kind: 'org',
@@ -67,13 +67,14 @@ const cleanProposal: ChangeProposal = {
     rerouted_in_flight: [],
   },
   proposed_by: 'agent',
+  agent_run_id: null,
   status: 'pending',
   decided_by_id: null,
   decided_at: null,
   created_at: '2026-01-01T00:00:00Z',
 }
 
-const brokenProposal: ChangeProposal = {
+const brokenProposal: OrgChangeProposal = {
   id: 2,
   company_id: 1,
   kind: 'org',
@@ -93,10 +94,58 @@ const brokenProposal: ChangeProposal = {
     rerouted_in_flight: [],
   },
   proposed_by: 'user',
+  agent_run_id: null,
   status: 'pending',
   decided_by_id: null,
   decided_at: null,
   created_at: '2026-01-02T00:00:00Z',
+}
+
+const ruleProposal: RuleChangeProposal = {
+  id: 3,
+  company_id: 1,
+  kind: 'rule',
+  title: 'Expense Policy: Raise the limit to €800',
+  proposed_by: 'agent',
+  agent_run_id: 5,
+  status: 'pending',
+  decided_by_id: null,
+  decided_at: null,
+  created_at: '2026-01-03T00:00:00Z',
+  diff: {
+    policy_id: 1,
+    instruction: 'Raise the limit to €800',
+    before: [
+      {
+        key: 'expense_small_auto',
+        priority: 10,
+        conditions: { field: 'payload.amount_eur', op: 'lte', value: 500 },
+        actions: { decision: 'auto_approve' },
+        source_quote: 'Expenses up to €500 are auto-approved.',
+        source_chunk_id: 1,
+      },
+    ],
+    after: [
+      {
+        key: 'expense_small_auto',
+        priority: 10,
+        conditions: { field: 'payload.amount_eur', op: 'lte', value: 800 },
+        actions: { decision: 'auto_approve' },
+        source_quote: 'Expenses up to €500 are auto-approved.',
+        source_chunk_id: 1,
+      },
+    ],
+  },
+  impact: {
+    backtest: {
+      kind: 'expense',
+      total: 4,
+      new_conflicts: [],
+      flipped_count: 1,
+      summary: 'This would have changed 1 of 4 past expense decisions: 1 would have been auto-approved instead of sent for approval.',
+      flipped: [{ request_id: 9, requester_id: 3, payload: { amount_eur: 700 }, before: 'require_approval', after: 'auto_approve' }],
+    },
+  },
 }
 
 const peopleRoute = { 'GET /api/companies/1/people': { body: { success: true, message: '', data: people } } }
@@ -233,6 +282,50 @@ describe('/proposals', () => {
     expect(await screen.findByText(/this proposal was approved/i)).toBeInTheDocument()
   })
 
+  it('shows people who are not hr_admins that a proposal awaits an HR admin, without decision buttons', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    mockApi({
+      'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [cleanProposal] } },
+      ...peopleRoute,
+      ...departmentsRoute,
+      'GET /api/companies/1/session': { body: { success: true, message: '', data: { ...currentPerson, roles: [] } } },
+    })
+
+    await renderApp('/proposals')
+    await user.click(await screen.findByRole('button', { name: /Move Ngozi under Ada/ }))
+
+    expect(screen.getByText(/waiting for an hr admin/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
+  })
+
+  it('sends the reason typed for a rejection, which the API turns into a candidate test case', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    const rejected = { ...cleanProposal, status: 'rejected' as const, decided_at: '2026-01-03T00:00:00Z' }
+    const fetchMock = mockApi({
+      'GET /api/companies/1/change_proposals': [
+        { body: { success: true, message: '', data: [cleanProposal] } },
+        { body: { success: true, message: '', data: [rejected] } },
+      ],
+      'POST /api/companies/1/change_proposals/1/reject': { body: { success: true, message: '', data: rejected } },
+      ...peopleRoute,
+      ...departmentsRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/proposals')
+    await user.click(await screen.findByRole('button', { name: /Move Ngozi under Ada/ }))
+    await user.type(screen.getByLabelText('Reason for rejecting (optional)'), 'Ada is on leave')
+    await user.click(screen.getByRole('button', { name: 'Reject' }))
+
+    await screen.findByText(/this proposal was rejected/i)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/companies/1/change_proposals/1/reject',
+      expect.objectContaining({ body: JSON.stringify({ reason: 'Ada is on leave' }) }),
+    )
+  })
+
   it('rejects a proposal and refreshes the list to show it decided', async () => {
     const user = userEvent.setup()
     setCurrentCompanyId('1')
@@ -255,5 +348,27 @@ describe('/proposals', () => {
     await user.click(await screen.findByRole('button', { name: 'Reject' }))
 
     expect(await screen.findByText(/this proposal was rejected/i)).toBeInTheDocument()
+  })
+
+  it('lists a rule proposal with its flipped count and expands it to the backtest, with Approve enabled', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    mockApi({
+      'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [ruleProposal] } },
+      ...peopleRoute,
+      ...departmentsRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/proposals')
+
+    expect(await screen.findByText(/Rule change · proposed by Keel agent/)).toBeInTheDocument()
+    expect(screen.getByText('1 decision flipped')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Raise the limit to €800/ }))
+
+    expect(await screen.findByText(/would have changed 1 of 4 past expense decisions/)).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'expense_small_auto after' })).toHaveTextContent('amount ≤ €800')
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled()
   })
 })

@@ -1,8 +1,10 @@
 import type { ChangeProposal, Department, Person } from 'api-types'
 import { useState } from 'react'
+import { Card } from '@/components/ui/card'
 import { ApproveRejectBar } from './approve-reject-bar'
 import { ImpactSummaryCards } from './impact-summary-cards'
 import { ProposalDiff } from './proposal-diff'
+import { RuleProposalDetails } from './rule-proposal-details'
 
 function Count({ label, value, danger }: { label: string; value: number; danger?: boolean }) {
   return (
@@ -29,19 +31,19 @@ export function ProposalRow({
   companyId,
   people,
   departments,
+  canDecide,
 }: {
   proposal: ChangeProposal
   companyId: string
   people: Map<number, Person>
   departments: Map<number, Department>
+  canDecide: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
-  const rerouted = proposal.impact.rerouted.length
-  const broken = proposal.impact.broken.length
-  const selfApproval = proposal.impact.self_approval.length
+  const broken = proposal.kind === 'org' ? proposal.impact.broken.length : 0
 
   return (
-    <div className="rounded-lg border border-border bg-card">
+    <Card className="gap-0 p-0">
       <button
         type="button"
         onClick={() => setExpanded((value) => !value)}
@@ -56,26 +58,46 @@ export function ProposalRow({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3 text-[12px] tabular-nums">
-          <Count label="rerouted" value={rerouted} />
-          <Count label="broken" value={broken} danger />
-          <Count label="self-approval" value={selfApproval} danger />
+          {proposal.kind === 'org' && (
+            <>
+              <Count label="rerouted" value={proposal.impact.rerouted.length} />
+              <Count label="broken" value={broken} danger />
+              <Count label="self-approval" value={proposal.impact.self_approval.length} danger />
+            </>
+          )}
+          {proposal.kind === 'rule' && <Count
+              label={proposal.impact.backtest.flipped_count === 1 ? 'decision flipped' : 'decisions flipped'}
+              value={proposal.impact.backtest.flipped_count}
+            />}
         </div>
       </button>
 
       {expanded && (
         <div className="space-y-4 border-t border-border px-4 py-4">
-          <ImpactSummaryCards rerouted={rerouted} broken={broken} selfApproval={selfApproval} />
+          {proposal.kind === 'org' && (
+            <>
+              <ImpactSummaryCards
+                rerouted={proposal.impact.rerouted.length}
+                broken={broken}
+                selfApproval={proposal.impact.self_approval.length}
+              />
 
-          <div>
-            <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              What changes
-            </h3>
-            <ProposalDiff diff={proposal.diff} people={people} departments={departments} />
-          </div>
+              <div>
+                <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  What changes
+                </h3>
+                <ProposalDiff diff={proposal.diff} people={people} departments={departments} />
+              </div>
+            </>
+          )}
+          {proposal.kind === 'rule' && <RuleProposalDetails proposal={proposal} people={people} />}
+          {proposal.kind === 'workflow' && (
+            <p className="text-[13px] text-muted-foreground">Workflow proposals can't be previewed yet.</p>
+          )}
 
-          <ApproveRejectBar companyId={companyId} proposal={proposal} brokenCount={broken} />
+          <ApproveRejectBar companyId={companyId} proposal={proposal} brokenCount={broken} canDecide={canDecide} />
         </div>
       )}
-    </div>
+    </Card>
   )
 }

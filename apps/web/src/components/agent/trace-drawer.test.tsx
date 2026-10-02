@@ -13,6 +13,9 @@ const run: AgentRun = {
   final_text: 'Yes, with Tunde’s approval.',
   total_tokens: 2070,
   error_message: null,
+  cost_usd: null,
+  feedback: null,
+  feedback_reason: null,
   created_at: '2026-10-02T10:00:00Z',
   steps: [
     {
@@ -51,6 +54,18 @@ describe('TraceDrawer', () => {
     expect(steps[1]).toHaveTextContent('14 ms')
     expect(steps[2]).toHaveTextContent('Model answer')
     expect(screen.getByText('3 steps · 2.1 s · 2,070 tokens')).toBeInTheDocument()
+  })
+
+  it('adds what the run cost to the footer, when it is known', () => {
+    render(<TraceDrawer run={{ ...run, cost_usd: 0.006123 }} onClose={() => {}} />)
+
+    expect(screen.getByText('3 steps · 2.1 s · 2,070 tokens · $0.006')).toBeInTheDocument()
+  })
+
+  it('shows a cost too small to round as "<$0.001", not "$0.000"', () => {
+    render(<TraceDrawer run={{ ...run, cost_usd: 0.0002 }} onClose={() => {}} />)
+
+    expect(screen.getByText('3 steps · 2.1 s · 2,070 tokens · <$0.001')).toBeInTheDocument()
   })
 
   it("reveals a tool call's input and output as JSON on demand", async () => {

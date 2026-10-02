@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { EvalChannelEvent, EvalRun, EvalRunWithResults, Envelope } from 'api-types'
 import { useCallback } from 'react'
 import { useChannel } from '../../lib/cable'
-import { evalRunQueryKey, evalRunsQueryKey } from './eval-query-keys'
+import { evalRunQueryKey, evalRunsQueryKey, promptVersionsQueryKey } from './eval-query-keys'
 
 /**
  * Follows one in-progress run over EvalChannel and folds each event into
@@ -25,6 +25,8 @@ export function EvalRunWatcher({ companyId, runId }: { companyId: string; runId:
         // missing some of them; once the run is over, reload it whole.
         if (event.run.status === 'completed' || event.run.status === 'failed') {
           queryClient.invalidateQueries({ queryKey: evalRunQueryKey(companyId, runId) })
+          // Each prompt version shows its latest completed run and the cases it would regress.
+          queryClient.invalidateQueries({ queryKey: promptVersionsQueryKey(companyId) })
         }
       } else {
         queryClient.setQueryData<Envelope<EvalRunWithResults>>(evalRunQueryKey(companyId, runId), (detail) => {

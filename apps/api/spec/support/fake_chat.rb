@@ -8,6 +8,7 @@ class FakeChat
   attr_reader :instructions, :tools, :asked, :history
 
   # turns: [{ tool_calls: [{ name:, arguments: }], tokens: [in, out] }, ..., { content: "final", tokens: [in, out] }]
+  # A turn may also carry model: "gpt-5.1", so ruby_llm can price its tokens.
   def initialize(turns)
     @turns = turns
     @tools = {}
@@ -34,7 +35,7 @@ class FakeChat
         calls = turn[:tool_calls].each_with_index.to_h do |call, j|
           [ "call_#{i}_#{j}", RubyLLM::ToolCall.new(id: "call_#{i}_#{j}", name: call[:name], arguments: call[:arguments]) ]
         end
-        run(:after_message, RubyLLM::Message.new(role: :assistant, content: "", tool_calls: calls, input_tokens: tokens[0], output_tokens: tokens[1]))
+        run(:after_message, RubyLLM::Message.new(role: :assistant, content: "", tool_calls: calls, input_tokens: tokens[0], output_tokens: tokens[1], model_id: turn[:model]))
 
         calls.each_value do |tool_call|
           run(:before_message)
@@ -45,7 +46,7 @@ class FakeChat
           run(:after_message, RubyLLM::Message.new(role: :tool, content: result, tool_call_id: tool_call.id))
         end
       else
-        reply = RubyLLM::Message.new(role: :assistant, content: turn.fetch(:content), input_tokens: tokens[0], output_tokens: tokens[1])
+        reply = RubyLLM::Message.new(role: :assistant, content: turn.fetch(:content), input_tokens: tokens[0], output_tokens: tokens[1], model_id: turn[:model])
         run(:after_message, reply)
         return reply
       end

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
+import { chooseOption } from '../test/choose-option'
 
 const expenseWorkflow: Workflow = {
   id: 5,
@@ -139,7 +140,7 @@ describe('/workflows', () => {
     await screen.findByText('Expense request submitted')
 
     await user.click(screen.getByRole('button', { name: 'Test run' }))
-    await user.selectOptions(await screen.findByLabelText('Requester'), 'Ngozi Doe')
+    await chooseOption(user, await screen.findByLabelText('Requester'), 'Ngozi Doe')
     await user.type(screen.getByLabelText('Amount (EUR)'), '1500')
     await user.click(screen.getByRole('button', { name: 'Run test' }))
 

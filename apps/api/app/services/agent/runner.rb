@@ -14,8 +14,11 @@ module Agent
     HISTORY_TURNS = 5
     TOOLS = [
       Tools::SearchPeople, Tools::OrgLookup, Tools::CheckPolicy, Tools::WhoApproves,
-      Tools::CreateRequest, Tools::ListMyRequests, Tools::RunInsight
+      Tools::CreateRequest, Tools::ListMyRequests, Tools::RunInsight, Tools::SearchHandbook
     ].freeze
+    # Only an hr_admin can propose org or policy changes (SPEC.md section 9);
+    # the tools check this too, so a model can't talk its way around it.
+    HR_ADMIN_TOOLS = [ Tools::ProposeOrgChange, Tools::ProposeRuleChange ].freeze
 
     def self.call(agent_run, &on_step) = new(agent_run, on_step).call
 
@@ -24,17 +27,18 @@ module Agent
       @on_step = on_step
       @position = 0
       @turns = 0
+      @cost = nil
     end
 
     def call
       @agent_run.update!(status: "running")
       context = Context.new(company: @agent_run.company, person: @agent_run.person, agent_run: @agent_run)
-      chat = RubyLLM.chat.with_instructions(instructions).with_tools(*TOOLS.map { _1.new(context) })
+      chat = RubyLLM.chat.with_instructions(instructions).with_tools(*tools.map { _1.new(context) })
       replay_history(chat)
       record_steps(chat)
 
       reply = chat.ask(@agent_run.message)
-      @agent_run.update!(status: "completed", final_text: reply.content, total_tokens: @agent_run.agent_steps.sum(:tokens))
+      @agent_run.update!(status: "completed", final_text: reply.content, total_tokens: @agent_run.agent_steps.sum(:tokens), cost_usd: @cost)
     rescue TooManyTurns
       fail!("Stopped after #{MAX_TURNS} model turns without a final answer.")
     rescue StandardError => e
@@ -43,6 +47,8 @@ module Agent
     end
 
     private
+
+    def tools = @agent_run.person.hr_admin? ? TOOLS + HR_ADMIN_TOOLS : TOOLS
 
     # Earlier turns of the conversation go back in as plain questions and
     # answers only — not their tool calls — so a follow-up like "and what
@@ -59,6 +65,7 @@ module Agent
       chat.after_message do |message|
         next unless message.role == :assistant
 
+        add_cost(message)
         record!(kind: "llm", tokens: message.input_tokens.to_i + message.output_tokens.to_i,
           output: { "content" => message.content.to_s, "tool_calls" => tool_calls_of(message) }.compact)
         @turns += 1 if message.tool_call?
@@ -73,13 +80,21 @@ module Agent
       end
     end
 
+    # ruby_llm prices each message from its token counts and the model's
+    # published rates; a model it has no pricing for contributes nothing, and
+    # a run with no priced message has no cost rather than a false $0.
+    def add_cost(message)
+      total = message.cost.total
+      @cost = (@cost || 0) + total if total
+    end
+
     def record!(**attrs)
       step = @agent_run.agent_steps.create!(position: @position += 1, latency_ms: ((now - @started) * 1000).round, **attrs)
       @on_step&.call(step)
     end
 
     def fail!(message)
-      @agent_run.update!(status: "failed", error_message: message, total_tokens: @agent_run.agent_steps.sum(:tokens))
+      @agent_run.update!(status: "failed", error_message: message, total_tokens: @agent_run.agent_steps.sum(:tokens), cost_usd: @cost)
     end
 
     def tool_calls_of(message)
@@ -113,6 +128,10 @@ module Agent
           list_my_requests for the status of requests already submitted.
         - Only call create_request when the person clearly asks to submit something. Never claim a
           request was submitted, approved or changed unless a tool result says so.
+        - Use search_handbook to quote what the handbook says, and cite the page.
+        - propose_org_change and propose_rule_change only record a proposal that a person must approve:
+          a proposal is not a change. Say it is waiting for approval, summarise its impact, and point to
+          the Proposals page (/proposals). Never say the org or a policy was changed.
         - If a tool returns an error, explain it plainly instead of retrying the same call.
         - Keep answers short and plain: the person is an employee, not an engineer.
       PROMPT

@@ -5,6 +5,7 @@ import type { Person, PolicyWithRules } from 'api-types'
 import { describe, expect, it } from 'vitest'
 import { mockApi } from '../../test/mock-api'
 import { PolicyDetail } from './policy-detail'
+import { chooseOption } from '../../test/choose-option'
 
 const policy: PolicyWithRules = {
   id: 5,
@@ -108,9 +109,8 @@ describe('PolicyDetail', () => {
 
     renderDetail()
     await screen.findByText(/Engineers may expense conferences up to €1,000\./)
-    await screen.findByRole('option', { name: 'Ngozi Doe' })
 
-    await user.selectOptions(screen.getByLabelText('Requester'), '1')
+    await chooseOption(user, screen.getByLabelText('Requester'), 'Ngozi Doe')
     await user.click(screen.getByRole('button', { name: 'Run test' }))
     await screen.findByText('Auto approve')
 

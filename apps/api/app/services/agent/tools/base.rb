@@ -6,6 +6,8 @@ module Agent
     # only ever sees the result as JSON; errors come back as {"error": ...}
     # so the model can explain or recover instead of the run crashing.
     class Base < RubyLLM::Tool
+      class PermissionError < StandardError; end
+
       REQUEST_KINDS = %w[expense leave equipment].freeze
 
       # The payload fields Rules::Engine understands (the policy-rules
@@ -35,6 +37,8 @@ module Agent
       def call(args)
         result = super
         (result.is_a?(Hash) ? result : { "result" => result }).to_json
+      rescue PermissionError => e
+        { "error" => e.message }.to_json
       rescue StandardError => e
         { "error" => "#{e.class.name.demodulize}: #{e.message}" }.to_json
       end
@@ -42,6 +46,12 @@ module Agent
       private
 
       attr_reader :context
+
+      # Write tools that change the org or its rules are for hr_admin only
+      # (SPEC.md section 9); the model gets the refusal as a normal error.
+      def require_hr_admin!(action)
+        raise PermissionError, "Only people with the hr_admin role can #{action}." unless person.hr_admin?
+      end
 
       def company = context.company
       def person = context.person

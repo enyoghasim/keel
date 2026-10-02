@@ -6,6 +6,7 @@ import type { Person } from 'api-types'
 import { describe, expect, it } from 'vitest'
 import { mockApi } from '../../test/mock-api'
 import { PolicyTester } from './policy-tester'
+import { chooseOption } from '../../test/choose-option'
 
 const people: Person[] = [
   {
@@ -51,8 +52,7 @@ describe('PolicyTester', () => {
 
     renderTester()
 
-    await screen.findByRole('option', { name: 'Ngozi Doe' })
-    await user.selectOptions(screen.getByLabelText('Requester'), '1')
+    await chooseOption(user, screen.getByLabelText('Requester'), 'Ngozi Doe')
     await user.type(screen.getByLabelText('Amount (EUR)'), '900')
     await user.type(screen.getByLabelText('Category'), 'conference')
     await user.click(screen.getByRole('button', { name: 'Run test' }))
@@ -77,8 +77,7 @@ describe('PolicyTester', () => {
 
     renderTester((result) => (lastResult = result))
 
-    await screen.findByRole('option', { name: 'Ngozi Doe' })
-    await user.selectOptions(screen.getByLabelText('Requester'), '1')
+    await chooseOption(user, screen.getByLabelText('Requester'), 'Ngozi Doe')
     await user.click(screen.getByRole('button', { name: 'Run test' }))
 
     await screen.findByText('Auto approve')
@@ -102,8 +101,7 @@ describe('PolicyTester', () => {
 
     renderTester()
 
-    await screen.findByRole('option', { name: 'Ngozi Doe' })
-    await user.selectOptions(screen.getByLabelText('Requester'), '1')
+    await chooseOption(user, screen.getByLabelText('Requester'), 'Ngozi Doe')
     await user.click(screen.getByRole('button', { name: 'Run test' }))
 
     expect(await screen.findByText('self-approval')).toBeInTheDocument()

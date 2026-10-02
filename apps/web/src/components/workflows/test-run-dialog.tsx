@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import type { Envelope, Person, WorkflowTestRunResult } from 'api-types'
 import { useState } from 'react'
 import { api } from '../../lib/api'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 /**
  * "Test run" (SPEC.md section 8): picks a requester and a payload, then
@@ -81,19 +82,18 @@ export function TestRunDialog({
             <label htmlFor="test-run-requester" className="block text-[12px] font-medium">
               Requester
             </label>
-            <select
-              id="test-run-requester"
-              value={requesterId}
-              onChange={(e) => setRequesterId(e.target.value)}
-              className="mt-1 block w-full rounded border border-border bg-background px-2.5 py-1.5 text-[13px]"
-            >
-              <option value="">Choose a person…</option>
-              {people.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                </option>
-              ))}
-            </select>
+            <Select value={requesterId} onValueChange={setRequesterId}>
+              <SelectTrigger id="test-run-requester" className="mt-1">
+                <SelectValue placeholder="Choose a person…" />
+              </SelectTrigger>
+              <SelectContent>
+                {people.map((person) => (
+                  <SelectItem key={person.id} value={String(person.id)}>
+                    {person.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

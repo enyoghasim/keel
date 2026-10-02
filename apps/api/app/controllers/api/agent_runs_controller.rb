@@ -28,6 +28,14 @@ module Api
       render_success(data: agent_run.as_payload)
     end
 
+    def feedback
+      agent_run = @company.agent_runs.where(person: current_person).find(params[:id])
+      Agent::Feedback.call(agent_run: agent_run, rating: params[:rating].to_s, reason: params[:reason], note: params[:note])
+      render_success(data: agent_run.reload.as_payload, message: "Thanks for the feedback.")
+    rescue ArgumentError => e
+      render_error(message: e.message)
+    end
+
     def create
       agent_run = @company.agent_runs.new(person: current_person, message: params[:message].to_s.strip)
       if params[:conversation_id].present?

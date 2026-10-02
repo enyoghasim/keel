@@ -40,6 +40,12 @@ describe('describeDiffOp', () => {
     )
   })
 
+  it('describes moving a person to another department', () => {
+    expect(describeDiffOp({ op: 'move_person', person_id: 1, department_id: 10 }, people, departments)).toBe(
+      'Tunde Bakare moves to Sales',
+    )
+  })
+
   it('falls back to a numbered label when a person is not in the lookup', () => {
     expect(describeDiffOp({ op: 'assign_role', person_id: 99, role: 'finance_lead' }, people, departments)).toBe(
       'Person #99 is assigned the role "finance_lead"',

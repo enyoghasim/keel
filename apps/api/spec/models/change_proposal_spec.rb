@@ -30,6 +30,13 @@ RSpec.describe ChangeProposal, type: :model do
     expect(create(:change_proposal).status).to eq("pending")
   end
 
+  it "links back to the agent run that proposed it, if any" do
+    agent_run = create(:agent_run)
+
+    expect(create(:change_proposal, agent_run: agent_run).agent_run).to eq(agent_run)
+    expect(build(:change_proposal, agent_run: nil)).to be_valid
+  end
+
   it "does not require a decider until one decides" do
     expect(build(:change_proposal, decided_by: nil, decided_at: nil)).to be_valid
   end
@@ -69,6 +76,18 @@ RSpec.describe ChangeProposal, type: :model do
       change_proposal.apply_org_diff!(company)
 
       expect(person.reload.roles).to eq([ "finance_lead" ])
+    end
+
+    it "applies a move_person operation to the real person record" do
+      company = create(:company)
+      sales = create(:department, company: company, name: "Sales")
+      person = create(:person, company: company)
+      change_proposal = create(:change_proposal, company: company,
+        diff: [ { "op" => "move_person", "person_id" => person.id, "department_id" => sales.id } ])
+
+      change_proposal.apply_org_diff!(company)
+
+      expect(person.reload.department_id).to eq(sales.id)
     end
 
     it "raises on an unknown operation" do

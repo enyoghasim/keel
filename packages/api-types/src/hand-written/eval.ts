@@ -10,7 +10,15 @@ export interface EvalRun {
   suite: EvalSuite
   status: EvalRunStatus
   model: string | null
+  prompt_version_id: number | null
   accuracy: number | null
+  // Mean pairwise behavioural agreement of repeated compiles (policy_extraction, when sampled).
+  stability: number | null
+  stability_samples: number
+  // Mean of the judge's 1-5 rubric scores (agent suite) and how closely it agrees with hand labels.
+  judge_score: number | null
+  judge_agreement: number | null
+  cost_usd: number | null
   cases_count: number
   passed_count: number
   started_at: string | null
@@ -20,10 +28,25 @@ export interface EvalRun {
 }
 
 // One field the scorer compared and found different (Evals::InsightsScorer).
+// policy_extraction entries may also carry the probe the rules disagreed on.
 export interface EvalDiffEntry {
   field: string
-  expected: unknown
-  actual: unknown
+  expected?: unknown
+  actual?: unknown
+  probe?: Record<string, unknown>
+  rule?: string
+}
+
+export interface EvalResultMetrics {
+  behaviour?: number
+  quotes_verified?: number
+  ambiguity_recall?: number
+  probes?: number
+  stability?: number
+  judge?: { correctness: number; citation: number; clarity: number; no_false_claims: number; mean: number }
+  judge_rationale?: string
+  judge_agreement?: number
+  cost_usd?: number
 }
 
 export interface EvalResult {
@@ -33,6 +56,8 @@ export interface EvalResult {
   input: Record<string, unknown>
   expected: Record<string, unknown>
   passed: boolean
+  score: number | null
+  metrics: EvalResultMetrics
   actual: Record<string, unknown> | null
   diff: EvalDiffEntry[]
   latency_ms: number | null
@@ -54,3 +79,35 @@ export interface EvalRunsMeta {
 export type EvalChannelEvent =
   | { event: 'run'; run: EvalRun }
   | { event: 'result'; result: EvalResult; done: number; total: number }
+
+export type EvalCaseSource = 'manual' | 'generated' | 'override'
+export type EvalCaseStatus = 'active' | 'candidate' | 'archived'
+
+// Api::EvalCasesController::FIELDS — the review queue lists candidates.
+export interface EvalCase {
+  id: number
+  suite: EvalSuite
+  key: string
+  input: Record<string, unknown>
+  expected: Record<string, unknown>
+  source: EvalCaseSource
+  status: EvalCaseStatus
+  notes: string | null
+  created_at: string
+}
+
+// Api::PromptVersionsController: `latest_run` is the version's latest
+// completed eval run; `regressions` the case keys it would regress against
+// the active version (null when it hasn't been evaluated yet).
+export interface PromptVersion {
+  id: number
+  key: string
+  version: number
+  model: string | null
+  active: boolean
+  notes: string | null
+  created_at: string
+  template?: string
+  latest_run: EvalRun | null
+  regressions: string[] | null
+}

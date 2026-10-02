@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_175000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -54,6 +54,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.uuid "conversation_id", default: -> { "gen_random_uuid()" }, null: false
+    t.string "feedback"
+    t.string "feedback_reason"
+    t.text "feedback_note"
+    t.decimal "cost_usd", precision: 10, scale: 6
     t.index ["company_id"], name: "index_agent_runs_on_company_id"
     t.index ["person_id", "conversation_id"], name: "index_agent_runs_on_person_id_and_conversation_id"
     t.index ["person_id"], name: "index_agent_runs_on_person_id"
@@ -86,6 +90,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
     t.datetime "decided_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "agent_run_id"
+    t.index ["agent_run_id"], name: "index_change_proposals_on_agent_run_id"
     t.index ["company_id"], name: "index_change_proposals_on_company_id"
     t.index ["decided_by_id"], name: "index_change_proposals_on_decided_by_id"
   end
@@ -142,6 +148,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
     t.text "error_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.decimal "score", precision: 5, scale: 4
+    t.jsonb "metrics", default: {}, null: false
     t.index ["eval_case_id"], name: "index_eval_results_on_eval_case_id"
     t.index ["eval_run_id", "eval_case_id"], name: "index_eval_results_on_eval_run_id_and_eval_case_id", unique: true
     t.index ["eval_run_id"], name: "index_eval_results_on_eval_run_id"
@@ -161,8 +169,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
     t.text "error_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "prompt_version_id"
+    t.integer "stability_samples", default: 0, null: false
+    t.decimal "stability", precision: 5, scale: 4
+    t.decimal "judge_score", precision: 4, scale: 2
+    t.decimal "cost_usd", precision: 10, scale: 6
+    t.decimal "judge_agreement", precision: 5, scale: 4
     t.index ["company_id"], name: "index_eval_runs_on_company_id"
     t.index ["person_id"], name: "index_eval_runs_on_person_id"
+    t.index ["prompt_version_id"], name: "index_eval_runs_on_prompt_version_id"
   end
 
   create_table "import_issues", force: :cascade do |t|
@@ -211,6 +226,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
     t.index ["manager_id"], name: "index_people_on_manager_id"
   end
 
+  create_table "personal_access_tokens", force: :cascade do |t|
+    t.bigint "person_id", null: false
+    t.string "name", null: false
+    t.string "token_digest", null: false
+    t.datetime "last_used_at"
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["person_id"], name: "index_personal_access_tokens_on_person_id"
+    t.index ["token_digest"], name: "index_personal_access_tokens_on_token_digest", unique: true
+  end
+
   create_table "policies", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.string "title", null: false
@@ -220,6 +247,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_policies_on_company_id"
+  end
+
+  create_table "prompt_versions", force: :cascade do |t|
+    t.string "key", null: false
+    t.integer "version", null: false
+    t.text "template", null: false
+    t.string "model"
+    t.boolean "active", default: false, null: false
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key", "version"], name: "index_prompt_versions_on_key_and_version", unique: true
+    t.index ["key"], name: "index_prompt_versions_one_active_per_key", unique: true, where: "active"
   end
 
   create_table "requests", force: :cascade do |t|
@@ -316,6 +356,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
   add_foreign_key "agent_runs", "companies"
   add_foreign_key "agent_runs", "people"
   add_foreign_key "agent_steps", "agent_runs"
+  add_foreign_key "change_proposals", "agent_runs"
   add_foreign_key "change_proposals", "companies"
   add_foreign_key "change_proposals", "people", column: "decided_by_id"
   add_foreign_key "chunks", "source_documents"
@@ -325,12 +366,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
   add_foreign_key "eval_results", "eval_runs"
   add_foreign_key "eval_runs", "companies"
   add_foreign_key "eval_runs", "people"
+  add_foreign_key "eval_runs", "prompt_versions"
   add_foreign_key "import_issues", "companies"
   add_foreign_key "insight_queries", "companies"
   add_foreign_key "insight_queries", "people"
   add_foreign_key "people", "companies"
   add_foreign_key "people", "departments"
   add_foreign_key "people", "people", column: "manager_id"
+  add_foreign_key "personal_access_tokens", "people"
   add_foreign_key "policies", "companies"
   add_foreign_key "requests", "companies"
   add_foreign_key "requests", "people", column: "requester_id"

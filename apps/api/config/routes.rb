@@ -4,6 +4,8 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
   mount ActionCable.server => "/cable"
+  # Keel's MCP server (SPEC.md section 13), authenticated by personal access token.
+  mount KeelMcp::Endpoint.new => "/mcp"
 
   namespace :api do
     resources :companies, only: [ :create, :show ] do
@@ -22,9 +24,16 @@ Rails.application.routes.draw do
         post :approve, on: :member
         post :reject, on: :member
       end
+      resources :personal_access_tokens, only: [ :index, :create, :destroy ]
       resources :insights, only: [ :index, :create, :show ]
       resources :eval_runs, only: [ :index, :create, :show ]
-      resources :agent_runs, only: [ :index, :create, :show ]
+      resources :eval_cases, only: [ :index, :update ]
+      resources :prompt_versions, only: [ :index, :show ] do
+        post :promote, on: :member
+      end
+      resources :agent_runs, only: [ :index, :create, :show ] do
+        post :feedback, on: :member
+      end
     end
 
     resources :step_runs, only: [] do
