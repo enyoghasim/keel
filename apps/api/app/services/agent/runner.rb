@@ -1,0 +1,103 @@
+module Agent
+  # The agent loop (SPEC.md section 9). The model only chooses tools and
+  # explains their results; every fact and every decision comes from a
+  # tool wrapping a deterministic service. ruby_llm runs the tool-calling
+  # loop itself — this class sets it up as the signed-in person, records
+  # every model reply and tool call as an AgentStep through ruby_llm's
+  # callbacks (the trace AGENTS.md rule 3 requires), and stops a run that
+  # won't converge.
+  class Runner
+    class TooManyTurns < StandardError; end
+
+    MAX_TURNS = 8
+    TOOLS = [ Tools::SearchPeople, Tools::CheckPolicy, Tools::CreateRequest, Tools::RunInsight ].freeze
+
+    def self.call(agent_run, &on_step) = new(agent_run, on_step).call
+
+    def initialize(agent_run, on_step)
+      @agent_run = agent_run
+      @on_step = on_step
+      @position = 0
+      @turns = 0
+    end
+
+    def call
+      @agent_run.update!(status: "running")
+      context = Context.new(company: @agent_run.company, person: @agent_run.person, agent_run: @agent_run)
+      chat = RubyLLM.chat.with_instructions(instructions).with_tools(*TOOLS.map { _1.new(context) })
+      record_steps(chat)
+
+      reply = chat.ask(@agent_run.message)
+      @agent_run.update!(status: "completed", final_text: reply.content, total_tokens: @agent_run.agent_steps.sum(:tokens))
+    rescue TooManyTurns
+      fail!("Stopped after #{MAX_TURNS} model turns without a final answer.")
+    rescue StandardError => e
+      Rails.logger.error("[Agent::Runner] #{e.class}: #{e.message}")
+      fail!("#{e.class}: #{e.message}")
+    end
+
+    private
+
+    def record_steps(chat)
+      chat.before_message { @started = now }
+      chat.after_message do |message|
+        next unless message.role == :assistant
+
+        record!(kind: "llm", tokens: message.input_tokens.to_i + message.output_tokens.to_i,
+          output: { "content" => message.content.to_s, "tool_calls" => tool_calls_of(message) }.compact)
+        @turns += 1 if message.tool_call?
+        raise TooManyTurns if @turns >= MAX_TURNS
+      end
+      chat.before_tool_call do |tool_call|
+        @tool_call = tool_call
+        @started = now
+      end
+      chat.after_tool_result do |result|
+        record!(kind: "tool", tool_name: @tool_call.name, input: @tool_call.arguments, output: parse(result))
+      end
+    end
+
+    def record!(**attrs)
+      step = @agent_run.agent_steps.create!(position: @position += 1, latency_ms: ((now - @started) * 1000).round, **attrs)
+      @on_step&.call(step)
+    end
+
+    def fail!(message)
+      @agent_run.update!(status: "failed", error_message: message, total_tokens: @agent_run.agent_steps.sum(:tokens))
+    end
+
+    def tool_calls_of(message)
+      return nil unless message.tool_call?
+
+      message.tool_calls.values.map { { "name" => _1.name, "arguments" => _1.arguments } }
+    end
+
+    def parse(result)
+      JSON.parse(result.to_s)
+    rescue JSON::ParserError
+      { "result" => result.to_s }
+    end
+
+    def now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+    def instructions
+      person = @agent_run.person
+
+      <<~PROMPT
+        You are Keel, the operating assistant for #{@agent_run.company.name}. You are acting for
+        #{person.name} (#{[ person.title, person.department&.name ].compact.join(', ')}; manager:
+        #{person.manager&.name || 'none'}; roles: #{person.roles.presence&.join(', ') || 'none'}).
+        "I", "me" and "my" mean #{person.name}. Today is #{Date.current.iso8601}.
+
+        Rules:
+        - Always use tools for facts about people, policies, requests and numbers. Never guess.
+        - Never state a policy outcome without calling check_policy first, and cite the handbook
+          page it returns when there is one.
+        - Only call create_request when the person clearly asks to submit something. Never claim a
+          request was submitted, approved or changed unless a tool result says so.
+        - If a tool returns an error, explain it plainly instead of retrying the same call.
+        - Keep answers short and plain: the person is an employee, not an engineer.
+      PROMPT
+    end
+  end
+end
