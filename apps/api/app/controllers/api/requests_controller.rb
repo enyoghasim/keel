@@ -12,7 +12,7 @@ module Api
     before_action :require_current_person!, only: [ :create ]
 
     def index
-      scope = @company.requests
+      scope = @company.requests.includes(workflow_run: :step_runs)
       scope = scope.where(requester_id: params[:requester_id]) if params[:requester_id].present?
       scope = scope.where(status: params[:status]) if params[:status].present?
       render_success(data: scope.map { serialize(_1) })
