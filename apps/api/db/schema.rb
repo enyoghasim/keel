@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_094320) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_100835) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -41,6 +41,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_094320) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "change_proposals", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "kind", null: false
+    t.string "title", null: false
+    t.jsonb "diff", default: [], null: false
+    t.jsonb "impact", default: {}, null: false
+    t.string "proposed_by", default: "user", null: false
+    t.string "status", default: "pending", null: false
+    t.bigint "decided_by_id"
+    t.datetime "decided_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_change_proposals_on_company_id"
+    t.index ["decided_by_id"], name: "index_change_proposals_on_decided_by_id"
   end
 
   create_table "chunks", force: :cascade do |t|
@@ -193,6 +209,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_094320) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "change_proposals", "companies"
+  add_foreign_key "change_proposals", "people", column: "decided_by_id"
   add_foreign_key "chunks", "source_documents"
   add_foreign_key "departments", "companies"
   add_foreign_key "departments", "people", column: "head_id"

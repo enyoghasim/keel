@@ -6,6 +6,7 @@ class Company < ApplicationRecord
   has_many :import_issues, dependent: :destroy
   has_many :source_documents, dependent: :destroy
   has_many :policies, dependent: :destroy
+  has_many :change_proposals, dependent: :destroy
   has_one_attached :roster_csv
 
   validates :name, presence: true
