@@ -292,6 +292,58 @@ RSpec.describe "Api::ChangeProposals", type: :request do
     end
   end
 
+  describe "approving a workflow proposal" do
+    let(:company) { create(:company) }
+    let(:hr) { create(:person, company: company, roles: [ "hr_admin" ]) }
+    let(:approval) { { "key" => "approval", "type" => "approval", "assignee" => "manager_of(requester)" } }
+    let(:workflow) { create(:workflow, company: company, steps: [ approval ]) }
+    let(:it_step) { { "key" => "it_setup", "type" => "task", "assignee" => "role:it_admin" } }
+    let(:diff) { { "workflow_id" => workflow.id, "instruction" => "IT sets up accounts", "before" => [ approval ], "after" => [ approval, it_step ] } }
+    let(:proposal) { create(:change_proposal, company: company, kind: "workflow", diff: diff, impact: { "broken" => [] }) }
+
+    before do
+      create(:person, company: company, manager: hr)
+      sign_in(hr)
+    end
+
+    it "replaces the workflow's steps, bumps its version and re-runs the impact" do
+      create(:person, company: company, manager: hr, roles: [ "it_admin" ])
+
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(proposal.reload).to have_attributes(status: "approved", decided_by_id: hr.id)
+      expect(proposal.impact["steps"]).to include("added" => [ "it_setup" ])
+      expect(workflow.reload).to have_attributes(steps: [ approval, it_step ], version: 2)
+    end
+
+    it "refuses when the workflow changed since the proposal was made" do
+      proposal
+      workflow.update!(steps: [ approval, { "key" => "other", "type" => "notify", "assignee" => "role:hr_admin" } ])
+
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["message"]).to match(/changed since/)
+      expect(proposal.reload.status).to eq("pending")
+    end
+
+    it "refuses when the impact got worse, unless approved anyway with a reason" do
+      # Nobody holds role:it_admin now, though the proposal was made when someone did.
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", as: :json
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["message"]).to match(/impact has gotten worse/)
+      expect(workflow.reload.steps).to eq([ approval ])
+
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve",
+        params: { approve_anyway: true, reason: "IT admin starts Monday" }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(proposal.reload.impact["override_reason"]).to eq("IT admin starts Monday")
+      expect(workflow.reload.steps).to eq([ approval, it_step ])
+    end
+  end
+
   describe "who may decide" do
     it "forbids anyone but an hr_admin from approving or rejecting, leaving the proposal pending" do
       company = create(:company)

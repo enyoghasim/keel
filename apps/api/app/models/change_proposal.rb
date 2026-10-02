@@ -22,6 +22,23 @@ class ChangeProposal < ApplicationRecord
     end
   end
 
+  # Applies a workflow proposal (SPEC.md section 10): replaces the
+  # workflow's steps and bumps its version. Refuses with StaleDiff if the
+  # steps it was computed against have since changed.
+  def apply_workflow_diff!(company)
+    workflow = current_workflow!(company)
+    workflow.update!(steps: diff.fetch("after"), version: workflow.version + 1)
+  end
+
+  # The workflow this proposal targets, if its steps still match what the
+  # proposal was computed against.
+  def current_workflow!(company)
+    workflow = company.workflows.find(diff.fetch("workflow_id"))
+    raise StaleDiff, "workflow #{workflow.name} has changed since this proposal was made" unless workflow.steps == diff.fetch("before")
+
+    workflow
+  end
+
   # Applies a rule proposal (SPEC.md section 10): each rewritten rule's
   # current version is superseded and replaced by a new active one that
   # keeps the original handbook source, and the policy's version is bumped.
