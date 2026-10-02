@@ -1,6 +1,8 @@
 import { createRoute } from '@tanstack/react-router'
 import { PageHeader } from '../components/layout/page-header'
 import { PagePlaceholder } from '../components/layout/page-placeholder'
+import { WorkflowsView } from '../components/workflows/workflows-view'
+import { getCurrentCompanyId } from '../lib/current-company'
 import { Route as rootRoute } from './__root'
 
 export const Route = createRoute({
@@ -10,13 +12,19 @@ export const Route = createRoute({
 })
 
 function WorkflowsPage() {
+  const companyId = getCurrentCompanyId()
+
   return (
     <>
       <PageHeader
         title="Workflows"
         subtitle="How a request moves from submission to done. Steps use role references, resolved when each becomes active."
       />
-      <PagePlaceholder note="FlowCanvas lands once Workflows::Runtime and the workflow steps endpoint exist." />
+      {companyId ? (
+        <WorkflowsView companyId={companyId} />
+      ) : (
+        <PagePlaceholder note="No company yet — assemble one on the Assemble page first." />
+      )}
     </>
   )
 }

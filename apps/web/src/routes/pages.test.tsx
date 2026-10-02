@@ -4,11 +4,6 @@ import { renderApp } from '../test/render-app'
 
 const pages = [
   {
-    path: '/workflows',
-    heading: 'Workflows',
-    note: /Workflows::Runtime and the workflow steps endpoint/,
-  },
-  {
     path: '/insights',
     heading: 'Insights',
     note: /Insights::Interpreter and QueryBuilder/,
