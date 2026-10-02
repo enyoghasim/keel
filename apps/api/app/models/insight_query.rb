@@ -11,4 +11,10 @@ class InsightQuery < ApplicationRecord
 
   validates :question, presence: true
   validates :status, inclusion: { in: STATUSES }
+
+  FIELDS = %i[id person_id question status query clarification result error_message created_at].freeze
+
+  # The one shape Api::InsightsController renders and InsightChannel
+  # broadcasts, so the page treats both the same.
+  def as_payload = as_json(only: FIELDS)
 end
