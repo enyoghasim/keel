@@ -23,3 +23,4 @@ export type {
   PolicyTestResult,
 } from './hand-written/policy'
 export type { Condition, Action, Ambiguity } from './generated/policy-rules'
+export type { Request, RequestStatus, WorkflowRun, WorkflowRunStatus, StepRun, StepRunStatus } from './hand-written/request'
