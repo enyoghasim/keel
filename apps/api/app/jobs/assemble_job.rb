@@ -7,6 +7,7 @@ require "csv"
 # everything (section 6's failure handling).
 class AssembleJob < ApplicationJob
   ALL_CATEGORIES = %w[leave expense remote equipment onboarding].freeze
+  STAGES = %w[csv_mapping graph_building handbook_chunking policy_extraction workflow_generation].freeze
   REQUEST_KIND_CATEGORIES = %w[leave expense equipment].freeze
 
   def perform(company_id)

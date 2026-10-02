@@ -8,6 +8,8 @@ Rails.application.routes.draw do
   mount KeelMcp::Endpoint.new => "/mcp"
 
   namespace :api do
+    # Which company this deployment serves — public, so a fresh browser can find it.
+    resource :workspace, only: :show
     resources :companies, only: [ :create, :show ] do
       resource :session, only: [ :create, :show, :destroy ]
       resources :people, only: [ :index, :show ]
