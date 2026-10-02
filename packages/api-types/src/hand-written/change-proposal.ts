@@ -82,6 +82,7 @@ export interface BacktestFlip {
 // Mirrors Impact::RuleImpact: past requests replayed through the old and
 // new rules. `summary` is a template sentence, not LLM text.
 export interface RuleImpactReport {
+  override_reason?: string
   backtest: {
     kind: string
     total: number
