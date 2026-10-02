@@ -87,9 +87,9 @@ The suites need a model key to run (see [Configuration](#configuration)); no sco
 
 - **Single company per deployment.** There is no multi-tenancy; the API refuses a second company.
 - **Demo-grade authentication.** There is no signup flow: every imported person shares one demo password (`Person::DEMO_PASSWORD`). Replace this before exposing Keel to real users. MCP uses personal access tokens, not OAuth.
-- **The AI features need an OpenAI key** (the default model is `gpt-5.1`). Without one the whole deterministic core still works, but Assemble, the agent, Insights and the eval suites will report a configuration error.
+- **The AI features need an OpenAI key** (the default model is `gpt-5.1`). Without one the whole deterministic core still works, and the AI features say plainly that no model key is configured instead of failing obscurely.
 - **English handbooks only.**
-- **Wide org charts.** The graph lays out one row per management level, so a manager with dozens of direct reports makes a very wide chart.
+- **Org chart readability.** The graph stacks reports who lead no one in a column under their manager and wraps wide rows, but all 78 people in one fit-to-screen view are still small; zoom and pan to read names.
 
 ---
 
@@ -136,6 +136,7 @@ Everything has a default, so a plain `docker compose up` works. To change anythi
 | `OPENAI_API_KEY` | none | Turns on the AI features: Assemble, the `⌘K` agent, Insights, evals. |
 | `ANTHROPIC_API_KEY` | none | Optional, for Anthropic models via ruby_llm. |
 | `SEED_DEMO` | `true` | Load the Nubo Logistics demo company on a blank database. |
+| `DEMO_RESET` | `false` | For a public demo: show **Reset demo** on Settings (to an hr_admin), which wipes the deployment and reloads Nubo Logistics. Destructive, so off by default. |
 | `DATABASE_PASSWORD` | `postgres` | Postgres password. Change it if anything else can reach the database. |
 | `SECRET_KEY_BASE` | a local-only placeholder | Rails signs sessions with it. Set your own (`openssl rand -hex 64`) for any deployment others can reach. |
 
@@ -177,7 +178,7 @@ docker build -f apps/web/Dockerfile -t keel-web .
 ### Before you expose it to the internet
 
 - **Replace the shared demo password.** Every person imported by Assemble or seeded gets `password`. There is no signup flow, so for anything beyond a demo, set real passwords on the `people` records or put Keel behind your own authentication.
-- **Set a spending cap on the model provider.** Agent, Assemble and eval runs call a paid API. Keel limits one agent run at a time per person and 30 per hour, but the provider cap is the real backstop.
+- **Set a spending cap on the model provider.** Agent, Assemble and eval runs call a paid API. Keel limits one agent run at a time per person and 30 per hour, plus 60 agent runs and 10 Assemble attempts per IP address per hour, but the provider cap is the real backstop.
 - **Don't publish PostgreSQL.** The provided Compose file keeps it on the internal network; keep it that way.
 - **Use your own `SECRET_KEY_BASE`.** The placeholder in `docker-compose.yml` is public.
 
@@ -231,4 +232,5 @@ Backend work is test-first, especially for the deterministic services (`Org::Res
 | [`packages/api-types/`](packages/api-types/) | TypeScript types: generated from the schemas, plus hand-written API shapes. |
 | [`fixtures/evals/`](fixtures/evals/) | Hand-written eval cases for the three suites. |
 | [`docs/SPEC.md`](docs/SPEC.md) | The full design document. |
+| [`docs/decisions/`](docs/decisions/) | Architecture decision records: why the LLM compiles rules and an engine executes them, and five more. |
 | [`docker-compose.yml`](docker-compose.yml) | The one-command setup. |
