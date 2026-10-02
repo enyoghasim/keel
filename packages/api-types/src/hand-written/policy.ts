@@ -45,3 +45,29 @@ export interface PolicyTestResult {
   errors: string[]
   explanation: string | null
 }
+
+// Mirrors RuleResolution#as_payload (apps/api/app/models/rule_resolution.rb): one
+// answer to a rule's open question. Once resolved it carries both versions.
+export type RuleResolutionStatus = 'pending' | 'resolved' | 'failed'
+
+export interface RuleResolution {
+  id: number
+  rule_id: number
+  new_rule_id: number | null
+  ambiguity_index: number
+  answer: string
+  status: RuleResolutionStatus
+  error_message: string | null
+  created_at: string
+  before: Rule
+  after: Rule | null
+}
+
+// Mirrors Rules::ConflictReport::Entry as rendered by Api::PoliciesController#conflicts.
+export interface RuleConflict {
+  rule_a_key: string
+  rule_b_key: string
+  example: Record<string, string | number>
+  explanation: string
+  fix: { rule_key: string; new_priority: number } | null
+}
