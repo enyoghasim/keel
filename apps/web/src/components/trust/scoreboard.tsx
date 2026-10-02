@@ -1,5 +1,6 @@
 import type { EvalRun, EvalRunsMeta, EvalSuite } from 'api-types'
 import { formatAccuracy, formatCost, formatRunDate, SUITE_LABELS } from './format'
+import { Card } from '@/components/ui/card'
 
 const SUITES: EvalSuite[] = ['insights', 'policy_extraction', 'agent']
 
@@ -13,11 +14,7 @@ export function Scoreboard({ runs, meta }: { runs: EvalRun[]; meta: EvalRunsMeta
         const cases = meta.active_cases[suite] ?? 0
 
         return (
-          <section
-            key={suite}
-            aria-label={`${SUITE_LABELS[suite]} suite`}
-            className="rounded-lg border border-border bg-card p-4 shadow-xs"
-          >
+          <Card key={suite} role="region" aria-label={`${SUITE_LABELS[suite]} suite`} className="gap-0">
             <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{SUITE_LABELS[suite]}</h2>
             {latest ? (
               <>
@@ -41,7 +38,7 @@ export function Scoreboard({ runs, meta }: { runs: EvalRun[]; meta: EvalRunsMeta
                 </p>
               </>
             )}
-          </section>
+          </Card>
         )
       })}
     </div>

@@ -4,6 +4,7 @@ import { api } from '../../lib/api'
 import { caseQuestion } from './compare-runs'
 import { evalRunQueryKey } from './eval-query-keys'
 import { describeDiffEntry, describeMetrics, formatAccuracy } from './format'
+import { Card } from '@/components/ui/card'
 
 function json(value: unknown) {
   return JSON.stringify(value, null, 2)
@@ -65,7 +66,7 @@ export function RunDetail({ companyId, runId }: { companyId: string; runId: numb
   const inProgress = run.status === 'pending' || run.status === 'running'
 
   return (
-    <section aria-label={`Run #${run.id}`} className="rounded-lg border border-border bg-card p-5 shadow-xs">
+    <Card role="region" aria-label={`Run #${run.id}`} className="gap-0 p-5">
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="text-[15px] font-semibold">Run #{run.id}</h2>
         <p className="text-[13px] text-muted-foreground">
@@ -123,6 +124,6 @@ export function RunDetail({ companyId, runId }: { companyId: string; runId: numb
           </ul>
         </>
       )}
-    </section>
+    </Card>
   )
 }

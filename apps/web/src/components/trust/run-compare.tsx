@@ -4,6 +4,7 @@ import { api } from '../../lib/api'
 import { compareRuns, type FlippedCase } from './compare-runs'
 import { evalRunQueryKey } from './eval-query-keys'
 import { formatAccuracy } from './format'
+import { Card } from '@/components/ui/card'
 
 function useRun(companyId: string, runId: number) {
   return useQuery({
@@ -44,7 +45,7 @@ export function RunCompare({ companyId, runIds }: { companyId: string; runIds: [
   const comparison = compareRuns(older.results, newer.results)
 
   return (
-    <section aria-label="Run comparison" className="rounded-lg border border-border bg-card p-5 shadow-xs">
+    <Card role="region" aria-label="Run comparison" className="gap-0 p-5">
       <h2 className="text-[15px] font-semibold">
         Run #{older.id} ({formatAccuracy(older.accuracy)}) → Run #{newer.id} ({formatAccuracy(newer.accuracy)})
       </h2>
@@ -53,6 +54,6 @@ export function RunCompare({ companyId, runIds }: { companyId: string; runIds: [
         <FlippedList title="Now passing" cases={comparison.fixed} tone="text-success" />
         <FlippedList title="Now failing" cases={comparison.regressed} tone="text-destructive" />
       </div>
-    </section>
+    </Card>
   )
 }

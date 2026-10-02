@@ -4,6 +4,7 @@ import type { AgentRun, Envelope } from 'api-types'
 import { Command } from 'cmdk'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { api } from '../../lib/api'
 import { navGroups } from '../layout/nav-items'
 import { AnswerFeedback } from './answer-feedback'
@@ -80,7 +81,7 @@ function Thread({
           setText('')
         }}
       >
-        <input
+        <Input
           aria-label="Ask a follow-up"
           value={text}
           onChange={(event) => setText(event.target.value)}
@@ -89,7 +90,7 @@ function Thread({
           placeholder={working ? 'Waiting for the answer…' : 'Ask a follow-up…'}
           disabled={working}
           autoFocus
-          className="min-w-0 flex-1 bg-transparent px-1.5 py-1 text-[14px] outline-none placeholder:text-muted-foreground disabled:opacity-60"
+          className="h-auto flex-1 border-0 bg-transparent px-1.5 py-1 text-[14px] focus-visible:ring-0 disabled:opacity-60"
         />
         <Button type="button" variant="link" size="sm" onClick={onNewConversation} className="shrink-0">
           New conversation

@@ -6,6 +6,7 @@ import { useChannel } from '../../lib/cable'
 import { InsightChart } from './insight-chart'
 import { insightQueryKey } from './insight-query-key'
 import { QueryChips } from './query-chips'
+import { Card } from '@/components/ui/card'
 
 /**
  * One question's answer. Starts from GET .../insights/:id and then follows
@@ -42,7 +43,7 @@ export function InsightAnswer({ companyId, insightId }: { companyId: string; ins
   if (!insight) return <AnswerCard>Loading…</AnswerCard>
 
   return (
-    <section aria-label="Answer" className="rounded-lg border border-border bg-card p-5 shadow-xs">
+    <Card role="region" aria-label="Answer" className="gap-0 p-5">
       <h2 className="text-[15px] font-semibold">{insight.question}</h2>
 
       {insight.status === 'pending' && (
@@ -79,7 +80,7 @@ export function InsightAnswer({ companyId, insightId }: { companyId: string; ins
           {insight.error_message}
         </p>
       )}
-    </section>
+    </Card>
   )
 }
 

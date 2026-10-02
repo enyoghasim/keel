@@ -1,5 +1,6 @@
 import type { ChangeProposal, Department, Person } from 'api-types'
 import { useState } from 'react'
+import { Card } from '@/components/ui/card'
 import { ApproveRejectBar } from './approve-reject-bar'
 import { ImpactSummaryCards } from './impact-summary-cards'
 import { ProposalDiff } from './proposal-diff'
@@ -40,7 +41,7 @@ export function ProposalRow({
   const broken = proposal.kind === 'org' ? proposal.impact.broken.length : 0
 
   return (
-    <div className="rounded-lg border border-border bg-card">
+    <Card className="gap-0 p-0">
       <button
         type="button"
         onClick={() => setExpanded((value) => !value)}
@@ -95,6 +96,6 @@ export function ProposalRow({
           <ApproveRejectBar companyId={companyId} proposal={proposal} brokenCount={broken} />
         </div>
       )}
-    </div>
+    </Card>
   )
 }

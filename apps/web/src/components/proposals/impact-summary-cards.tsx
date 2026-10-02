@@ -1,18 +1,14 @@
+import { Card } from '@/components/ui/card'
+
 function SummaryCard({ label, value, danger }: { label: string; value: number; danger?: boolean }) {
   const isAlarmed = danger && value > 0
   return (
-    <div
-      className={
-        isAlarmed
-          ? 'rounded-lg border border-destructive-muted bg-destructive-muted px-4 py-3'
-          : 'rounded-lg border border-border bg-card px-4 py-3'
-      }
-    >
+    <Card className={isAlarmed ? 'gap-0 border-destructive-muted bg-destructive-muted px-4 py-3' : 'gap-0 px-4 py-3'}>
       <div className={`text-2xl font-bold tabular-nums ${isAlarmed ? 'text-destructive' : 'text-foreground'}`}>
         {value}
       </div>
       <div className="text-[12px] text-muted-foreground">{label}</div>
-    </div>
+    </Card>
   )
 }
 

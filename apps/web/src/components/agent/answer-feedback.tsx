@@ -3,6 +3,7 @@ import type { AgentFeedbackReason, AgentRun, Envelope } from 'api-types'
 import { ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { api } from '../../lib/api'
 import { agentRunQueryKey } from './use-agent-run'
 
@@ -93,14 +94,14 @@ export function AnswerFeedback({ companyId, run }: { companyId: string; run: Age
           </fieldset>
           <label className="block text-[12px]">
             <span className="sr-only">Anything else? (optional)</span>
-            <input
+            <Input
               value={note}
               onChange={(event) => setNote(event.target.value)}
               // cmdk treats Enter anywhere inside it as "select the highlighted item".
               onKeyDown={(event) => event.key === 'Enter' && event.stopPropagation()}
               placeholder="Anything else? (optional)"
               aria-label="Anything else? (optional)"
-              className="w-full rounded border border-border bg-card px-2 py-1 text-[13px]"
+              className="h-auto px-2 py-1"
             />
           </label>
           <Button type="submit" size="sm" disabled={send.isPending}>

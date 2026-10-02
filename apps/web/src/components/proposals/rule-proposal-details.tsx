@@ -1,5 +1,6 @@
 import type { BacktestFlip, Person, RuleChangeProposal, RuleSnapshot } from 'api-types'
 import { describeRule } from '../policies/describe-rule'
+import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 const OUTCOME_LABEL: Record<BacktestFlip['before'], string> = {
@@ -11,10 +12,10 @@ const OUTCOME_LABEL: Record<BacktestFlip['before'], string> = {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3">
+    <Card className="gap-0 px-4 py-3">
       <div className="text-2xl font-bold tabular-nums">{value}</div>
       <div className="text-[12px] text-muted-foreground">{label}</div>
-    </div>
+    </Card>
   )
 }
 
