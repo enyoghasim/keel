@@ -11,6 +11,7 @@ class Person < ApplicationRecord
   has_many :requests, foreign_key: :requester_id, inverse_of: :requester, dependent: :destroy
   has_many :sessions, dependent: :destroy
   has_many :insight_queries, dependent: :destroy
+  has_many :eval_runs, dependent: :nullify
 
   has_secure_password
 
