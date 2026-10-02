@@ -26,6 +26,7 @@ Rails.application.routes.draw do
         post :reject, on: :member
       end
       resources :personal_access_tokens, only: [ :index, :create, :destroy ]
+      resources :mcp_calls, only: [ :index ]
       resources :insights, only: [ :index, :create, :show ]
       resources :eval_runs, only: [ :index, :create, :show ]
       resources :eval_cases, only: [ :index, :update ]

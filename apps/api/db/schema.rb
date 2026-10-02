@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_181000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -208,6 +208,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_180000) do
     t.index ["person_id"], name: "index_insight_queries_on_person_id"
   end
 
+  create_table "mcp_calls", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "person_id", null: false
+    t.bigint "personal_access_token_id"
+    t.string "tool_name", null: false
+    t.jsonb "input", default: {}, null: false
+    t.jsonb "output"
+    t.boolean "is_error", default: false, null: false
+    t.integer "latency_ms"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_mcp_calls_on_company_id"
+    t.index ["person_id"], name: "index_mcp_calls_on_person_id"
+    t.index ["personal_access_token_id"], name: "index_mcp_calls_on_personal_access_token_id"
+  end
+
   create_table "people", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.bigint "department_id"
@@ -387,6 +403,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_180000) do
   add_foreign_key "import_issues", "companies"
   add_foreign_key "insight_queries", "companies"
   add_foreign_key "insight_queries", "people"
+  add_foreign_key "mcp_calls", "companies"
+  add_foreign_key "mcp_calls", "people"
+  add_foreign_key "mcp_calls", "personal_access_tokens"
   add_foreign_key "people", "companies"
   add_foreign_key "people", "departments"
   add_foreign_key "people", "people", column: "manager_id"
