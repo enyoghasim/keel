@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AssembleEvent } from './assemble-event'
-import { isComplete, STAGES, stageStatus, summarize } from './stage-progress'
+import { importIssues, isComplete, lowConfidenceMappings, STAGES, stageStatus, summarize } from './stage-progress'
 
 function event(partial: Partial<AssembleEvent> & Pick<AssembleEvent, 'stage' | 'event' | 'progress'>): AssembleEvent {
   return { data: {}, ...partial }
@@ -77,6 +77,43 @@ describe('summarize', () => {
       event({ stage: 'workflows', event: 'workflow_generated', progress: 0.9, data: { request_kind: 'leave' } }),
     ]
 
-    expect(summarize(events)).toEqual({ people: 3, departments: 2, policies: 2, rules: 3, workflows: 1 })
+    expect(summarize(events)).toMatchObject({ people: 3, departments: 2, policies: 2, rules: 3, workflows: 1 })
+  })
+})
+
+describe('what a person has to look at', () => {
+  const mapping = event({
+    stage: 'csv',
+    event: 'mapping_complete',
+    progress: 0.1,
+    data: {
+      mappings: [
+        { source_column: 'Full Name', field: 'name', confidence: 0.98 },
+        { source_column: 'Grp', field: 'department', confidence: 0.55 },
+      ],
+    },
+  })
+
+  it('lists only the columns mapped with low confidence', () => {
+    expect(lowConfidenceMappings([mapping])).toEqual([{ source_column: 'Grp', field: 'department', confidence: 0.55 }])
+  })
+
+  it('lists import issues in the order they arrived', () => {
+    const issue = event({
+      stage: 'graph',
+      event: 'import_issue',
+      progress: 0.4,
+      data: { id: 1, row_number: 78, field: 'manager', raw_value: 'Chidi Unknownson', message: 'could not match' },
+    })
+    expect(importIssues([mapping, issue]).map((i) => i.row_number)).toEqual([78])
+  })
+
+  it('counts rules that need input and rules that were dropped in the summary', () => {
+    const events = [
+      event({ stage: 'policies', event: 'rule_extracted', progress: 0.6, data: { policy_id: 1, needs_input: true } }),
+      event({ stage: 'policies', event: 'rule_extracted', progress: 0.6, data: { policy_id: 1, needs_input: false } }),
+      event({ stage: 'policies', event: 'rule_rejected', progress: 0.6, data: { key: 'x' } }),
+    ]
+    expect(summarize(events)).toMatchObject({ rules: 2, needInput: 1, dropped: 1 })
   })
 })

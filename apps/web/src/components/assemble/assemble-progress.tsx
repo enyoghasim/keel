@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import type { Envelope } from 'api-types'
 import { useCallback, useMemo, useState } from 'react'
 import { api } from '../../lib/api'
 import { useChannel } from '../../lib/cable'
 import { type AssembleEvent, mergeEvents } from './assemble-event'
-import { isComplete, STAGES, stageStatus, summarize } from './stage-progress'
+import { importIssues, isComplete, lowConfidenceMappings, STAGES, stageStatus, summarize } from './stage-progress'
 import { describeAssembleEvent } from './describe-assemble-event'
 
 const STATUS_DOT: Record<string, string> = {
@@ -41,6 +42,8 @@ export function AssembleProgress({ companyId }: { companyId: string }) {
   const progress = events[events.length - 1]?.progress ?? 0
   const complete = isComplete(events)
   const summary = summarize(events)
+  const columnsToCheck = lowConfidenceMappings(events)
+  const issues = importIssues(events)
 
   return (
     <div className="space-y-5">
@@ -65,17 +68,49 @@ export function AssembleProgress({ companyId }: { companyId: string }) {
       </div>
 
       {complete ? (
-        <p className="rounded-lg border border-border bg-secondary px-4 py-3 text-[13px]">
-          {summary.people} people, {summary.departments} departments, {summary.policies} policies, {summary.rules}{' '}
-          rules, {summary.workflows} workflows.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-secondary px-4 py-3 text-[13px]">
+          <p>
+            {summary.people} people, {summary.departments} departments, {summary.policies} policies, {summary.rules}{' '}
+            rules{summary.needInput > 0 && ` (${summary.needInput} need your input)`}, {summary.workflows} workflows.
+          </p>
+          <Link to="/policies" className="font-medium underline">
+            Go to policies
+          </Link>
+        </div>
       ) : (
         events.length === 0 && (
           <p className="text-[13px] text-muted-foreground">Waiting for Assemble to start…</p>
         )
       )}
 
-      <ul className="space-y-1 text-[13px] text-muted-foreground">
+      {columnsToCheck.length > 0 && (
+        <section className="rounded border border-warning/40 bg-warning-muted px-3 py-2.5 text-[12.5px]">
+          <h2 className="font-medium">Check these columns</h2>
+          <p className="text-muted-foreground">Keel wasn't sure what these CSV columns are.</p>
+          <ul className="mt-1.5 space-y-0.5">
+            {columnsToCheck.map((m) => (
+              <li key={m.source_column}>
+                “{m.source_column}” → {m.field} ({Math.round(m.confidence * 100)}% sure)
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {issues.length > 0 && (
+        <section className="rounded border border-warning/40 bg-warning-muted px-3 py-2.5 text-[12.5px]">
+          <h2 className="font-medium">Import issues ({issues.length})</h2>
+          <ul className="mt-1.5 space-y-0.5">
+            {issues.map((issue) => (
+              <li key={issue.id}>
+                Row {issue.row_number}: {issue.message}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <ul className="max-h-80 space-y-1 overflow-y-auto text-[13px] text-muted-foreground">
         {events.map((event, index) => (
           <li key={index}>{describeAssembleEvent(event)}</li>
         ))}
