@@ -13,3 +13,13 @@ export type {
   ReroutedInFlight,
   Decision,
 } from './hand-written/change-proposal'
+export type {
+  Policy,
+  PolicyWithRules,
+  PolicyCategory,
+  PolicyStatus,
+  Rule,
+  RuleStatus,
+  PolicyTestResult,
+} from './hand-written/policy'
+export type { Condition, Action, Ambiguity } from './generated/policy-rules'
