@@ -1,9 +1,46 @@
 import { useEffect, useState } from 'react'
+import { useCurrentPerson, useSignOut } from '../../lib/auth'
+import { getCurrentCompanyId } from '../../lib/current-company'
 import { effectiveTheme, initTheme, toggleTheme, type Theme } from '../../lib/theme'
 import { BellTraceIcon, ChevronDownIcon, MoonIcon, SearchIcon, SunIcon } from '../icons/nav-icons'
 
+function initials(name: string) {
+  return name
+    .split(' ')
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
+
+function PersonChip({ companyId }: { companyId: string }) {
+  const sessionQuery = useCurrentPerson(companyId)
+  const signOut = useSignOut(companyId)
+  const person = sessionQuery.data?.data
+  if (!person) return null
+
+  return (
+    <button
+      type="button"
+      title="Sign out"
+      onClick={() => signOut.mutate()}
+      className="flex items-center gap-2 rounded border border-border bg-card py-1 pl-1.5 pr-2.5"
+    >
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#52525b] text-[10.5px] font-bold text-white">
+        {initials(person.name)}
+      </span>
+      <span className="flex flex-col items-start leading-tight">
+        <span className="text-[12.5px] font-semibold">{person.name}</span>
+        <span className="text-[11px] text-muted-foreground">{person.title ?? person.roles[0] ?? 'Member'}</span>
+      </span>
+      <ChevronDownIcon className="h-3.25 w-3.25 text-muted-foreground" />
+    </button>
+  )
+}
+
 export function Topbar() {
   const [theme, setTheme] = useState<Theme>(() => effectiveTheme())
+  const companyId = getCurrentCompanyId()
 
   useEffect(() => {
     initTheme()
@@ -38,19 +75,7 @@ export function Topbar() {
         >
           {theme === 'dark' ? <MoonIcon className="h-4 w-4" /> : <SunIcon className="h-4 w-4" />}
         </button>
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded border border-border bg-card py-1 pl-1.5 pr-2.5"
-        >
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#52525b] text-[10.5px] font-bold text-white">
-            IC
-          </span>
-          <span className="flex flex-col items-start leading-tight">
-            <span className="text-[12.5px] font-semibold">Ifeoma Chukwu</span>
-            <span className="text-[11px] text-muted-foreground">HR Admin</span>
-          </span>
-          <ChevronDownIcon className="h-3.25 w-3.25 text-muted-foreground" />
-        </button>
+        {companyId && <PersonChip companyId={companyId} />}
       </div>
     </header>
   )
