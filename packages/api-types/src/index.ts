@@ -66,3 +66,4 @@ export type {
   AgentFeedbackRating,
   AgentFeedbackReason,
 } from './hand-written/agent'
+export type { PersonalAccessToken, CreatedPersonalAccessToken } from './hand-written/personal-access-token'
