@@ -15,6 +15,9 @@ Rails.application.routes.draw do
         post :test, on: :member
       end
       resources :requests, only: [ :index, :create, :show ]
+      resources :workflows, only: [ :index, :show ] do
+        post :test_run, on: :member
+      end
       resources :change_proposals, only: [ :index, :create, :show ] do
         post :approve, on: :member
         post :reject, on: :member
