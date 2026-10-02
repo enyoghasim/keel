@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_152128) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_153451) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -41,6 +41,35 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_152128) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "agent_runs", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "person_id", null: false
+    t.text "message", null: false
+    t.string "status", default: "pending", null: false
+    t.text "final_text"
+    t.integer "total_tokens", default: 0, null: false
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_agent_runs_on_company_id"
+    t.index ["person_id"], name: "index_agent_runs_on_person_id"
+  end
+
+  create_table "agent_steps", force: :cascade do |t|
+    t.bigint "agent_run_id", null: false
+    t.integer "position", null: false
+    t.string "kind", null: false
+    t.string "tool_name"
+    t.jsonb "input"
+    t.jsonb "output"
+    t.integer "latency_ms"
+    t.integer "tokens"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_run_id", "position"], name: "index_agent_steps_on_agent_run_id_and_position", unique: true
+    t.index ["agent_run_id"], name: "index_agent_steps_on_agent_run_id"
   end
 
   create_table "change_proposals", force: :cascade do |t|
@@ -282,6 +311,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_152128) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "agent_runs", "companies"
+  add_foreign_key "agent_runs", "people"
+  add_foreign_key "agent_steps", "agent_runs"
   add_foreign_key "change_proposals", "companies"
   add_foreign_key "change_proposals", "people", column: "decided_by_id"
   add_foreign_key "chunks", "source_documents"

@@ -12,6 +12,7 @@ class Person < ApplicationRecord
   has_many :sessions, dependent: :destroy
   has_many :insight_queries, dependent: :destroy
   has_many :eval_runs, dependent: :nullify
+  has_many :agent_runs, dependent: :destroy
 
   has_secure_password
 
