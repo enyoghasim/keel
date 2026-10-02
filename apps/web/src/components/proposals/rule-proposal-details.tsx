@@ -54,6 +54,15 @@ export function RuleProposalDetails({ proposal, people }: { proposal: RuleChange
         <Stat label="Decisions flipped" value={backtest.flipped_count} />
       </div>
       <p className="text-[13px]">{backtest.summary}</p>
+      {backtest.new_conflicts.length > 0 && (
+        <ul aria-label="Conflicts this change creates" className="space-y-1.5">
+          {backtest.new_conflicts.map((conflict) => (
+            <li key={conflict.rules.join('|')} className="rounded border border-warning/30 bg-warning-muted px-3 py-2 text-[13px] text-warning">
+              {conflict.warning}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div>
         <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">What changes</h3>

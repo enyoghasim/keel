@@ -140,6 +140,7 @@ const ruleProposal: RuleChangeProposal = {
     backtest: {
       kind: 'expense',
       total: 4,
+      new_conflicts: [],
       flipped_count: 1,
       summary: 'This would have changed 1 of 4 past expense decisions: 1 would have been auto-approved instead of sent for approval.',
       flipped: [{ request_id: 9, requester_id: 3, payload: { amount_eur: 700 }, before: 'require_approval', after: 'auto_approve' }],

@@ -43,6 +43,7 @@ const proposal: RuleChangeProposal = {
     backtest: {
       kind: 'expense',
       total: 5,
+      new_conflicts: [],
       flipped_count: 2,
       summary: 'This would have changed 2 of 5 past expense decisions: 2 would have been auto-approved instead of sent for approval.',
       flipped: [
@@ -84,6 +85,27 @@ describe('RuleProposalDetails', () => {
     expect(within(rows[0]).getByText('Ngozi Doe')).toBeInTheDocument()
     expect(within(rows[0]).getByText('€600')).toBeInTheDocument()
     expect(within(rows[0]).getByText('Sent for approval → Auto-approved')).toBeInTheDocument()
+  })
+
+  it('warns about a same-priority conflict the rewrite creates', () => {
+    const conflicted = {
+      ...proposal,
+      impact: {
+        backtest: {
+          ...proposal.impact.backtest,
+          new_conflicts: [
+            {
+              rules: ['expense_over_500_manager', 'expense_small_auto'] as [string, string],
+              example: { 'payload.amount_eur': 501 },
+              warning: 'expense_over_500_manager overlaps with expense_small_auto at the same priority, so they disagree on requests such as amount_eur=501 and the more restrictive one wins.',
+            },
+          ],
+        },
+      },
+    }
+    render(<RuleProposalDetails proposal={conflicted} people={people} />)
+
+    expect(within(screen.getByRole('list', { name: 'Conflicts this change creates' })).getByText(/overlaps with expense_small_auto/)).toBeInTheDocument()
   })
 
   it('says so when no past decision would change', () => {
