@@ -32,7 +32,7 @@ export function PersonPanel({
 }) {
   if (!person) {
     return (
-      <div className="w-72 shrink-0">
+      <div className="w-full md:w-72 md:shrink-0">
         <PagePlaceholder note="Select a person on the chart to see their details." />
       </div>
     )
