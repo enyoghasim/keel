@@ -46,7 +46,7 @@ module Agent
       end
 
       def execute(title:, operations:)
-        return { "error" => "Only people with the hr_admin role can propose org changes." } unless person.hr_admin?
+        require_hr_admin!("propose org changes")
 
         diff = operations.map { build_operation(_1.to_h.stringify_keys) }
         @created[[ title, diff ]] ||= create_proposal(title, diff)
