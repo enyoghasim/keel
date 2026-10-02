@@ -22,4 +22,8 @@ class ApplicationController < ActionController::API
   def current_person
     @current_person ||= current_session&.person
   end
+
+  def require_current_person!
+    render_error(message: "Not signed in.", status: :unauthorized) unless current_person
+  end
 end

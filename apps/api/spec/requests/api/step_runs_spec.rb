@@ -15,12 +15,13 @@ RSpec.describe "Api::StepRuns", type: :request do
     )
 
     Workflows::Runtime.new(Org::GraphSnapshot.load(company)).start(request, rules: [ rule ])
-    request.reload.workflow_run.step_runs.sole
+    [ request.reload.workflow_run.step_runs.sole, manager, company ]
   end
 
   describe "POST /api/step_runs/:id/act" do
     it "approves the step and finishes the workflow run, approving the request" do
-      step_run = pending_step_run_needing_approval
+      step_run, manager, = pending_step_run_needing_approval
+      sign_in(manager)
 
       post "/api/step_runs/#{step_run.id}/act", params: { step_action: "approve" }, as: :json
 
@@ -34,7 +35,8 @@ RSpec.describe "Api::StepRuns", type: :request do
     end
 
     it "rejects the step, cancels the workflow run, and rejects the request" do
-      step_run = pending_step_run_needing_approval
+      step_run, manager, = pending_step_run_needing_approval
+      sign_in(manager)
 
       post "/api/step_runs/#{step_run.id}/act", params: { step_action: "reject" }, as: :json
 
@@ -45,7 +47,8 @@ RSpec.describe "Api::StepRuns", type: :request do
     end
 
     it "overrides the step with a reason, approving the request despite needing approval" do
-      step_run = pending_step_run_needing_approval
+      step_run, manager, = pending_step_run_needing_approval
+      sign_in(manager)
 
       post "/api/step_runs/#{step_run.id}/act", params: { step_action: "override", reason: "VP sign-off given verbally" }, as: :json
 
@@ -57,7 +60,8 @@ RSpec.describe "Api::StepRuns", type: :request do
     end
 
     it "returns an error envelope when step_action is missing" do
-      step_run = pending_step_run_needing_approval
+      step_run, manager, = pending_step_run_needing_approval
+      sign_in(manager)
 
       post "/api/step_runs/#{step_run.id}/act", params: {}, as: :json
 
@@ -66,7 +70,8 @@ RSpec.describe "Api::StepRuns", type: :request do
     end
 
     it "returns an error envelope for an unknown step_action" do
-      step_run = pending_step_run_needing_approval
+      step_run, manager, = pending_step_run_needing_approval
+      sign_in(manager)
 
       post "/api/step_runs/#{step_run.id}/act", params: { step_action: "approve_twice" }, as: :json
 
@@ -74,7 +79,8 @@ RSpec.describe "Api::StepRuns", type: :request do
     end
 
     it "returns an error envelope when overriding without a reason" do
-      step_run = pending_step_run_needing_approval
+      step_run, manager, = pending_step_run_needing_approval
+      sign_in(manager)
 
       post "/api/step_runs/#{step_run.id}/act", params: { step_action: "override" }, as: :json
 
@@ -82,9 +88,44 @@ RSpec.describe "Api::StepRuns", type: :request do
     end
 
     it "returns a 404 envelope for an unknown step run" do
+      _step_run, manager, = pending_step_run_needing_approval
+      sign_in(manager)
+
       post "/api/step_runs/999999/act", params: { step_action: "approve" }, as: :json
 
       expect(response).to have_http_status(:not_found)
+    end
+
+    it "returns a 401 envelope when no one is signed in" do
+      step_run, = pending_step_run_needing_approval
+
+      post "/api/step_runs/#{step_run.id}/act", params: { step_action: "approve" }, as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+      expect(response.parsed_body["success"]).to eq(false)
+    end
+
+    it "returns a 403 envelope when the signed-in person isn't the assignee" do
+      step_run, _manager, company = pending_step_run_needing_approval
+      someone_else = create(:person, company: company)
+      sign_in(someone_else)
+
+      post "/api/step_runs/#{step_run.id}/act", params: { step_action: "approve" }, as: :json
+
+      expect(response).to have_http_status(:forbidden)
+      expect(response.parsed_body["success"]).to eq(false)
+      expect(step_run.reload.status).to eq("pending")
+    end
+
+    it "lets an hr_admin act on a step assigned to someone else" do
+      step_run, _manager, company = pending_step_run_needing_approval
+      admin = create(:person, :hr_admin, company: company)
+      sign_in(admin)
+
+      post "/api/step_runs/#{step_run.id}/act", params: { step_action: "approve" }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(step_run.reload.status).to eq("done")
     end
   end
 end

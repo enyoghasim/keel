@@ -17,4 +17,8 @@ class Person < ApplicationRecord
   validates :email, presence: true, uniqueness: { scope: :company_id }
 
   before_validation { self.password ||= DEMO_PASSWORD if new_record? && password_digest.blank? }
+
+  def hr_admin?
+    roles.include?("hr_admin")
+  end
 end

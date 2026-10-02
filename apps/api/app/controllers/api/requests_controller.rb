@@ -9,6 +9,7 @@ module Api
     FIELDS = %i[id company_id requester_id kind payload decision matched_rule_ids policy_version status created_at].freeze
 
     before_action :set_request, only: [ :show ]
+    before_action :require_current_person!, only: [ :create ]
 
     def index
       scope = @company.requests
@@ -24,6 +25,9 @@ module Api
     def create
       requester = @company.people.find_by(id: request_params[:requester_id])
       return render_error(message: "requester not found in this company") if requester.nil?
+      unless current_person.id == requester.id || current_person.hr_admin?
+        return render_error(message: "you can only create requests for yourself", status: :forbidden)
+      end
 
       request_record = nil
 

@@ -20,5 +20,9 @@ FactoryBot.define do
     trait :it_admin do
       roles { [ "it_admin" ] }
     end
+
+    trait :hr_admin do
+      roles { [ "hr_admin" ] }
+    end
   end
 end

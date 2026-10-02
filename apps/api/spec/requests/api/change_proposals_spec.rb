@@ -82,9 +82,9 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       change_proposal = create(:change_proposal, company: company, status: "pending",
         diff: [ { "op" => "change_manager", "person_id" => person.id, "to" => new_manager.id } ],
         impact: { "rerouted" => [], "broken" => [], "self_approval" => [], "approval_load_changes" => [], "rerouted_in_flight" => [] })
+      sign_in(hr)
 
-      post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve",
-        params: { decided_by_id: hr.id }, as: :json
+      post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve", as: :json
 
       expect(response).to have_http_status(:ok)
       body = response.parsed_body["data"]
@@ -92,6 +92,35 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       expect(body["decided_by_id"]).to eq(hr.id)
       expect(body["decided_at"]).to be_present
       expect(person.reload.manager_id).to eq(new_manager.id)
+    end
+
+    it "records the signed-in person as the decider, ignoring any decided_by_id param" do
+      company = create(:company)
+      old_manager = create(:person, company: company)
+      new_manager = create(:person, company: company)
+      person = create(:person, company: company, manager: old_manager)
+      hr = create(:person, company: company)
+      impersonated = create(:person, company: company)
+      change_proposal = create(:change_proposal, company: company, status: "pending",
+        diff: [ { "op" => "change_manager", "person_id" => person.id, "to" => new_manager.id } ],
+        impact: { "rerouted" => [], "broken" => [], "self_approval" => [], "approval_load_changes" => [], "rerouted_in_flight" => [] })
+      sign_in(hr)
+
+      post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve",
+        params: { decided_by_id: impersonated.id }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["data"]["decided_by_id"]).to eq(hr.id)
+    end
+
+    it "returns a 401 envelope when no one is signed in" do
+      company = create(:company)
+      change_proposal = create(:change_proposal, company: company, status: "pending")
+
+      post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve", as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+      expect(change_proposal.reload.status).to eq("pending")
     end
 
     it "refuses when the impact has gotten materially worse since the proposal was made" do
@@ -107,6 +136,7 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       change_proposal = create(:change_proposal, company: company, status: "pending",
         diff: [ { "op" => "set_department_head", "department_id" => sales.id, "to" => nil } ],
         impact: { "rerouted" => [], "broken" => [], "self_approval" => [], "approval_load_changes" => [], "rerouted_in_flight" => [] })
+      sign_in(create(:person, company: company))
 
       post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve", as: :json
 
@@ -129,6 +159,7 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       change_proposal = create(:change_proposal, company: company, status: "pending",
         diff: [ { "op" => "set_department_head", "department_id" => sales.id, "to" => nil } ],
         impact: { "rerouted" => [], "broken" => [], "self_approval" => [], "approval_load_changes" => [], "rerouted_in_flight" => [] })
+      sign_in(create(:person, company: company))
 
       post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve",
         params: { approve_anyway: true, reason: "Sales is being folded into Ops next week anyway" }, as: :json
@@ -142,6 +173,7 @@ RSpec.describe "Api::ChangeProposals", type: :request do
     it "requires a reason when approving anyway" do
       company = create(:company)
       change_proposal = create(:change_proposal, company: company, status: "pending")
+      sign_in(create(:person, company: company))
 
       post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve",
         params: { approve_anyway: true }, as: :json
@@ -153,6 +185,7 @@ RSpec.describe "Api::ChangeProposals", type: :request do
     it "refuses to re-decide a proposal that's already been decided" do
       company = create(:company)
       change_proposal = create(:change_proposal, company: company, status: "approved")
+      sign_in(create(:person, company: company))
 
       post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve", as: :json
 
@@ -169,15 +202,25 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       hr = create(:person, company: company)
       change_proposal = create(:change_proposal, company: company, status: "pending",
         diff: [ { "op" => "change_manager", "person_id" => person.id, "to" => new_manager.id } ])
+      sign_in(hr)
 
-      post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/reject",
-        params: { decided_by_id: hr.id }, as: :json
+      post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/reject", as: :json
 
       expect(response).to have_http_status(:ok)
       body = response.parsed_body["data"]
       expect(body["status"]).to eq("rejected")
       expect(body["decided_by_id"]).to eq(hr.id)
       expect(person.reload.manager_id).to eq(old_manager.id)
+    end
+
+    it "returns a 401 envelope when no one is signed in" do
+      company = create(:company)
+      change_proposal = create(:change_proposal, company: company, status: "pending")
+
+      post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/reject", as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+      expect(change_proposal.reload.status).to eq("pending")
     end
   end
 end

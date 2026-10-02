@@ -9,6 +9,7 @@ RSpec.describe "Api::Requests", type: :request do
       create(:rule, policy: policy, status: "active", key: "small_expense",
                      conditions: { "field" => "payload.amount_eur", "op" => "lte", "value" => 500 },
                      actions: { "decision" => "auto_approve" })
+      sign_in(requester)
 
       post "/api/companies/#{company.id}/requests",
         params: { requester_id: requester.id, kind: "expense", payload: { amount_eur: 100 } }, as: :json
@@ -30,6 +31,7 @@ RSpec.describe "Api::Requests", type: :request do
                      actions: { "decision" => "require_approval", "approvers" => [ "manager_of(requester)" ] })
       create(:workflow, company: company, status: "active", trigger: { "request_kind" => "expense" },
                          steps: [ { "key" => "manager", "type" => "approval", "assignee" => "manager_of(requester)" } ])
+      sign_in(requester)
 
       post "/api/companies/#{company.id}/requests",
         params: { requester_id: requester.id, kind: "expense", payload: { amount_eur: 900 } }, as: :json
@@ -44,6 +46,7 @@ RSpec.describe "Api::Requests", type: :request do
     it "returns an error envelope when no active workflow matches the decided request kind" do
       company = create(:company)
       requester = create(:person, company: company, manager: create(:person, company: company))
+      sign_in(requester)
 
       post "/api/companies/#{company.id}/requests",
         params: { requester_id: requester.id, kind: "expense", payload: { amount_eur: 900 } }, as: :json
@@ -56,12 +59,54 @@ RSpec.describe "Api::Requests", type: :request do
     it "returns an error envelope when the requester isn't in this company" do
       company = create(:company)
       outsider = create(:person)
+      sign_in(create(:person, :hr_admin, company: company))
 
       post "/api/companies/#{company.id}/requests",
         params: { requester_id: outsider.id, kind: "expense", payload: {} }, as: :json
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body["success"]).to eq(false)
+    end
+
+    it "returns a 401 envelope when no one is signed in" do
+      company = create(:company)
+      requester = create(:person, company: company)
+
+      post "/api/companies/#{company.id}/requests",
+        params: { requester_id: requester.id, kind: "expense", payload: {} }, as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+      expect(Request.count).to eq(0)
+    end
+
+    it "returns a 403 envelope when filing on behalf of someone else without hr_admin" do
+      company = create(:company)
+      requester = create(:person, company: company)
+      someone_else = create(:person, company: company)
+      sign_in(someone_else)
+
+      post "/api/companies/#{company.id}/requests",
+        params: { requester_id: requester.id, kind: "expense", payload: {} }, as: :json
+
+      expect(response).to have_http_status(:forbidden)
+      expect(Request.count).to eq(0)
+    end
+
+    it "lets an hr_admin file a request on behalf of someone else" do
+      company = create(:company)
+      requester = create(:person, company: company)
+      admin = create(:person, :hr_admin, company: company)
+      policy = create(:policy, company: company, category: "expense", status: "active")
+      create(:rule, policy: policy, status: "active", key: "small_expense",
+                     conditions: { "field" => "payload.amount_eur", "op" => "lte", "value" => 500 },
+                     actions: { "decision" => "auto_approve" })
+      sign_in(admin)
+
+      post "/api/companies/#{company.id}/requests",
+        params: { requester_id: requester.id, kind: "expense", payload: { amount_eur: 100 } }, as: :json
+
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body["data"]["requester_id"]).to eq(requester.id)
     end
   end
 

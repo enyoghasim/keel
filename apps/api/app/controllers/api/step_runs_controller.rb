@@ -9,6 +9,8 @@ module Api
     FIELDS = %i[id workflow_run_id step_key reference resolved_person_id status acted_at overridden override_reason].freeze
 
     before_action :set_step_run
+    before_action :require_current_person!
+    before_action :require_assignee!
 
     def act
       step_action = params[:step_action]
@@ -27,6 +29,15 @@ module Api
 
     def set_step_run
       @step_run = StepRun.find(params[:id])
+    end
+
+    # hr_admin is a deliberate override, mirroring Inbox's "acting as"
+    # affordance (AGENTS.md rule 2 still holds: this only gates who may
+    # trigger Workflows::Runtime#act, not what it decides).
+    def require_assignee!
+      return if current_person.id == @step_run.resolved_person_id || current_person.hr_admin?
+
+      render_error(message: "This step isn't assigned to you.", status: :forbidden)
     end
 
     def serialize(step_run) = step_run.as_json(only: FIELDS)

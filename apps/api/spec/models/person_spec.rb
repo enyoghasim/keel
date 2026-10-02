@@ -50,6 +50,16 @@ RSpec.describe Person, type: :model do
     expect(manager.direct_reports).to contain_exactly(report)
   end
 
+  describe "#hr_admin?" do
+    it "is true when the person has the hr_admin role" do
+      expect(build(:person, :hr_admin)).to be_hr_admin
+    end
+
+    it "is false otherwise" do
+      expect(build(:person, roles: [])).not_to be_hr_admin
+    end
+  end
+
   describe "password" do
     it "defaults to the demo password when none is given" do
       person = create(:person)

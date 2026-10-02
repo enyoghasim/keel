@@ -13,6 +13,7 @@ module Api
     SUPPORTED_KINDS = %w[org].freeze
 
     before_action :set_change_proposal, only: %i[show approve reject]
+    before_action :require_current_person!, only: %i[approve reject]
 
     def index
       scope = @company.change_proposals
@@ -74,7 +75,7 @@ module Api
         updated_impact["override_reason"] = reason if approve_anyway
         @change_proposal.update!(
           status: "approved", impact: updated_impact,
-          decided_by_id: params[:decided_by_id], decided_at: Time.current
+          decided_by_id: current_person.id, decided_at: Time.current
         )
       end
 
@@ -84,7 +85,7 @@ module Api
     def reject
       return render_error(message: "this proposal has already been decided") unless @change_proposal.status == "pending"
 
-      @change_proposal.update!(status: "rejected", decided_by_id: params[:decided_by_id], decided_at: Time.current)
+      @change_proposal.update!(status: "rejected", decided_by_id: current_person.id, decided_at: Time.current)
       render_success(data: serialize(@change_proposal), message: "Change proposal rejected.")
     end
 
