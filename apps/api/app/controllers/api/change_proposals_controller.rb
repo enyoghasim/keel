@@ -119,13 +119,28 @@ module Api
 
     # Rule proposals are replayed against history, not the org graph: the
     # backtest is re-run so the stored impact is what was true at decision
-    # time, and the diff is refused if the policy moved underneath it.
+    # time, and the diff is refused if the policy moved underneath it. A
+    # rewrite that makes two rules conflict is the rule-side counterpart of a
+    # broken chain: it needs "approve anyway" with a reason.
     def approve_rule_proposal
       policy = @company.policies.find(@change_proposal.diff["policy_id"])
+      approve_anyway = ActiveModel::Type::Boolean.new.cast(params[:approve_anyway])
+      reason = params[:reason]
+      return render_error(message: "a reason is required to approve anyway") if approve_anyway && reason.blank?
 
       impact = Impact::RuleImpact.call(company: @company, policy: policy, after_rules: @change_proposal.after_rule_definitions)
+      conflicts = impact.dig("backtest", "new_conflicts").size
+      if conflicts.positive? && !approve_anyway
+        return render_error(
+          message: "this change creates #{conflicts} new conflict#{'s' unless conflicts == 1} between rules — " \
+                    "pass approve_anyway: true with a reason to proceed anyway",
+          errors: impact.dig("backtest", "new_conflicts")
+        )
+      end
+
       ActiveRecord::Base.transaction do
         @change_proposal.apply_rule_diff!(@company)
+        impact["override_reason"] = reason if approve_anyway && conflicts.positive?
         @change_proposal.update!(status: "approved", decided_by_id: current_person.id, decided_at: Time.current, impact: impact)
       end
 

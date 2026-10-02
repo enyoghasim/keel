@@ -279,6 +279,38 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       expect(policy.reload.version).to eq(2)
     end
 
+    context "when the rewrite creates a same-priority conflict" do
+      let(:conflicted) do
+        { "backtest" => { "total" => 1, "flipped_count" => 1, "flipped" => [], "summary" => "x",
+                          "new_conflicts" => [ { "rules" => [ "a", "b" ], "example" => {}, "warning" => "a and b now overlap" } ] } }
+      end
+
+      before { allow(Impact::RuleImpact).to receive(:call).and_return(conflicted) }
+
+      it "refuses to approve it plainly, leaving the policy alone" do
+        post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", as: :json
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["message"]).to match(/1 new conflict.*approve_anyway/)
+        expect(proposal.reload.status).to eq("pending")
+        expect(rule.reload.status).to eq("active")
+      end
+
+      it "needs a reason to approve anyway, and records it" do
+        post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", params: { approve_anyway: true }, as: :json
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["message"]).to match(/reason is required/)
+
+        post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve",
+          params: { approve_anyway: true, reason: "Travel rules are being merged next week" }, as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(proposal.reload).to have_attributes(status: "approved")
+        expect(proposal.impact["override_reason"]).to eq("Travel rules are being merged next week")
+        expect(rule.reload.status).to eq("superseded")
+      end
+    end
+
     it "refuses when the policy's rules changed since the proposal was made" do
       proposal # built against the 500 limit
       rule.update!(conditions: { "field" => "payload.amount_eur", "op" => "lte", "value" => 400 })
