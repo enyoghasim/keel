@@ -27,4 +27,13 @@ RSpec.describe AgentRun, type: :model do
     expect(create(:agent_run).conversation_id).not_to eq(first.conversation_id)
     expect(second.as_payload).to include("conversation_id" => first.conversation_id)
   end
+
+  it "lists the change proposals the run made, so the command bar can link to them" do
+    agent_run = create(:agent_run)
+    mine = create(:change_proposal, company: agent_run.company, agent_run: agent_run)
+    create(:change_proposal, company: agent_run.company)
+
+    expect(agent_run.as_payload["proposal_ids"]).to eq([ mine.id ])
+    expect(create(:agent_run).as_payload["proposal_ids"]).to eq([])
+  end
 end

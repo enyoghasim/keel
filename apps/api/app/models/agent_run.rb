@@ -4,6 +4,7 @@
 class AgentRun < ApplicationRecord
   belongs_to :company
   belongs_to :person
+  has_many :change_proposals, dependent: :nullify, inverse_of: :agent_run
   has_many :agent_steps, -> { order(:position) }, dependent: :destroy, inverse_of: :agent_run
 
   STATUSES = %w[pending running completed failed].freeze
@@ -22,5 +23,7 @@ class AgentRun < ApplicationRecord
   FIELDS = %i[id conversation_id person_id message status final_text total_tokens error_message feedback feedback_reason created_at].freeze
 
   # Shared by Api::AgentRunsController and AgentChannel.
-  def as_payload = as_json(only: FIELDS).merge("cost_usd" => cost_usd&.to_f, "steps" => agent_steps.map(&:as_payload))
+  def as_payload = as_json(only: FIELDS).merge(
+    "cost_usd" => cost_usd&.to_f, "steps" => agent_steps.map(&:as_payload), "proposal_ids" => change_proposals.order(:id).ids
+  )
 end
