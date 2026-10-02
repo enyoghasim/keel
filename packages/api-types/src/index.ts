@@ -34,3 +34,5 @@ export type {
   WorkflowTestRunResult,
   WorkflowTestRunStep,
 } from './hand-written/workflow'
+export type { Insight, InsightStatus, InsightUnit, InsightRow, InsightResult } from './hand-written/insight'
+export type { InsightQuery, InsightFilter } from './generated/insight-query'
