@@ -19,7 +19,7 @@ describe('Sidebar', () => {
     for (const label of expectedLabels) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument()
     }
-    expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
   })
 
   it('marks the current route as active and no other route', async () => {

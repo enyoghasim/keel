@@ -57,9 +57,11 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton>
-              <SettingsIcon />
-              Settings
+            <SidebarMenuButton asChild isActive={pathname === '/settings'}>
+              <Link to="/settings">
+                <SettingsIcon />
+                Settings
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
