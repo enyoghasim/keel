@@ -21,6 +21,7 @@ module Api
       company = @step_run.workflow_run.request.company
       snapshot = Org::GraphSnapshot.load(company)
       Workflows::Runtime.new(snapshot).act(@step_run, action: step_action, reason: params[:reason])
+      Evals::OverrideCandidate.call(step_run: @step_run.reload) if step_action == "override"
 
       render_success(data: serialize(@step_run.reload), message: "Step updated.")
     end

@@ -46,6 +46,18 @@ RSpec.describe "Api::StepRuns", type: :request do
       expect(step_run.workflow_run.request.reload.status).to eq("rejected")
     end
 
+    it "turns an override into a candidate policy_extraction case when the request matched a rule with a handbook quote" do
+      step_run, manager, company = pending_step_run_needing_approval
+      policy = create(:policy, company: company, category: "expense", status: "active")
+      create(:rule, policy: policy, key: "big_expense", source_quote: "Expenses over €500 need your manager's approval.")
+      step_run.workflow_run.request.update!(matched_rule_ids: [ "big_expense" ])
+      sign_in(manager)
+
+      post "/api/step_runs/#{step_run.id}/act", params: { step_action: "override", reason: "VP sign-off given verbally" }, as: :json
+
+      expect(EvalCase.sole).to have_attributes(suite: "policy_extraction", source: "override", status: "candidate")
+    end
+
     it "overrides the step with a reason, approving the request despite needing approval" do
       step_run, manager, = pending_step_run_needing_approval
       sign_in(manager)
