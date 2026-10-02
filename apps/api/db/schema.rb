@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_171000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -54,6 +54,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_170000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.uuid "conversation_id", default: -> { "gen_random_uuid()" }, null: false
+    t.string "feedback"
+    t.string "feedback_reason"
+    t.text "feedback_note"
     t.index ["company_id"], name: "index_agent_runs_on_company_id"
     t.index ["person_id", "conversation_id"], name: "index_agent_runs_on_person_id_and_conversation_id"
     t.index ["person_id"], name: "index_agent_runs_on_person_id"

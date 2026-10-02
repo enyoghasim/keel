@@ -24,7 +24,9 @@ Rails.application.routes.draw do
       end
       resources :insights, only: [ :index, :create, :show ]
       resources :eval_runs, only: [ :index, :create, :show ]
-      resources :agent_runs, only: [ :index, :create, :show ]
+      resources :agent_runs, only: [ :index, :create, :show ] do
+        post :feedback, on: :member
+      end
     end
 
     resources :step_runs, only: [] do

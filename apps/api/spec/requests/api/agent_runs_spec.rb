@@ -154,4 +154,47 @@ RSpec.describe "Api::AgentRuns", type: :request do
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  describe "POST /api/companies/:company_id/agent_runs/:id/feedback" do
+    let(:agent_run) { create(:agent_run, company: company, person: person, status: "completed", final_text: "Yes.") }
+
+    it "records a thumbs-down with its reason and creates a candidate eval case" do
+      sign_in(person)
+
+      post "/api/companies/#{company.id}/agent_runs/#{agent_run.id}/feedback", params: { rating: "down", reason: "unclear", note: "Too vague" }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["data"]).to include("feedback" => "down", "feedback_reason" => "unclear")
+      expect(EvalCase.sole).to have_attributes(suite: "agent", status: "candidate")
+    end
+
+    it "only lets a person rate their own runs" do
+      sign_in(create(:person, company: company))
+
+      post "/api/companies/#{company.id}/agent_runs/#{agent_run.id}/feedback", params: { rating: "up" }, as: :json
+
+      expect(response).to have_http_status(:not_found)
+      expect(agent_run.reload.feedback).to be_nil
+    end
+
+    it "returns an error envelope for a bad rating or an unfinished run" do
+      sign_in(person)
+
+      post "/api/companies/#{company.id}/agent_runs/#{agent_run.id}/feedback", params: { rating: "meh" }, as: :json
+      expect(response).to have_http_status(:unprocessable_content)
+
+      agent_run.update!(status: "running")
+      post "/api/companies/#{company.id}/agent_runs/#{agent_run.id}/feedback", params: { rating: "up" }, as: :json
+      expect(response).to have_http_status(:unprocessable_content)
+    end
+
+    it "includes the feedback in the run payload so the command bar can show it" do
+      sign_in(person)
+      agent_run.update!(feedback: "up")
+
+      get "/api/companies/#{company.id}/agent_runs/#{agent_run.id}"
+
+      expect(response.parsed_body["data"]).to include("feedback" => "up", "feedback_reason" => nil)
+    end
+  end
 end
