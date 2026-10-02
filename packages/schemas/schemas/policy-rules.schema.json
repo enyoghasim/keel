@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PolicyRules",
+  "description": "Rules the LLM extracts from a handbook policy category (SPEC.md section 6, stage 4 and section 4's rule schema). Fields, operators and action shapes are closed whitelists so the LLM can't invent one the engine doesn't understand.",
+  "type": "object",
+  "required": ["rules"],
+  "additionalProperties": false,
+  "properties": {
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "$defs": {
+    "condition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["all"],
+          "additionalProperties": false,
+          "properties": {
+            "all": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/condition" } }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["any"],
+          "additionalProperties": false,
+          "properties": {
+            "any": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/condition" } }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["field", "op", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string",
+              "enum": [
+                "requester.department",
+                "requester.location",
+                "requester.tenure_months",
+                "payload.amount_eur",
+                "payload.category",
+                "payload.days",
+                "payload.notice_days"
+              ]
+            },
+            "op": {
+              "type": "string",
+              "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "in", "not_in", "between"]
+            },
+            "value": {}
+          }
+        }
+      ]
+    },
+    "action": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["decision"],
+          "additionalProperties": false,
+          "properties": {
+            "decision": { "const": "auto_approve" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["decision", "reason"],
+          "additionalProperties": false,
+          "properties": {
+            "decision": { "const": "reject" },
+            "reason": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["decision", "approvers"],
+          "additionalProperties": false,
+          "properties": {
+            "decision": { "const": "require_approval" },
+            "approvers": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      ]
+    },
+    "ambiguity": {
+      "type": "object",
+      "required": ["phrase", "question", "options"],
+      "additionalProperties": false,
+      "properties": {
+        "phrase": { "type": "string" },
+        "question": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "required": ["key", "priority", "conditions", "actions", "source_quote", "ambiguities"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string" },
+        "priority": { "type": "integer" },
+        "conditions": { "$ref": "#/$defs/condition" },
+        "actions": { "$ref": "#/$defs/action" },
+        "source_quote": {
+          "type": "string",
+          "description": "Copied verbatim from a provided chunk. Ruby rejects the rule if this doesn't appear in any chunk's text."
+        },
+        "ambiguities": { "type": "array", "items": { "$ref": "#/$defs/ambiguity" } }
+      }
+    }
+  }
+}
