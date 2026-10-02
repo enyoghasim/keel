@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import type { AgentRun, Envelope } from 'api-types'
 import { Command } from 'cmdk'
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { api } from '../../lib/api'
 import { navGroups } from '../layout/nav-items'
 import { latestPerConversation, type AgentConversation } from './use-agent-conversation'
@@ -27,13 +28,9 @@ function AgentTurn({ companyId, runId, onShowTrace }: { companyId: string; runId
       )}
       {run.status === 'completed' && <p className="whitespace-pre-wrap text-[14px] leading-relaxed">{run.final_text}</p>}
       {run.status === 'failed' && <p className="text-[13px] text-destructive">{run.error_message}</p>}
-      <button
-        type="button"
-        onClick={() => onShowTrace(run.id)}
-        className="rounded border border-border px-2.5 py-1 text-[12px] font-medium hover:bg-secondary"
-      >
+      <Button type="button" variant="outline" size="sm" onClick={() => onShowTrace(run.id)}>
         Show trace ({run.steps.length} {run.steps.length === 1 ? 'step' : 'steps'})
-      </button>
+      </Button>
     </section>
   )
 }
@@ -92,13 +89,9 @@ function Thread({
           autoFocus
           className="min-w-0 flex-1 bg-transparent px-1.5 py-1 text-[14px] outline-none placeholder:text-muted-foreground disabled:opacity-60"
         />
-        <button
-          type="button"
-          onClick={onNewConversation}
-          className="shrink-0 rounded px-2.5 py-1 text-[12px] font-medium text-brand hover:underline"
-        >
+        <Button type="button" variant="link" size="sm" onClick={onNewConversation} className="shrink-0">
           New conversation
-        </button>
+        </Button>
       </form>
     </div>
   )
