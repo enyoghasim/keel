@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_081251) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_085639) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -48,9 +48,69 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_081251) do
     t.index ["manager_id"], name: "index_people_on_manager_id"
   end
 
+  create_table "requests", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "requester_id", null: false
+    t.string "kind", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.string "decision"
+    t.string "matched_rule_ids", default: [], null: false, array: true
+    t.integer "policy_version"
+    t.string "status", default: "pending", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_requests_on_company_id"
+    t.index ["requester_id"], name: "index_requests_on_requester_id"
+  end
+
+  create_table "step_runs", force: :cascade do |t|
+    t.bigint "workflow_run_id", null: false
+    t.string "step_key", null: false
+    t.string "reference"
+    t.bigint "resolved_person_id"
+    t.string "status", default: "pending", null: false
+    t.datetime "acted_at"
+    t.boolean "overridden", default: false, null: false
+    t.text "override_reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["resolved_person_id"], name: "index_step_runs_on_resolved_person_id"
+    t.index ["workflow_run_id"], name: "index_step_runs_on_workflow_run_id"
+  end
+
+  create_table "workflow_runs", force: :cascade do |t|
+    t.bigint "request_id", null: false
+    t.bigint "workflow_id"
+    t.string "current_step"
+    t.string "status", default: "in_progress", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["request_id"], name: "index_workflow_runs_on_request_id", unique: true
+    t.index ["workflow_id"], name: "index_workflow_runs_on_workflow_id"
+  end
+
+  create_table "workflows", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "name", null: false
+    t.jsonb "trigger", default: {}, null: false
+    t.jsonb "steps", default: [], null: false
+    t.integer "version", default: 1, null: false
+    t.string "status", default: "draft", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_workflows_on_company_id"
+  end
+
   add_foreign_key "departments", "companies"
   add_foreign_key "departments", "people", column: "head_id"
   add_foreign_key "people", "companies"
   add_foreign_key "people", "departments"
   add_foreign_key "people", "people", column: "manager_id"
+  add_foreign_key "requests", "companies"
+  add_foreign_key "requests", "people", column: "requester_id"
+  add_foreign_key "step_runs", "people", column: "resolved_person_id"
+  add_foreign_key "step_runs", "workflow_runs"
+  add_foreign_key "workflow_runs", "requests"
+  add_foreign_key "workflow_runs", "workflows"
+  add_foreign_key "workflows", "companies"
 end
