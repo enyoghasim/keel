@@ -11,6 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@rails/actioncable": "^8.1.400",
+    "@rails/activestorage": "^8.1.400",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.104.0",
     "@tanstack/react-router": "^1.170.41",
@@ -24,6 +26,8 @@
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
     "@types/node": "^24.13.3",
+    "@types/rails__actioncable": "^8.0.3",
+    "@types/rails__activestorage": "^8.0.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
