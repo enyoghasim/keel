@@ -55,6 +55,16 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       expect(body["diff"]).to eq(change_proposal.diff)
       expect(body["impact"]).to eq(change_proposal.impact)
     end
+
+    it "includes the agent run that proposed it, so the UI can link to the trace" do
+      company = create(:company)
+      agent_run = create(:agent_run, company: company)
+      change_proposal = create(:change_proposal, company: company, agent_run: agent_run, proposed_by: "agent")
+
+      get "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}"
+
+      expect(response.parsed_body["data"]["agent_run_id"]).to eq(agent_run.id)
+    end
   end
 
   describe "GET /api/companies/:company_id/change_proposals" do

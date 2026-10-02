@@ -30,6 +30,13 @@ RSpec.describe ChangeProposal, type: :model do
     expect(create(:change_proposal).status).to eq("pending")
   end
 
+  it "links back to the agent run that proposed it, if any" do
+    agent_run = create(:agent_run)
+
+    expect(create(:change_proposal, agent_run: agent_run).agent_run).to eq(agent_run)
+    expect(build(:change_proposal, agent_run: nil)).to be_valid
+  end
+
   it "does not require a decider until one decides" do
     expect(build(:change_proposal, decided_by: nil, decided_at: nil)).to be_valid
   end

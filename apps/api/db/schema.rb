@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -86,6 +86,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
     t.datetime "decided_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "agent_run_id"
+    t.index ["agent_run_id"], name: "index_change_proposals_on_agent_run_id"
     t.index ["company_id"], name: "index_change_proposals_on_company_id"
     t.index ["decided_by_id"], name: "index_change_proposals_on_decided_by_id"
   end
@@ -316,6 +318,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_160500) do
   add_foreign_key "agent_runs", "companies"
   add_foreign_key "agent_runs", "people"
   add_foreign_key "agent_steps", "agent_runs"
+  add_foreign_key "change_proposals", "agent_runs"
   add_foreign_key "change_proposals", "companies"
   add_foreign_key "change_proposals", "people", column: "decided_by_id"
   add_foreign_key "chunks", "source_documents"

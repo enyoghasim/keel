@@ -9,7 +9,7 @@ module Api
   class ChangeProposalsController < ApplicationController
     include CompanyScoped
 
-    FIELDS = %i[id company_id kind title diff impact proposed_by status decided_by_id decided_at created_at].freeze
+    FIELDS = %i[id company_id kind title diff impact proposed_by agent_run_id status decided_by_id decided_at created_at].freeze
     SUPPORTED_KINDS = %w[org].freeze
 
     before_action :set_change_proposal, only: %i[show approve reject]
