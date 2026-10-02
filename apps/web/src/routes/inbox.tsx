@@ -16,7 +16,7 @@ function InboxPage() {
 
   return (
     <>
-      <PageHeader title="Inbox" subtitle="Approvals and tasks waiting on the acting person." />
+      <PageHeader title="Inbox" subtitle="Approvals and tasks waiting on you." />
       {companyId ? (
         <InboxView companyId={companyId} />
       ) : (

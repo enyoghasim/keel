@@ -96,9 +96,9 @@ const unresolvedRequest: Request = {
 
 const peopleRoute = { 'GET /api/companies/1/people': { body: { success: true, message: '', data: people } } }
 
-// A person distinct from `people` above, so the Topbar's signed-in chip
-// doesn't add an extra occurrence of a name these tests already assert on.
-const currentPerson: Person = {
+// Distinct from `people` above, so the Topbar's signed-in chip doesn't add
+// an extra occurrence of a name these tests already assert on.
+const hrAdmin: Person = {
   id: 99,
   name: 'Chiamaka Eze',
   email: 'chiamaka@nubo.test',
@@ -109,7 +109,20 @@ const currentPerson: Person = {
   start_date: null,
   roles: ['hr_admin'],
 }
-const sessionRoute = { 'GET /api/companies/1/session': { body: { success: true, message: '', data: currentPerson } } }
+const hrAdminSessionRoute = { 'GET /api/companies/1/session': { body: { success: true, message: '', data: hrAdmin } } }
+
+// A plain employee, also assigned the leave request's step — used for the
+// "scoped to yourself" tests, distinct from both `people` and `hrAdmin`.
+const tundeAsSelf: Person = { ...people[0], id: 98, name: 'Tunde Okafor' }
+const selfSessionRoute = { 'GET /api/companies/1/session': { body: { success: true, message: '', data: tundeAsSelf } } }
+
+const assignedToSelf: Request = {
+  ...leaveRequest,
+  workflow_run: {
+    ...leaveRequest.workflow_run!,
+    step_runs: [ { ...leaveRequest.workflow_run!.step_runs[0], resolved_person_id: 98 } ],
+  },
+}
 
 describe('/inbox', () => {
   beforeEach(() => {
@@ -128,7 +141,7 @@ describe('/inbox', () => {
     mockApi({
       'GET /api/companies/1/requests': { body: { success: true, message: '', data: [] } },
       ...peopleRoute,
-      ...sessionRoute,
+      ...selfSessionRoute,
     })
 
     await renderApp('/inbox')
@@ -136,61 +149,176 @@ describe('/inbox', () => {
     expect(await screen.findByText(/all caught up/i)).toBeInTheDocument()
   })
 
-  it('only lists step runs that have actually been resolved and assigned', async () => {
-    setCurrentCompanyId('1')
-    mockApi({
-      'GET /api/companies/1/requests': {
-        body: { success: true, message: '', data: [leaveRequest, unresolvedRequest] },
-      },
-      ...peopleRoute,
-      ...sessionRoute,
+  describe('as a plain employee', () => {
+    it('shows only steps assigned to the signed-in person, with no acting-as switch', async () => {
+      setCurrentCompanyId('1')
+      mockApi({
+        'GET /api/companies/1/requests': { body: { success: true, message: '', data: [assignedToSelf, unresolvedRequest] } },
+        ...peopleRoute,
+        ...selfSessionRoute,
+      })
+
+      await renderApp('/inbox')
+
+      expect(await screen.findByText('Leave request from Ngozi Doe')).toBeInTheDocument()
+      expect(screen.queryByLabelText('Acting as')).not.toBeInTheDocument()
     })
 
-    await renderApp('/inbox')
+    it('shows a waiting-on-you empty state when nothing is assigned to them, even if other steps are pending', async () => {
+      setCurrentCompanyId('1')
+      mockApi({
+        'GET /api/companies/1/requests': { body: { success: true, message: '', data: [leaveRequest] } },
+        ...peopleRoute,
+        ...selfSessionRoute,
+      })
 
-    expect(await screen.findByText('Leave request from Ngozi Doe')).toBeInTheDocument()
-    expect(screen.getAllByText('Leave request from Ngozi Doe')).toHaveLength(1)
+      await renderApp('/inbox')
+
+      expect(await screen.findByText(/nothing is waiting on you/i)).toBeInTheDocument()
+      expect(screen.queryByText('Leave request from Ngozi Doe')).not.toBeInTheDocument()
+    })
+
+    it('approves a step run assigned to them and refreshes the list', async () => {
+      const user = userEvent.setup()
+      setCurrentCompanyId('1')
+      const acted = {
+        id: 100,
+        step_key: 'manager_approval',
+        reference: 'person:98',
+        resolved_person_id: 98,
+        status: 'done' as const,
+        acted_at: '2026-01-02T00:00:00Z',
+        overridden: false,
+        override_reason: null,
+      }
+      mockApi({
+        'GET /api/companies/1/requests': [
+          { body: { success: true, message: '', data: [assignedToSelf] } },
+          { body: { success: true, message: '', data: [{ ...assignedToSelf, workflow_run: { ...assignedToSelf.workflow_run, step_runs: [acted] } }] } },
+        ],
+        'POST /api/step_runs/100/act': { body: { success: true, message: 'Step updated.', data: acted } },
+        ...peopleRoute,
+        ...selfSessionRoute,
+      })
+
+      await renderApp('/inbox')
+      await user.click(await screen.findByRole('button', { name: 'Approve' }))
+
+      expect(await screen.findByText(/all caught up/i)).toBeInTheDocument()
+    })
   })
 
-  it('approves a step run and refreshes the list', async () => {
-    const user = userEvent.setup()
-    setCurrentCompanyId('1')
-    const acted = {
-      id: 100,
-      step_key: 'manager_approval',
-      reference: 'person:1',
-      resolved_person_id: 1,
-      status: 'done' as const,
-      acted_at: '2026-01-02T00:00:00Z',
-      overridden: false,
-      override_reason: null,
-    }
-    mockApi({
-      'GET /api/companies/1/requests': [
-        { body: { success: true, message: '', data: [leaveRequest] } },
-        { body: { success: true, message: '', data: [{ ...leaveRequest, workflow_run: { ...leaveRequest.workflow_run, step_runs: [acted] } }] } },
-      ],
-      'POST /api/step_runs/100/act': { body: { success: true, message: 'Step updated.', data: acted } },
-      ...peopleRoute,
-      ...sessionRoute,
+  describe('as an hr_admin', () => {
+    it('defaults to their own queue', async () => {
+      setCurrentCompanyId('1')
+      mockApi({
+        'GET /api/companies/1/requests': { body: { success: true, message: '', data: [leaveRequest] } },
+        ...peopleRoute,
+        ...hrAdminSessionRoute,
+      })
+
+      await renderApp('/inbox')
+
+      expect(await screen.findByText(/nothing is waiting on you/i)).toBeInTheDocument()
+      expect(screen.queryByText('Leave request from Ngozi Doe')).not.toBeInTheDocument()
     })
 
-    await renderApp('/inbox')
-    await user.click(await screen.findByRole('button', { name: 'Approve' }))
+    it('can switch to Everyone to see every assigned step, including ones not assigned to them', async () => {
+      const user = userEvent.setup()
+      setCurrentCompanyId('1')
+      mockApi({
+        'GET /api/companies/1/requests': { body: { success: true, message: '', data: [leaveRequest, unresolvedRequest] } },
+        ...peopleRoute,
+        ...hrAdminSessionRoute,
+      })
 
-    expect(await screen.findByText(/all caught up/i)).toBeInTheDocument()
+      await renderApp('/inbox')
+      await user.selectOptions(await screen.findByLabelText('Acting as'), 'Everyone')
+
+      expect(await screen.findByText('Leave request from Ngozi Doe')).toBeInTheDocument()
+      expect(screen.getAllByText('Leave request from Ngozi Doe')).toHaveLength(1)
+    })
+
+    it('can switch to a specific assignee to see just their queue', async () => {
+      const user = userEvent.setup()
+      setCurrentCompanyId('1')
+      const expenseRequest: Request = {
+        ...leaveRequest,
+        id: 3,
+        kind: 'expense',
+        requester_id: 1,
+        workflow_run: {
+          id: 12,
+          status: 'in_progress',
+          current_step: 'finance_approval',
+          step_runs: [
+            {
+              id: 102,
+              step_key: 'finance_approval',
+              reference: 'person:2',
+              resolved_person_id: 2,
+              status: 'pending',
+              acted_at: null,
+              overridden: false,
+              override_reason: null,
+            },
+          ],
+        },
+      }
+      mockApi({
+        'GET /api/companies/1/requests': { body: { success: true, message: '', data: [leaveRequest, expenseRequest] } },
+        ...peopleRoute,
+        ...hrAdminSessionRoute,
+      })
+
+      await renderApp('/inbox')
+      await user.selectOptions(await screen.findByLabelText('Acting as'), 'Tunde Bakare')
+
+      expect(await screen.findByText('Leave request from Ngozi Doe')).toBeInTheDocument()
+      expect(screen.queryByText('Expense request from Tunde Bakare')).not.toBeInTheDocument()
+    })
+
+    it('can approve a step assigned to someone else', async () => {
+      const user = userEvent.setup()
+      setCurrentCompanyId('1')
+      const acted = {
+        id: 100,
+        step_key: 'manager_approval',
+        reference: 'person:1',
+        resolved_person_id: 1,
+        status: 'done' as const,
+        acted_at: '2026-01-02T00:00:00Z',
+        overridden: false,
+        override_reason: null,
+      }
+      mockApi({
+        'GET /api/companies/1/requests': [
+          { body: { success: true, message: '', data: [leaveRequest] } },
+          { body: { success: true, message: '', data: [{ ...leaveRequest, workflow_run: { ...leaveRequest.workflow_run, step_runs: [acted] } }] } },
+        ],
+        'POST /api/step_runs/100/act': { body: { success: true, message: 'Step updated.', data: acted } },
+        ...peopleRoute,
+        ...hrAdminSessionRoute,
+      })
+
+      await renderApp('/inbox')
+      await user.selectOptions(await screen.findByLabelText('Acting as'), 'Everyone')
+      await user.click(await screen.findByRole('button', { name: 'Approve' }))
+
+      expect(await screen.findByText(/all caught up/i)).toBeInTheDocument()
+    })
   })
 
   it('overrides a step run only once a reason is given', async () => {
     const user = userEvent.setup()
     setCurrentCompanyId('1')
     mockApi({
-      'GET /api/companies/1/requests': { body: { success: true, message: '', data: [leaveRequest] } },
+      'GET /api/companies/1/requests': { body: { success: true, message: '', data: [assignedToSelf] } },
       'POST /api/step_runs/100/act': {
-        body: { success: true, message: 'Step updated.', data: { ...leaveRequest.workflow_run!.step_runs[0], overridden: true } },
+        body: { success: true, message: 'Step updated.', data: { ...assignedToSelf.workflow_run!.step_runs[0], overridden: true } },
       },
       ...peopleRoute,
-      ...sessionRoute,
+      ...selfSessionRoute,
     })
 
     await renderApp('/inbox')
@@ -201,46 +329,5 @@ describe('/inbox', () => {
 
     await user.type(screen.getByLabelText("Reason for overriding the engine's decision"), 'Manager is out sick')
     expect(confirmButton).toBeEnabled()
-  })
-
-  it('filters by the acting person', async () => {
-    const user = userEvent.setup()
-    setCurrentCompanyId('1')
-    const expenseRequest: Request = {
-      ...leaveRequest,
-      id: 3,
-      kind: 'expense',
-      requester_id: 1,
-      workflow_run: {
-        id: 12,
-        status: 'in_progress',
-        current_step: 'finance_approval',
-        step_runs: [
-          {
-            id: 102,
-            step_key: 'finance_approval',
-            reference: 'person:2',
-            resolved_person_id: 2,
-            status: 'pending',
-            acted_at: null,
-            overridden: false,
-            override_reason: null,
-          },
-        ],
-      },
-    }
-    mockApi({
-      'GET /api/companies/1/requests': { body: { success: true, message: '', data: [leaveRequest, expenseRequest] } },
-      ...peopleRoute,
-      ...sessionRoute,
-    })
-
-    await renderApp('/inbox')
-    expect(await screen.findByText('Leave request from Ngozi Doe')).toBeInTheDocument()
-    expect(screen.getByText('Expense request from Tunde Bakare')).toBeInTheDocument()
-
-    await user.selectOptions(screen.getByLabelText('Acting as'), 'Tunde Bakare')
-    expect(await screen.findByText('Leave request from Ngozi Doe')).toBeInTheDocument()
-    expect(screen.queryByText('Expense request from Tunde Bakare')).not.toBeInTheDocument()
   })
 })
