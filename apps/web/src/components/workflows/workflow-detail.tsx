@@ -5,6 +5,7 @@ import { api } from '../../lib/api'
 import { PagePlaceholder } from '../layout/page-placeholder'
 import { FlowCanvas } from './flow-canvas'
 import { TestRunDialog } from './test-run-dialog'
+import { Button } from '@/components/ui/button'
 
 const OUTCOME_LABEL: Record<WorkflowTestRunResult['outcome'], string> = {
   auto_approve: 'Auto approve',
@@ -49,13 +50,9 @@ export function WorkflowDetail({ companyId, workflowId }: { companyId: string; w
         <p className="text-[13px] text-muted-foreground">
           Triggers on every <span className="font-medium text-foreground">{workflow.trigger.request_kind}</span> request.
         </p>
-        <button
-          type="button"
-          onClick={() => setDialogOpen(true)}
-          className="rounded bg-primary px-3.5 py-1.5 text-[13px] font-medium text-primary-foreground shadow-btn"
-        >
+        <Button type="button" onClick={() => setDialogOpen(true)}>
           Test run
-        </button>
+        </Button>
       </div>
 
       {testRun && (
