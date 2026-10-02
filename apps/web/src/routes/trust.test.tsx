@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { EvalResult, EvalRun, EvalRunWithResults, Person } from 'api-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -236,6 +236,8 @@ describe('/trust', () => {
       lastSubscription()[1].received({ event: 'run', run: { ...pending, status: 'completed', cases_count: 2, passed_count: 1, accuracy: 0.5 } }),
     )
     expect(await within(detail).findByText('50% · 1 of 2 passed')).toBeInTheDocument()
+    // The prompt versions panel reloads, since a finished run changes what each version shows.
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/prompt_versions'))).toHaveLength(2))
   })
 
   it('starts a policy extraction run of a chosen prompt version with stability sampling', async () => {
