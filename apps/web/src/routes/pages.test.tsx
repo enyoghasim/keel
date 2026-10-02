@@ -4,11 +4,6 @@ import { renderApp } from '../test/render-app'
 
 const pages = [
   {
-    path: '/graph',
-    heading: 'Graph',
-    note: /Org::GraphSnapshot and the people\/departments endpoints/,
-  },
-  {
     path: '/workflows',
     heading: 'Workflows',
     note: /Workflows::Runtime and the workflow steps endpoint/,
