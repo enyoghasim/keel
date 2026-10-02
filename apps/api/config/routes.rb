@@ -22,6 +22,7 @@ Rails.application.routes.draw do
         post :approve, on: :member
         post :reject, on: :member
       end
+      resources :insights, only: [ :index, :create, :show ]
     end
 
     resources :step_runs, only: [] do
