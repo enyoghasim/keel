@@ -1,9 +1,10 @@
 import type { Action, Condition } from '../generated/policy-rules'
+import type { WorkflowStep } from './workflow'
 
 // Mirrors Api::ChangeProposalsController::FIELDS, #serialize_impact's
 // replacement Impact::OrgImpact and Impact::RuleImpact (apps/api/app/services/impact/).
 // "org" and "rule" proposals are implemented end to end (SPEC.md section 10);
-// "workflow" exists as a kind but has no diff shape or impact yet.
+// "workflow" proposals come from a "Describe a change" instruction (WorkflowEditJob).
 //
 // This isn't generated from packages/schemas: that pipeline is for shapes
 // an LLM is allowed to produce, and change_proposals is a plain Rails
@@ -92,6 +93,36 @@ export interface RuleImpactReport {
   }
 }
 
+// Mirrors Impact::WorkflowImpact: the step-level diff plus who is affected
+// by dry-running the old and new workflow for every person.
+export interface WorkflowImpactStep {
+  step_key: string
+  reference: string | null
+  person_id: number | null
+}
+
+export interface WorkflowImpactReport {
+  steps: { added: string[]; removed: string[]; changed: string[]; moved: string[] }
+  scenarios_run: number
+  // People whose matched steps differ in at least one scenario.
+  affected_count: number
+  // The first few (person, request) pairs, with the steps before and after.
+  affected: { person_id: number; payload: Record<string, unknown>; before: WorkflowImpactStep[]; after: WorkflowImpactStep[] }[]
+  // New steps that resolve to nobody, and how many people hit each.
+  broken: { step_key: string; reference: string | null; person_count: number }[]
+  // Open step runs waiting on a step the change removes.
+  in_flight: number
+  override_reason?: string
+}
+
+// Only the steps change: before/after are the whole step lists.
+export interface WorkflowDiff {
+  workflow_id: number
+  instruction: string
+  before: WorkflowStep[]
+  after: WorkflowStep[]
+}
+
 export type ChangeProposalKind = 'org' | 'rule' | 'workflow'
 export type ChangeProposalStatus = 'pending' | 'approved' | 'rejected'
 
@@ -120,11 +151,10 @@ export interface RuleChangeProposal extends ChangeProposalBase {
   impact: RuleImpactReport
 }
 
-// Reserved: the API accepts the kind but has no diff shape or impact yet.
 export interface WorkflowChangeProposal extends ChangeProposalBase {
   kind: 'workflow'
-  diff: unknown
-  impact: Record<string, unknown>
+  diff: WorkflowDiff
+  impact: WorkflowImpactReport
 }
 
 export type ChangeProposal = OrgChangeProposal | RuleChangeProposal | WorkflowChangeProposal

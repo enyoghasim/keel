@@ -48,3 +48,18 @@ export interface WorkflowTestRunResult {
   errors: string[]
   steps: WorkflowTestRunStep[]
 }
+
+// Mirrors WorkflowEdit#as_payload: one "Describe a change" instruction and
+// what became of it. `proposed` links to the ChangeProposal it produced;
+// `unchanged` means the model's workflow was identical to the current one.
+export type WorkflowEditStatus = 'pending' | 'proposed' | 'unchanged' | 'failed'
+
+export interface WorkflowEdit {
+  id: number
+  workflow_id: number
+  instruction: string
+  status: WorkflowEditStatus
+  change_proposal_id: number | null
+  error_message: string | null
+  created_at: string
+}
