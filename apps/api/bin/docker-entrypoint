@@ -3,6 +3,13 @@
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare
+
+  # Fill a blank database with the Nubo Logistics demo company so there is
+  # something to sign in to (idempotent: it does nothing once a company
+  # exists). Set SEED_DEMO=false to start blank and assemble your own.
+  if [ "${SEED_DEMO:-true}" != "false" ]; then
+    ./bin/rails db:seed
+  fi
 fi
 
 exec "${@}"

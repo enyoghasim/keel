@@ -92,7 +92,7 @@ production:
   primary: &primary_production
     <<: *default
     database: keel_production
-    username: keel
+    username: <%= ENV.fetch("DATABASE_USERNAME", "keel") %>
     password: <%= ENV["DATABASE_PASSWORD"] %>
   cache:
     <<: *primary_production

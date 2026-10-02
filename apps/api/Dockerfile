@@ -59,7 +59,9 @@ FROM base
 
 # Run and own only the runtime files as a non-root user for security
 RUN groupadd --system --gid 1000 rails && \
-    useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash
+    useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash && \
+    # uploads (Active Storage) and logs need to be writable, and a mounted volume inherits this ownership
+    mkdir -p /rails/storage /rails/tmp /rails/log && chown rails:rails /rails/storage /rails/tmp /rails/log
 USER 1000:1000
 
 # Copy built artifacts: gems, application, shared schemas
