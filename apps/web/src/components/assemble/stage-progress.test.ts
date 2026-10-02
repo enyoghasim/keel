@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AssembleEvent } from './assemble-event'
-import { importIssues, isComplete, lowConfidenceMappings, STAGES, stageStatus, summarize } from './stage-progress'
+import { failure, furthestProgress, importIssues, isComplete, lowConfidenceMappings, STAGES, stageStatus, summarize } from './stage-progress'
 
 function event(partial: Partial<AssembleEvent> & Pick<AssembleEvent, 'stage' | 'event' | 'progress'>): AssembleEvent {
   return { data: {}, ...partial }
@@ -115,5 +115,19 @@ describe('what a person has to look at', () => {
       event({ stage: 'policies', event: 'rule_rejected', progress: 0.6, data: { key: 'x' } }),
     ]
     expect(summarize(events)).toMatchObject({ rules: 2, needInput: 1, dropped: 1 })
+  })
+})
+
+describe('a failed run', () => {
+  const failed = event({ stage: 'csv', event: 'failed', progress: 0, data: { message: "Keel's AI model isn't set up." } })
+
+  it('reports why Assemble stopped', () => {
+    expect(failure([failed])).toBe("Keel's AI model isn't set up.")
+    expect(failure([])).toBeNull()
+  })
+
+  it('keeps the progress already made, since a failure event carries none', () => {
+    const graph = event({ stage: 'graph', event: 'person_added', progress: 0.25 })
+    expect(furthestProgress([graph, { ...failed, stage: 'handbook' }])).toBe(0.25)
   })
 })

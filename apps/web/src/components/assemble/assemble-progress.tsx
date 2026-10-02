@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { api } from '../../lib/api'
 import { useChannel } from '../../lib/cable'
 import { type AssembleEvent, mergeEvents } from './assemble-event'
-import { importIssues, isComplete, lowConfidenceMappings, STAGES, stageStatus, summarize } from './stage-progress'
+import { failure, furthestProgress, importIssues, isComplete, lowConfidenceMappings, STAGES, stageStatus, summarize } from './stage-progress'
 import { describeAssembleEvent } from './describe-assemble-event'
 
 const STATUS_DOT: Record<string, string> = {
@@ -39,7 +39,8 @@ export function AssembleProgress({ companyId }: { companyId: string }) {
 
   useChannel<AssembleEvent>('AssembleChannel', { company_id: companyId }, onEvent, refetchLog)
 
-  const progress = events[events.length - 1]?.progress ?? 0
+  const progress = furthestProgress(events)
+  const failedBecause = failure(events)
   const complete = isComplete(events)
   const summary = summarize(events)
   const columnsToCheck = lowConfidenceMappings(events)
@@ -66,6 +67,12 @@ export function AssembleProgress({ companyId }: { companyId: string }) {
           })}
         </ol>
       </div>
+
+      {failedBecause && (
+        <p role="alert" className="rounded border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-[13px] text-destructive">
+          Assemble stopped: {failedBecause}
+        </p>
+      )}
 
       {complete ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-secondary px-4 py-3 text-[13px]">

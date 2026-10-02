@@ -106,3 +106,14 @@ export interface ImportIssue {
 export function importIssues(events: AssembleEvent[]): ImportIssue[] {
   return events.filter((e) => e.event === 'import_issue').map((e) => e.data as unknown as ImportIssue)
 }
+
+/** Why Assemble stopped, if it did. */
+export function failure(events: AssembleEvent[]): string | null {
+  const failed = events.find((e) => e.event === 'failed')
+  return failed ? String(failed.data.message) : null
+}
+
+/** How far along the job got: the furthest any event reached (a failure carries none). */
+export function furthestProgress(events: AssembleEvent[]): number {
+  return events.reduce((furthest, e) => Math.max(furthest, e.progress), 0)
+}
