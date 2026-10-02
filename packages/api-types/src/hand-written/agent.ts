@@ -30,6 +30,8 @@ export interface AgentRun {
   status: AgentRunStatus
   final_text: string | null
   total_tokens: number
+  // USD, from ruby_llm's per-model pricing; null when the model has none.
+  cost_usd: number | null
   error_message: string | null
   // Thumbs up/down on the answer; the reason only for a thumbs-down.
   feedback: AgentFeedbackRating | null
