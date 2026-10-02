@@ -83,6 +83,51 @@ RSpec.describe Assemble::PolicyExtractor do
     end
   end
 
+  describe ".compile" do
+    # The LLM half on its own — no policy or rule is saved — so the eval
+    # harness can compile a passage with any prompt version.
+    let(:passage) { Struct.new(:page, :text).new(4, "Expenses under €500 are auto-approved.") }
+    let(:response) { { "rules" => [] } }
+
+    before do
+      allow(chat).to receive(:with_schema).and_return(chat)
+      allow(chat).to receive(:ask).and_return(message_with(response))
+    end
+
+    it "returns the schema-validated rules without persisting anything" do
+      rule = {
+        "key" => "small", "priority" => 1, "conditions" => { "field" => "payload.amount_eur", "op" => "lt", "value" => 500 },
+        "actions" => { "decision" => "auto_approve" }, "source_quote" => passage.text, "ambiguities" => []
+      }
+      allow(chat).to receive(:ask).and_return(message_with({ "rules" => [ rule ] }))
+
+      expect(described_class.compile(category: "expense", chunks: [ passage ])).to eq([ rule ])
+      expect(Policy.count).to eq(0)
+    end
+
+    it "fills the given prompt version's template with the category and the chunks, page by page" do
+      version = build(:prompt_version, template: "CUSTOM {{category}} PROMPT\n{{excerpt}}")
+
+      described_class.compile(category: "expense", chunks: [ passage ], prompt_version: version)
+
+      expect(chat).to have_received(:ask).with(a_string_starting_with("CUSTOM expense PROMPT").and(including("Chunk 1 (page 4)", passage.text)))
+    end
+
+    it "uses the active prompt version of key policy_extractor when none is given" do
+      create(:prompt_version, key: "policy_extractor", version: 2, active: true, template: "ACTIVE {{category}}\n{{excerpt}}")
+
+      described_class.compile(category: "leave", chunks: [ passage ])
+
+      expect(chat).to have_received(:ask).with(a_string_starting_with("ACTIVE leave"))
+    end
+
+    it "falls back to the built-in template, which insists on verbatim quotes, when no version is active" do
+      described_class.compile(category: "leave", chunks: [ passage ])
+
+      expect(chat).to have_received(:ask).with(a_string_including("verbatim"))
+    end
+  end
+
   describe ".relevant_chunks_for" do
     it "returns the company's chunks ordered by similarity to the category's query embedding" do
       company = create(:company)

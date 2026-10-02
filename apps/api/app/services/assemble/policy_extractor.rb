@@ -17,18 +17,43 @@ module Assemble
       "onboarding" => "onboarding policy"
     }.freeze
 
+    PROMPT_KEY = "policy_extractor".freeze
+
+    # The prompt used when no version is active in the database. Placeholders
+    # are filled by PromptVersion#render, same as a stored version.
+    DEFAULT_TEMPLATE = <<~PROMPT.freeze
+      Extract {{category}} policy rules from the following handbook excerpts.
+      Every rule's source_quote must be copied verbatim from one of these chunks — do
+      not paraphrase it. Every vague phrase that needs a human decision must appear in
+      that rule's ambiguities, with a question and options, rather than being guessed.
+
+      {{excerpt}}
+    PROMPT
+
     def self.call(company:, category:, chunks:)
       policy = Policy.create!(company: company, title: "#{category.to_s.titleize} Policy", category: category)
-      chat = RubyLLM.chat.with_schema(schema)
 
-      data = Llm::StructuredAsk.call(chat: chat, schema: schema, prompt: prompt(category, chunks))
-      accepted, rejected = partition(data.fetch("rules"), chunks, policy)
+      rules_data = compile(category: category, chunks: chunks)
+      accepted, rejected = partition(rules_data, chunks, policy)
 
       Result.new(policy: policy, rules: accepted, rejected: rejected)
     rescue Llm::StructuredAsk::ValidationError => e
       policy.update!(status: "needs_review")
       Rails.logger.warn("[Assemble::PolicyExtractor] #{category} extraction failed validation twice: #{e.message}")
       Result.new(policy: policy, rules: [], rejected: [])
+    end
+
+    # The LLM half on its own: asks the model (with the given prompt
+    # version, else the active one, else the built-in template) and returns
+    # the schema-validated rules, saving nothing. Raises
+    # Llm::StructuredAsk::ValidationError if the output is invalid twice.
+    # Chunks need only respond to #page and #text, so evals can compile a
+    # passage that isn't a stored Chunk.
+    def self.compile(category:, chunks:, prompt_version: PromptVersion.active_for(PROMPT_KEY))
+      template = prompt_version ? prompt_version : PromptVersion.new(template: DEFAULT_TEMPLATE)
+      chat = RubyLLM.chat.with_schema(schema)
+
+      Llm::StructuredAsk.call(chat: chat, schema: schema, prompt: template.render(category: category, excerpt: excerpt(chunks))).fetch("rules")
     end
 
     def self.relevant_chunks_for(company:, category:, limit: 8)
@@ -62,18 +87,9 @@ module Assemble
     end
     private_class_method :partition
 
-    def self.prompt(category, chunks)
-      excerpt = chunks.each_with_index.map { |c, i| "Chunk #{i + 1} (page #{c.page}):\n#{c.text}" }.join("\n\n")
-
-      <<~PROMPT
-        Extract #{category} policy rules from the following handbook excerpts.
-        Every rule's source_quote must be copied verbatim from one of these chunks — do
-        not paraphrase it. Every vague phrase that needs a human decision must appear in
-        that rule's ambiguities, with a question and options, rather than being guessed.
-
-        #{excerpt}
-      PROMPT
+    def self.excerpt(chunks)
+      chunks.each_with_index.map { |c, i| "Chunk #{i + 1} (page #{c.page}):\n#{c.text}" }.join("\n\n")
     end
-    private_class_method :prompt
+    private_class_method :excerpt
   end
 end

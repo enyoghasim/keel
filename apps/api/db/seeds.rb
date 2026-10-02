@@ -7,8 +7,10 @@
 require_relative "seeds/nubo"
 require_relative "seeds/nubo_handbook"
 require_relative "seeds/nubo_history"
+require_relative "seeds/prompts"
 
 Seeds::Nubo.call
+Seeds::Prompts.call
 
 # Seeding itself never needs a model key; with one, the handbook chunks get
 # embedded too so the agent's search_handbook can use vector search. Runs on
