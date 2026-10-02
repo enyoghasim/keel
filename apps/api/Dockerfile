@@ -1,11 +1,10 @@
 # syntax=docker/dockerfile:1
 # check=error=true
 
-# This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
-# docker build -t api .
-# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name api api
-
-# For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
+# Production image. Build context is the repo root (apps/api needs
+# packages/schemas at boot — see Llm::SchemaRegistry):
+#   docker build -f apps/api/Dockerfile -t keel-api .
+#   docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name api keel-api
 
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version
 ARG RUBY_VERSION=4.0.6
@@ -36,16 +35,17 @@ RUN apt-get update -qq && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install application gems
-COPY vendor/* ./vendor/
-COPY Gemfile Gemfile.lock ./
+COPY apps/api/vendor/* ./vendor/
+COPY apps/api/Gemfile apps/api/Gemfile.lock ./
 
 RUN bundle install && \
     rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
     # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
     bundle exec bootsnap precompile -j 1 --gemfile
 
-# Copy application code
-COPY . .
+# Copy application code and the shared schema package it loads at boot
+COPY apps/api .
+COPY packages/schemas /packages/schemas
 
 # Precompile bootsnap code for faster boot times.
 # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
@@ -62,9 +62,10 @@ RUN groupadd --system --gid 1000 rails && \
     useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash
 USER 1000:1000
 
-# Copy built artifacts: gems, application
+# Copy built artifacts: gems, application, shared schemas
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
+COPY --chown=rails:rails --from=build /packages /packages
 
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]

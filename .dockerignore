@@ -1,0 +1,13 @@
+.git/
+**/node_modules/
+**/vendor/bundle/
+**/.bundle/
+**/dist/
+**/.vite/
+**/log/*
+**/tmp/*
+**/storage/*
+**/.env*
+!**/.env.example
+**/*.key
+**/coverage/
