@@ -1,5 +1,9 @@
-import type { ChangeProposal, Department, Person } from 'api-types'
+import { useQuery } from '@tanstack/react-query'
+import type { AgentRun, ChangeProposal, Department, Envelope, Person } from 'api-types'
 import { useState } from 'react'
+import { api } from '../../lib/api'
+import { TraceDrawer } from '../agent/trace-drawer'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ApproveRejectBar } from './approve-reject-bar'
 import { ImpactSummaryCards } from './impact-summary-cards'
@@ -27,6 +31,34 @@ const STATUS_LABEL: Record<ChangeProposal['status'], string> = {
   rejected: 'Rejected',
 }
 
+const BLOCKER_LABEL: Record<ChangeProposal['kind'], { singular: string; plural: string }> = {
+  org: { singular: 'broken chain', plural: 'broken chains' },
+  rule: { singular: 'new conflict', plural: 'new conflicts' },
+  workflow: { singular: 'broken step', plural: 'broken steps' },
+}
+
+// The trace of the agent run that proposed this (AGENTS.md rule 3), for
+// the HR admins who decide it — runs themselves are private to whoever asked.
+function TraceButton({ companyId, proposalId }: { companyId: string; proposalId: number }) {
+  const [open, setOpen] = useState(false)
+  const traceQuery = useQuery({
+    queryKey: ['change_proposal_trace', companyId, proposalId],
+    queryFn: () => api.get<Envelope<AgentRun>>(`/companies/${companyId}/change_proposals/${proposalId}/trace`),
+    enabled: open,
+  })
+  const run = traceQuery.data?.data
+
+  return (
+    <div>
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        View trace
+      </Button>
+      {traceQuery.isError && open && <p className="mt-1 text-[13px] text-destructive">Couldn't load the trace.</p>}
+      {open && run && <TraceDrawer run={run} onClose={() => setOpen(false)} />}
+    </div>
+  )
+}
+
 export function ProposalRow({
   proposal,
   companyId,
@@ -41,7 +73,9 @@ export function ProposalRow({
   canDecide: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
-  const broken = proposal.kind === 'rule' ? 0 : proposal.impact.broken.length
+  // What holds Approve behind "Approve anyway": broken chains, broken steps, or rules that now conflict.
+  const broken = proposal.kind === 'rule' ? proposal.impact.backtest.new_conflicts.length : proposal.impact.broken.length
+  const blocker = BLOCKER_LABEL[proposal.kind]
 
   return (
     <Card className="gap-0 p-0">
@@ -100,7 +134,9 @@ export function ProposalRow({
           {proposal.kind === 'rule' && <RuleProposalDetails proposal={proposal} people={people} />}
           {proposal.kind === 'workflow' && <WorkflowProposalDetails proposal={proposal} people={people} />}
 
-          <ApproveRejectBar companyId={companyId} proposal={proposal} brokenCount={broken} canDecide={canDecide} />
+          {canDecide && proposal.agent_run_id !== null && <TraceButton companyId={companyId} proposalId={proposal.id} />}
+
+          <ApproveRejectBar companyId={companyId} proposal={proposal} brokenCount={broken} blocker={blocker} canDecide={canDecide} />
         </div>
       )}
     </Card>

@@ -14,11 +14,14 @@ export function ApproveRejectBar({
   companyId,
   proposal,
   brokenCount,
+  blocker = { singular: 'broken chain', plural: 'broken chains' },
   canDecide,
 }: {
   companyId: string
   proposal: ChangeProposal
+  /** Problems that hold Approve behind "Approve anyway": broken chains, new rule conflicts, broken steps. */
   brokenCount: number
+  blocker?: { singular: string; plural: string }
   canDecide: boolean
 }) {
   const queryClient = useQueryClient()
@@ -54,7 +57,7 @@ export function ApproveRejectBar({
     return <p className="text-[13px] text-muted-foreground">Waiting for an HR admin to approve or reject this proposal.</p>
   }
 
-  // SPEC.md section 10: Approve is disabled while there are broken chains,
+  // SPEC.md section 10: Approve is disabled while there are blockers (broken chains),
   // unless "Approve anyway" is ticked with a reason — mirrors the
   // controller's refusal in Api::ChangeProposalsController#approve.
   const approveDisabled = brokenCount > 0 && (!approveAnyway || reason.trim() === '')
@@ -70,7 +73,7 @@ export function ApproveRejectBar({
             className="mt-0.5"
           />
           <span className="flex-1">
-            Approve anyway, despite {brokenCount} broken {brokenCount === 1 ? 'chain' : 'chains'}
+            Approve anyway, despite {brokenCount} {brokenCount === 1 ? blocker.singular : blocker.plural}
             {approveAnyway && (
               <input
                 type="text"

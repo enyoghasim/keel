@@ -1,6 +1,6 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { Department, OrgChangeProposal, Person, RuleChangeProposal, WorkflowChangeProposal } from 'api-types'
+import type { AgentRun, Department, OrgChangeProposal, Person, RuleChangeProposal, WorkflowChangeProposal } from 'api-types'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
@@ -423,5 +423,68 @@ describe('/proposals', () => {
     expect(await screen.findByText('Set up accounts')).toBeInTheDocument()
     expect(screen.getByText(/role:it_admin resolves to nobody for 3 people/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
+  })
+
+  it('holds a rule proposal that creates a conflict behind Approve anyway with a reason', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    const conflicted: RuleChangeProposal = {
+      ...ruleProposal,
+      impact: {
+        backtest: {
+          ...ruleProposal.impact.backtest,
+          new_conflicts: [{ rules: ['expense_small_auto', 'expense_travel'], example: { amount_eur: 700 }, warning: 'These two rules now overlap at the same priority.' }],
+        },
+      },
+    }
+    const fetchMock = mockApi({
+      'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [conflicted] } },
+      'POST /api/companies/1/change_proposals/3/approve': { body: { success: true, message: '', data: { ...conflicted, status: 'approved' } } },
+      ...peopleRoute,
+      ...departmentsRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/proposals')
+    await user.click(await screen.findByRole('button', { name: /Raise the limit to €800/ }))
+
+    const approveButton = await screen.findByRole('button', { name: 'Approve' })
+    expect(approveButton).toBeDisabled()
+    await user.click(screen.getByRole('checkbox', { name: /Approve anyway, despite 1 new conflict/ }))
+    await user.type(screen.getByLabelText('Reason for approving anyway'), 'Merging travel rules next week')
+    expect(approveButton).toBeEnabled()
+
+    await user.click(approveButton)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/companies/1/change_proposals/3/approve',
+      expect.objectContaining({ body: JSON.stringify({ approve_anyway: true, reason: 'Merging travel rules next week' }) }),
+    )
+  })
+
+  it("lets an hr_admin open the trace of a proposal the agent made, and doesn't offer one for a person's", async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    const run: AgentRun = {
+      id: 5, conversation_id: 'c', person_id: 99, message: 'Raise the limit to €800', status: 'completed', final_text: 'Proposed.', total_tokens: 100,
+      error_message: null, cost_usd: null, feedback: null, feedback_reason: null, created_at: '2026-01-03T00:00:00Z',
+      steps: [{ id: 1, position: 1, kind: 'tool', tool_name: 'propose_rule_change', input: { policy_id: 1 }, output: { proposal_id: 3 }, latency_ms: 40, tokens: null }],
+    }
+    mockApi({
+      'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [ruleProposal, cleanProposal] } },
+      'GET /api/companies/1/change_proposals/3/trace': { body: { success: true, message: '', data: run } },
+      ...peopleRoute,
+      ...departmentsRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/proposals')
+    await user.click(await screen.findByRole('button', { name: /Move Ngozi under Ada/ }))
+    expect(screen.queryByRole('button', { name: 'View trace' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Raise the limit to €800/ }))
+    await user.click(await screen.findByRole('button', { name: 'View trace' }))
+
+    const drawer = await screen.findByRole('dialog', { name: 'Agent trace' })
+    expect(within(drawer).getByText('propose_rule_change')).toBeInTheDocument()
   })
 })
