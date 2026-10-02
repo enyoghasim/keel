@@ -44,7 +44,7 @@ function describeLeaf(node: { field: string; op: string; value: unknown }): stri
   return `${field} ${OP_LABELS[node.op] ?? node.op} ${formatValue(node.field, node.value)}`
 }
 
-function describeCondition(node: Condition): string {
+export function describeCondition(node: Condition): string {
   if ('all' in node) return node.all.map(describeTerm).join(' and ')
   if ('any' in node) return node.any.map(describeTerm).join(' or ')
   return describeLeaf(node)
@@ -57,7 +57,7 @@ function describeTerm(node: Condition): string {
   return describeLeaf(node)
 }
 
-function describeApprover(reference: string): string {
+export function describeReference(reference: string): string {
   if (reference === 'manager_of(requester)') return "the requester's manager"
 
   const roleMatch = reference.match(/^role:(.+)$/)
@@ -73,7 +73,7 @@ function describeAction(action: Action): string {
     case 'reject':
       return `reject (${action.reason})`
     case 'require_approval':
-      return `send to ${action.approvers.map(describeApprover).join(', ')} for approval`
+      return `send to ${action.approvers.map(describeReference).join(', ')} for approval`
   }
 }
 
