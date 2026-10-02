@@ -19,10 +19,10 @@ RSpec.describe "Api::EvalRuns", type: :request do
     it "refuses a suite that has no runner yet" do
       sign_in(hr_admin)
 
-      post "/api/companies/#{company.id}/eval_runs", params: { suite: "agent" }, as: :json
+      post "/api/companies/#{company.id}/eval_runs", params: { suite: "nonsense" }, as: :json
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.parsed_body["message"]).to eq("The agent suite can't be run yet. Runnable suites: insights.")
+      expect(response.parsed_body["message"]).to eq("The nonsense suite can't be run yet. Runnable suites: insights, policy_extraction.")
       expect(EvalRun.count).to eq(0)
     end
 
@@ -55,7 +55,7 @@ RSpec.describe "Api::EvalRuns", type: :request do
       body = response.parsed_body
       expect(body["data"].map { _1["id"] }).to eq([ newer.id, older.id ])
       expect(body["data"].last["accuracy"]).to eq(0.8)
-      expect(body["meta"]).to eq({ "active_cases" => { "insights" => 2 }, "runnable_suites" => [ "insights" ] })
+      expect(body["meta"]).to eq({ "active_cases" => { "insights" => 2 }, "runnable_suites" => %w[insights policy_extraction] })
     end
   end
 

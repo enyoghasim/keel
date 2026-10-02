@@ -1,18 +1,22 @@
 module Evals
   # Runs one EvalRun (SPEC.md section 12): every active case in the suite
   # goes through the same AI service production uses, and is scored by a
-  # deterministic scorer. Only the insights suite is runnable so far —
-  # policy_extraction and agent need their own scorers (behavioural probes
-  # and LLM-as-judge) before they can be.
+  # deterministic scorer. SUITES is the extension point: a suite is a
+  # lambda that runs one case and returns its saved EvalResult.
   class Runner
     SUITES = {
-      "insights" => ->(eval_run, eval_case) { run_insights_case(eval_run, eval_case) }
+      "insights" => ->(eval_run, eval_case) { run_insights_case(eval_run, eval_case) },
+      "policy_extraction" => ->(eval_run, eval_case) { run_policy_extraction_case(eval_run, eval_case) }
     }.freeze
 
+    # Which prompt_versions key each suite's AI service reads.
+    PROMPT_KEYS = { "policy_extraction" => Assemble::PolicyExtractor::PROMPT_KEY }.freeze
+
     def self.call(eval_run, &on_progress)
-      run_case = SUITES.fetch(eval_run.suite) { raise ArgumentError, "the #{eval_run.suite} suite isn't runnable yet" }
+      run_case = SUITES.fetch(eval_run.suite) { raise ArgumentError, "the #{eval_run.suite} suite isn't runnable" }
       cases = EvalCase.active.where(suite: eval_run.suite).order(:key).to_a
       eval_run.update!(status: "running", started_at: Time.current, model: RubyLLM.config.default_model, cases_count: cases.size)
+      eval_run.update!(prompt_version: PromptVersion.active_for(PROMPT_KEYS[eval_run.suite])) if eval_run.prompt_version.nil? && PROMPT_KEYS[eval_run.suite]
 
       cases.each_with_index do |eval_case, i|
         result = run_case.call(eval_run, eval_case)
@@ -21,9 +25,39 @@ module Evals
 
       passed = eval_run.eval_results.where(passed: true).count
       eval_run.update!(status: "completed", finished_at: Time.current, passed_count: passed,
-        accuracy: cases.empty? ? nil : passed.fdiv(cases.size))
+        accuracy: cases.empty? ? nil : passed.fdiv(cases.size), stability: average_metric(eval_run, "stability"))
       eval_run
     end
+
+    def self.average_metric(eval_run, name)
+      values = eval_run.eval_results.map { _1.metrics[name] }.compact
+      values.empty? ? nil : values.sum / values.size
+    end
+    private_class_method :average_metric
+
+    # Compiles the case's passage with the run's prompt version — several
+    # times when the run measures stability, scoring the first output — and
+    # scores it by behaviour (Evals::PolicyExtractionScorer).
+    def self.run_policy_extraction_case(eval_run, eval_case)
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      passage = eval_case.input.fetch("passage")
+      chunk = Struct.new(:page, :text).new(1, passage)
+      samples = Array.new([ eval_run.stability_samples, 1 ].max) do
+        Assemble::PolicyExtractor.compile(category: eval_case.input.fetch("category"), chunks: [ chunk ], prompt_version: eval_run.prompt_version)
+      end
+
+      score = PolicyExtractionScorer.call(expected: eval_case.expected, actual_rules: samples.first, passage: passage)
+      metrics = score.metrics
+      metrics = metrics.merge("stability" => Behaviour.agreement(samples.map { |rules| rules.map { PolicyExtractionScorer.rule_definition(_1) } })) if samples.size > 1
+      actual = { "rules" => samples.first, "ambiguities" => samples.first.flat_map { |rule| (rule["ambiguities"] || []).pluck("phrase") } }
+
+      EvalResult.create!(eval_run: eval_run, eval_case: eval_case, passed: score.passed, score: score.score, metrics: metrics,
+        actual: actual, diff: score.diff, latency_ms: elapsed_ms(started))
+    rescue Llm::StructuredAsk::ValidationError => e
+      EvalResult.create!(eval_run: eval_run, eval_case: eval_case, passed: false,
+        error_message: "Output failed schema validation: #{e.message}", latency_ms: elapsed_ms(started))
+    end
+    private_class_method :run_policy_extraction_case
 
     def self.run_insights_case(eval_run, eval_case)
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)

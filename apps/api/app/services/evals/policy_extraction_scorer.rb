@@ -10,8 +10,8 @@ module Evals
     Result = Data.define(:passed, :score, :metrics, :diff)
 
     def self.call(expected:, actual_rules:, passage:)
-      expected_rules = expected.fetch("rules").map { definition(_1) }
-      actual_definitions = actual_rules.map { definition(_1) }
+      expected_rules = expected.fetch("rules").map { rule_definition(_1) }
+      actual_definitions = actual_rules.map { rule_definition(_1) }
 
       comparison = Behaviour.compare(expected_rules, actual_definitions)
       quote_failures = actual_rules.reject { passage.include?(_1["source_quote"].to_s) }
@@ -31,10 +31,9 @@ module Evals
       Result.new(diff.empty?, comparison.score, metrics, diff)
     end
 
-    def self.definition(rule)
+    def self.rule_definition(rule)
       Rules::RuleDefinition.new(key: rule["key"], priority: rule["priority"], conditions: rule["conditions"], actions: rule["actions"])
     end
-    private_class_method :definition
 
     def self.missed_ambiguities(expected_phrases, actual_rules)
       found = actual_rules.flat_map { _1["ambiguities"] || [] }.map { _1["phrase"].to_s.downcase }
