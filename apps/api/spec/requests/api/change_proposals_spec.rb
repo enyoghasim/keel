@@ -123,6 +123,45 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       expect(response.parsed_body["data"]["decided_by_id"]).to eq(hr.id)
     end
 
+    context "when the agent proposed it" do
+      # SPEC.md sections 10 and 12: a rejection with a reason becomes a
+      # candidate case for the agent suite — the agent proposed something a
+      # human didn't want.
+      let(:company) { create(:company) }
+      let(:hr) { create(:person, company: company) }
+      let(:agent_run) { create(:agent_run, company: company, person: hr, status: "completed", message: "Make Ada head of Sales", final_text: "Proposed it.") }
+      let(:proposal) { create(:change_proposal, company: company, proposed_by: "agent", agent_run: agent_run, title: "Ada heads Sales") }
+
+      before { sign_in(hr) }
+
+      it "records the reason and creates a candidate agent case holding the message, the trace and the proposal" do
+        post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/reject", params: { reason: "Ada is on leave" }, as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(proposal.reload.impact["rejection_reason"]).to eq("Ada is on leave")
+        eval_case = EvalCase.sole
+        expect(eval_case).to have_attributes(suite: "agent", source: "generated", status: "candidate", key: "rejected_proposal_#{proposal.id}")
+        expect(eval_case.input).to include("message" => "Make Ada head of Sales", "agent_run_id" => agent_run.id,
+          "proposal" => a_hash_including("title" => "Ada heads Sales", "kind" => "org"))
+        expect(eval_case.notes).to eq("Proposal rejected: Ada is on leave")
+      end
+
+      it "creates nothing without a reason, since there's no signal about what was wrong" do
+        post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/reject", as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(EvalCase.count).to eq(0)
+      end
+
+      it "creates nothing for a proposal a person made themselves" do
+        manual = create(:change_proposal, company: company, proposed_by: "user")
+
+        post "/api/companies/#{company.id}/change_proposals/#{manual.id}/reject", params: { reason: "No" }, as: :json
+
+        expect(EvalCase.count).to eq(0)
+      end
+    end
+
     it "returns a 401 envelope when no one is signed in" do
       company = create(:company)
       change_proposal = create(:change_proposal, company: company, status: "pending")

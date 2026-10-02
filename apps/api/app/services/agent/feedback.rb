@@ -24,31 +24,12 @@ module Agent
     def self.case_key(agent_run) = "feedback_run_#{agent_run.id}"
 
     def self.upsert_candidate(agent_run)
-      eval_case = EvalCase.find_or_initialize_by(suite: "agent", key: case_key(agent_run))
-      eval_case.assign_attributes(input: input_for(agent_run), notes: notes_for(agent_run))
-      eval_case.assign_attributes(source: "generated", status: "candidate") if eval_case.new_record? || eval_case.status == "archived"
-      eval_case.save!
+      Evals::CandidateCase.upsert(agent_run, key: case_key(agent_run), notes: notes_for(agent_run))
     end
     private_class_method :upsert_candidate
 
-    # A reviewer's decision (an active case) is never undone by a later click.
-    def self.archive_candidate(agent_run)
-      EvalCase.where(suite: "agent", key: case_key(agent_run), status: "candidate").update_all(status: "archived")
-    end
+    def self.archive_candidate(agent_run) = Evals::CandidateCase.archive_if_candidate(case_key(agent_run))
     private_class_method :archive_candidate
-
-    def self.input_for(agent_run)
-      tool_steps = agent_run.agent_steps.select { _1.kind == "tool" }
-
-      {
-        "message" => agent_run.message, "person_id" => agent_run.person_id, "agent_run_id" => agent_run.id,
-        "observed" => {
-          "final_text" => agent_run.final_text,
-          "tool_calls" => tool_steps.map { { "name" => _1.tool_name, "input" => _1.input, "output" => _1.output } }
-        }
-      }
-    end
-    private_class_method :input_for
 
     def self.notes_for(agent_run)
       label = "Thumbs-down (#{(agent_run.feedback_reason || 'no reason given').humanize.downcase})"

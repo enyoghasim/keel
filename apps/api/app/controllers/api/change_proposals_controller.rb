@@ -87,11 +87,26 @@ module Api
     def reject
       return render_error(message: "this proposal has already been decided") unless @change_proposal.status == "pending"
 
-      @change_proposal.update!(status: "rejected", decided_by_id: current_person.id, decided_at: Time.current)
+      reason = params[:reason].to_s.strip
+      impact = reason.empty? ? @change_proposal.impact : @change_proposal.impact.merge("rejection_reason" => reason)
+      @change_proposal.update!(status: "rejected", impact: impact, decided_by_id: current_person.id, decided_at: Time.current)
+      candidate_case_from_rejection(reason)
       render_success(data: serialize(@change_proposal), message: "Change proposal rejected.")
     end
 
     private
+
+    # SPEC.md section 10: a rejection with a reason on something the agent
+    # proposed becomes a candidate case for the agent suite.
+    def candidate_case_from_rejection(reason)
+      agent_run = @change_proposal.agent_run
+      return if reason.empty? || @change_proposal.proposed_by != "agent" || agent_run.nil?
+
+      Evals::CandidateCase.upsert(
+        agent_run, key: "rejected_proposal_#{@change_proposal.id}", notes: "Proposal rejected: #{reason}",
+        extra_input: { "proposal" => @change_proposal.as_json(only: %i[id kind title diff]) }
+      )
+    end
 
     # Rule proposals are replayed against history, not the org graph: the
     # backtest is re-run so the stored impact is what was true at decision
