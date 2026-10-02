@@ -82,7 +82,9 @@ export function PromptVersions({ companyId, canPromote }: { companyId: string; c
   return (
     <Card role="region" aria-label="Prompt versions">
       <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Prompt versions</h2>
-      <VersionAccuracyChart versions={versions} promptKey="policy_extractor" />
+      {[...new Set(versions.map((version) => version.key))].map((key) => (
+        <VersionAccuracyChart key={key} versions={versions} promptKey={key} />
+      ))}
       <ul className="divide-y divide-border">
         {versions.map((version) => (
           <VersionRow key={version.id} companyId={companyId} version={version} canPromote={canPromote} />

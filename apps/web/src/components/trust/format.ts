@@ -48,3 +48,10 @@ export function describeMetrics(metrics: EvalResultMetrics): string[] {
   if (metrics.cost_usd !== undefined) labels.push(formatCost(metrics.cost_usd))
   return labels
 }
+
+// Which prompt_versions key each suite's AI service reads — mirrors
+// Evals::Runner::PROMPT_KEYS. A suite without one has no prompt to compare.
+export const SUITE_PROMPT_KEYS: Partial<Record<keyof typeof SUITE_LABELS, string>> = {
+  policy_extraction: 'policy_extractor',
+  agent: 'agent_system',
+}
