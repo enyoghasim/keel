@@ -138,6 +138,29 @@ describe('/assemble', () => {
     expect(await screen.findByText(/1 people, 1 departments, 0 policies, 0 rules, 0 workflows/)).toBeInTheDocument()
   })
 
+  it('shows what the job already did, from the API, when the page subscribes after it started', async () => {
+    mockApi({
+      'GET /api/workspace': { body: { success: true, message: '', data: { company: { id: 7, name: 'Nubo', assembling: true } } } },
+      'GET /api/companies/7/assemble_events': {
+        body: {
+          success: true,
+          message: '',
+          data: [
+            { seq: 0, stage: 'csv', event: 'mapping_complete', data: { mappings: [{ column: 'Name' }] }, progress: 0.1 },
+            { seq: 1, stage: 'graph', event: 'person_added', data: { id: 1, name: 'Ada Nwosu', manager_id: null, department: 'Ops' }, progress: 0.2 },
+          ],
+        },
+      },
+    })
+
+    // a reload mid-run: nothing was uploaded in this page, the workspace says it is assembling
+    await renderApp('/assemble')
+
+    expect(await screen.findByText('Mapped 1 columns')).toBeInTheDocument()
+    expect(screen.getByText('Ada Nwosu added to Ops')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Roster CSV')).not.toBeInTheDocument()
+  })
+
   it('has nothing to upload once the deployment already has a company, and points at the graph', async () => {
     mockApi({ 'GET /api/companies/1/session': { body: { success: true, message: '', data: { id: 1, name: 'Ifeoma', roles: ['hr_admin'] } } } })
     await renderApp('/assemble')

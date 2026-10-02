@@ -14,6 +14,11 @@ export function AssembleView() {
     return <AssembleProgress companyId={companyId} />
   }
 
+  // A reload while the job is still running: pick the progress view back up.
+  if (company?.assembling) {
+    return <AssembleProgress companyId={String(company.id)} />
+  }
+
   // A deployment serves one company (the API refuses a second), so once it
   // exists this page has nothing to upload to.
   if (company) {

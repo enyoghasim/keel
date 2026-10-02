@@ -1,6 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import type { Envelope } from 'api-types'
+import { useCallback, useMemo, useState } from 'react'
+import { api } from '../../lib/api'
 import { useChannel } from '../../lib/cable'
-import type { AssembleEvent } from './assemble-event'
+import { type AssembleEvent, mergeEvents } from './assemble-event'
 import { isComplete, STAGES, stageStatus, summarize } from './stage-progress'
 import { describeAssembleEvent } from './describe-assemble-event'
 
@@ -11,15 +14,29 @@ const STATUS_DOT: Record<string, string> = {
 }
 
 export function AssembleProgress({ companyId }: { companyId: string }) {
-  const [events, setEvents] = useState<AssembleEvent[]>([])
+  const [live, setLive] = useState<AssembleEvent[]>([])
+
+  // What the job did before this page subscribed (or before a reload): the
+  // API keeps every numbered event, and the page merges it with the live ones.
+  const log = useQuery({
+    queryKey: ['assemble-events', companyId],
+    queryFn: () => api.get<Envelope<AssembleEvent[]>>(`/companies/${companyId}/assemble_events`),
+    staleTime: Infinity,
+    retry: false,
+  })
+  const events = useMemo(() => mergeEvents(log.data?.data ?? [], live), [log.data, live])
 
   // Stable across re-renders so useChannel's effect subscribes once and
   // doesn't tear down/resubscribe on every incoming event.
   const onEvent = useCallback((event: AssembleEvent) => {
-    setEvents((previous) => [...previous, event])
+    setLive((previous) => [...previous, event])
   }, [])
+  // Fetch again once the subscription is live: events stored between the first
+  // fetch and the subscribe confirmation are in neither.
+  const { refetch } = log
+  const refetchLog = useCallback(() => void refetch(), [refetch])
 
-  useChannel<AssembleEvent>('AssembleChannel', { company_id: companyId }, onEvent)
+  useChannel<AssembleEvent>('AssembleChannel', { company_id: companyId }, onEvent, refetchLog)
 
   const progress = events[events.length - 1]?.progress ?? 0
   const complete = isComplete(events)
