@@ -65,7 +65,7 @@ export function TraceDrawer({ run, onClose }: { run: AgentRun; onClose: () => vo
           )}
         </ol>
 
-        <p className="border-t border-border px-4 py-2.5 font-mono text-[11.5px] text-muted-foreground">{traceTotals(run.steps)}</p>
+        <p className="border-t border-border px-4 py-2.5 font-mono text-[11.5px] text-muted-foreground">{traceTotals(run.steps, run.cost_usd)}</p>
       </SheetContent>
     </Sheet>
   )

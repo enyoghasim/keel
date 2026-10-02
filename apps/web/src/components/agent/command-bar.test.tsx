@@ -38,6 +38,7 @@ const pending: AgentRun = {
   final_text: null,
   total_tokens: 0,
   error_message: null,
+  cost_usd: null,
   feedback: null,
   feedback_reason: null,
   created_at: '2026-10-02T10:00:00Z',
