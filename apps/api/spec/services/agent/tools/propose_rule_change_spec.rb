@@ -37,7 +37,7 @@ RSpec.describe Agent::Tools::ProposeRuleChange do
     expect(proposal.diff["after"].first).to include("key" => "expense_small_auto", "conditions" => raised.conditions)
     expect(proposal.diff["instruction"]).to eq("Raise the auto-approve limit to €800")
     expect(proposal.impact["backtest"]).to include("total" => 3, "flipped_count" => 2)
-    expect(result).to include("status" => "pending", "link" => "/proposals", "flipped" => 2, "total" => 3)
+    expect(result).to include("status" => "pending", "link" => "/proposals", "flipped" => 2, "total" => 3, "new_conflicts" => 0)
     expect(result["summary"]).to match(/changed 2 of 3 past expense decisions/)
   end
 

@@ -50,4 +50,44 @@ RSpec.describe Impact::RuleImpact do
 
     expect(backtest).to include("flipped_count" => 0, "summary" => "This would not have changed any of the 5 past expense decisions.")
   end
+
+  describe "new conflicts" do
+    # Raising only one side of a pair of same-priority rules leaves an overlap
+    # where they disagree — and the tie-break then hides the intended effect.
+    let!(:over_limit_rule) do
+      create(:rule, policy: policy, status: "active", key: "expense_over_500_manager", priority: 10,
+        conditions: { "field" => "payload.amount_eur", "op" => "gt", "value" => 500 },
+        actions: { "decision" => "require_approval", "approvers" => [ "manager_of(requester)" ] })
+    end
+
+    it "reports a same-priority conflict the rewrite creates, with an example request that triggers it" do
+      impact = described_class.call(company: company, policy: policy, after_rules: { "expense_small_auto" => raised })
+
+      conflicts = impact["backtest"]["new_conflicts"]
+      expect(conflicts.size).to eq(1)
+      expect(conflicts.first).to include("rules" => contain_exactly("expense_small_auto", "expense_over_500_manager"))
+      expect(conflicts.first["example"]["payload.amount_eur"]).to be_between(501, 800)
+      expect(impact["backtest"]["summary"]).to include("overlaps", "expense_over_500_manager")
+    end
+
+    it "stays quiet when both sides are changed consistently" do
+      raised_over = Rules::RuleDefinition.new(key: "expense_over_500_manager", priority: 10,
+        conditions: { "field" => "payload.amount_eur", "op" => "gt", "value" => 800 }, actions: over_limit_rule.actions)
+
+      impact = described_class.call(company: company, policy: policy,
+        after_rules: { "expense_small_auto" => raised, "expense_over_500_manager" => raised_over })
+
+      expect(impact["backtest"]["new_conflicts"]).to eq([])
+      expect(impact["backtest"]["flipped_count"]).to eq(2)
+    end
+
+    it "doesn't blame the rewrite for a conflict the policy already had" do
+      same = Rules::RuleDefinition.new(key: "expense_small_auto", priority: 10, conditions: { "field" => "payload.amount_eur", "op" => "lte", "value" => 600 }, actions: limit_rule.actions)
+      limit_rule.update!(conditions: { "field" => "payload.amount_eur", "op" => "lte", "value" => 700 })
+
+      impact = described_class.call(company: company, policy: policy, after_rules: { "expense_small_auto" => same })
+
+      expect(impact["backtest"]["new_conflicts"]).to eq([])
+    end
+  end
 end

@@ -22,11 +22,13 @@ module Impact
         requests: inputs, before_rules: before_rules, after_rules: after
       )
       by_input = inputs.zip(requests).to_h.compare_by_identity
+      conflicts = new_conflicts(before_rules, after)
 
       { "backtest" => {
         "kind" => policy.category, "total" => report.total, "flipped_count" => report.flipped.size,
         "flipped" => report.flipped.map { serialize(_1, by_input) },
-        "summary" => summary(policy.category, report)
+        "new_conflicts" => conflicts,
+        "summary" => [ summary(policy.category, report), *conflicts.map { conflict_warning(_1) } ].join(" ")
       } }
     end
 
@@ -38,6 +40,25 @@ module Impact
       }
     end
     private_class_method :serialize
+
+    # Same-priority overlaps the rewrite introduces (SPEC.md section 7's
+    # conflict detection, on the proposed rule set): they disagree on the
+    # same request, and the engine's tie-break then silently picks one.
+    def self.new_conflicts(before_rules, after_rules)
+      existing = Rules::ConflictDetector.call(before_rules).to_set { [ _1.rule_a_key, _1.rule_b_key ].sort }
+
+      Rules::ConflictDetector.call(after_rules).filter_map do |conflict|
+        pair = [ conflict.rule_a_key, conflict.rule_b_key ].sort
+        { "rules" => pair, "example" => conflict.probes.first } unless existing.include?(pair)
+      end
+    end
+    private_class_method :new_conflicts
+
+    def self.conflict_warning(conflict)
+      "Warning: #{conflict['rules'].join(' overlaps with ')} at the same priority, so they disagree on requests such as " \
+        "#{conflict['example'].map { |field, value| "#{field.split('.').last}=#{value}" }.join(', ')} and the more restrictive one wins."
+    end
+    private_class_method :conflict_warning
 
     def self.summary(kind, report)
       return "This would not have changed any of the #{report.total} past #{kind} decisions." if report.flipped.empty?
