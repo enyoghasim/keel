@@ -15,5 +15,9 @@ Rails.application.routes.draw do
       end
       resources :requests, only: [ :index, :create, :show ]
     end
+
+    resources :step_runs, only: [] do
+      post :act, on: :member
+    end
   end
 end
