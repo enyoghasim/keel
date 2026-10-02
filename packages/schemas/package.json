@@ -1,0 +1,6 @@
+{
+  "name": "schemas",
+  "private": true,
+  "version": "0.1.0",
+  "description": "JSON Schema contracts shared between apps/api and apps/web"
+}

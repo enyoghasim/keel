@@ -1,0 +1,13 @@
+{
+  "name": "api-types",
+  "private": true,
+  "version": "0.1.0",
+  "description": "TypeScript types generated from packages/schemas, plus hand-written response types",
+  "main": "src/index.ts",
+  "scripts": {
+    "generate": "node scripts/generate.mjs"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^16.0.0"
+  }
+}
