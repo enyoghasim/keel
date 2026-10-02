@@ -4,12 +4,14 @@ import type { Department, Person } from 'api-types'
 import { useMemo } from 'react'
 import { buildOrgGraph } from './org-graph'
 import { PersonNode } from './person-node'
+import { SpineEdge } from './spine-edge'
 
 const nodeTypes = { person: PersonNode }
+const edgeTypes = { spine: SpineEdge }
 
 /**
  * Shared org-chart canvas: a top-down tree of `people`, grouped visually by
- * `departments`, laid out with dagre. Used by /graph today; /assemble will
+ * `departments`, laid out by buildOrgGraph (stacked columns for reports who lead no one). Used by /graph today; /assemble will
  * reuse it once its "growing during assembly" animation is built.
  */
 export function OrgCanvas({
@@ -41,6 +43,7 @@ export function OrgCanvas({
         nodes={styledNodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodeClick={(_event, node) => onSelectPerson?.(Number(node.id))}
         nodesDraggable={false}
         nodesConnectable={false}
