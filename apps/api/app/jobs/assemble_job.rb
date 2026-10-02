@@ -92,7 +92,15 @@ class AssembleJob < ApplicationJob
     end
   end
 
+  # Every event is numbered and kept on the company as well as broadcast: a
+  # browser that subscribes after the job started (or reloads mid-run) reads
+  # the log from the API and merges by seq instead of staring at an empty page.
   def broadcast(stage:, event:, data:, progress:)
-    AssembleChannel.broadcast_to(@company, { "stage" => stage, "event" => event, "data" => data, "progress" => progress })
+    @seq ||= @company.assemble_events.size
+    payload = { "seq" => @seq, "stage" => stage, "event" => event, "data" => data.as_json, "progress" => progress }
+    @seq += 1
+
+    Company.where(id: @company.id).update_all([ "assemble_events = assemble_events || ?::jsonb", [ payload ].to_json ])
+    AssembleChannel.broadcast_to(@company, payload)
   end
 end

@@ -12,6 +12,7 @@ Rails.application.routes.draw do
     resource :workspace, only: :show
     resources :companies, only: [ :create, :show ] do
       resource :session, only: [ :create, :show, :update, :destroy ]
+      resources :assemble_events, only: :index
       resources :people, only: [ :index, :show ]
       resources :departments, only: [ :index, :show ]
       resources :policies, only: [ :index, :show ] do

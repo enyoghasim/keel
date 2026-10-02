@@ -70,3 +70,27 @@ RSpec.describe AssembleJob, type: :job do
     expect(Assemble::HandbookChunker).to have_received(:call)
   end
 end
+
+RSpec.describe AssembleJob, "event log", type: :job do
+  let(:company) { create(:company) }
+  let(:person) { create(:person, company: company) }
+
+  before do
+    company.roster_csv.attach(io: StringIO.new("Name\nAda Nwosu"), filename: "roster.csv", content_type: "text/csv")
+    allow(Assemble::CsvMapper).to receive(:call).and_return([ Assemble::CsvMapper::Mapping.new("Name", "name", 1.0) ])
+    allow(Assemble::GraphBuilder).to receive(:call).and_return([ person ])
+  end
+
+  it "keeps every event it broadcasts on the company, numbered, so a browser that subscribed late can catch up" do
+    described_class.perform_now(company.id)
+
+    events = company.reload.assemble_events
+    expect(events.map { _1["seq"] }).to eq((0...events.size).to_a)
+    expect(events.map { _1["event"] }).to start_with("mapping_complete", "person_added")
+  end
+
+  it "broadcasts the same numbered event it stores" do
+    expect { described_class.perform_now(company.id) }
+      .to have_broadcasted_to(company).from_channel(AssembleChannel).with(hash_including("event" => "mapping_complete", "seq" => 0))
+  end
+end
