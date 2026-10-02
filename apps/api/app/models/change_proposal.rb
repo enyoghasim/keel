@@ -75,7 +75,10 @@ class ChangeProposal < ApplicationRecord
   # Applies this proposal's org diff to the real Person/Department records
   # (SPEC.md section 10) — mirrors Org::GraphSnapshot#apply!, but against
   # the company's live rows instead of a dry-run snapshot copy.
+  # An older proposal can't undo a newer one: see ensure_org_diff_current!.
   def apply_org_diff!(company)
+    ensure_org_diff_current!(company)
+
     diff.each do |op|
       case op["op"]
       when "change_manager"
@@ -90,6 +93,20 @@ class ChangeProposal < ApplicationRecord
       else
         raise ArgumentError, "unknown diff operation #{op["op"]}"
       end
+    end
+  end
+
+  # Raises StaleDiff if a manager or department head this proposal recorded as
+  # "from" is no longer in place.
+  def ensure_org_diff_current!(company)
+    diff.each do |op|
+      next unless op.key?("from")
+
+      current = case op["op"]
+      when "change_manager" then company.people.find(op["person_id"]).manager_id
+      when "set_department_head" then company.departments.find(op["department_id"]).head_id
+      end
+      raise StaleDiff, "#{op['op'].tr('_', ' ')} has changed since this proposal was made" unless current == op["from"]
     end
   end
 end

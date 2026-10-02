@@ -37,6 +37,8 @@ services:
       SOLID_QUEUE_IN_PUMA: '1'
       # Load the Nubo Logistics demo company on a blank database; "false" starts empty.
       SEED_DEMO: ${SEED_DEMO:-true}
+      # "true" lets an hr_admin wipe the deployment back to Nubo Logistics from Settings. Only for a public demo.
+      DEMO_RESET: ${DEMO_RESET:-false}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       RAILS_LOG_LEVEL: ${RAILS_LOG_LEVEL:-info}

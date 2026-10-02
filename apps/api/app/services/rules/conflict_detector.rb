@@ -44,13 +44,13 @@ module Rules
     end
     private_class_method :candidates_by_field
 
+    # Public: ConflictReport counts them to judge which rule is narrower.
     def self.leaves(node)
       return node["all"].flat_map { leaves(_1) } if node["all"]
       return node["any"].flat_map { leaves(_1) } if node["any"]
 
       [ node ]
     end
-    private_class_method :leaves
 
     # Numeric values become their own boundary ± 1 (the "499, 500, 501"
     # probing SPEC.md describes); non-numeric values are probed as-is.

@@ -9,6 +9,9 @@ class AssembleJob < ApplicationJob
   ALL_CATEGORIES = %w[leave expense remote equipment onboarding].freeze
   STAGES = %w[csv_mapping graph_building handbook_chunking policy_extraction workflow_generation].freeze
   REQUEST_KIND_CATEGORIES = %w[leave expense equipment].freeze
+  # The event stage names (SPEC.md section 6's event format) the page lists, by pipeline stage.
+  STAGES_TO_EVENT_STAGE = { "csv_mapping" => "csv", "graph_building" => "graph", "handbook_chunking" => "handbook",
+                            "policy_extraction" => "policies", "workflow_generation" => "workflows" }.freeze
 
   def perform(company_id)
     @company = Company.find(company_id)
@@ -19,9 +22,22 @@ class AssembleJob < ApplicationJob
     run_stage("handbook_chunking") { chunk_handbook }
     run_stage("policy_extraction") { extract_policies }
     run_stage("workflow_generation") { generate_workflows }
+  rescue StandardError => e
+    # Say why on the page (a stage that isn't done stays resumable), then fail as usual.
+    fail_with(e)
+    raise
   end
 
   private
+
+  def fail_with(error)
+    return unless @company
+
+    message = Llm::Failure.message_for(error, fallback: "Assemble stopped unexpectedly. Check the server logs, then try again.")
+    broadcast(stage: STAGES_TO_EVENT_STAGE.fetch(next_stage, "csv"), event: "failed", data: { message: message }, progress: 0)
+  end
+
+  def next_stage = STAGES.find { !@company.assemble_completed_stages.include?(_1) }
 
   def run_stage(name)
     return if @company.assemble_completed_stages.include?(name)
@@ -49,6 +65,10 @@ class AssembleJob < ApplicationJob
         progress: 0.1 + 0.3 * (i + 1) / people.size
       )
     end
+
+    @company.import_issues.order(:row_number).each do |issue|
+      broadcast(stage: "graph", event: "import_issue", data: issue.as_json(only: %i[id row_number field raw_value message]), progress: 0.4)
+    end
   end
 
   def chunk_handbook
@@ -71,7 +91,16 @@ class AssembleJob < ApplicationJob
       result.rules.each do |rule|
         broadcast(
           stage: "policies", event: "rule_extracted",
-          data: { id: rule.id, key: rule.key, policy_id: rule.policy_id, category: category },
+          data: { id: rule.id, key: rule.key, policy_id: rule.policy_id, category: category, needs_input: rule.ambiguities.any? },
+          progress: 0.5 + 0.3 * (i + 1) / ALL_CATEGORIES.size
+        )
+      end
+
+      # A rule whose quote isn't in the handbook is never saved (SPEC.md section 6), but the person watching sees why a count is short.
+      result.rejected.each do |rule_data|
+        broadcast(
+          stage: "policies", event: "rule_rejected",
+          data: { key: rule_data["key"], category: category, source_quote: rule_data["source_quote"] },
           progress: 0.5 + 0.3 * (i + 1) / ALL_CATEGORIES.size
         )
       end
@@ -92,7 +121,15 @@ class AssembleJob < ApplicationJob
     end
   end
 
+  # Every event is numbered and kept on the company as well as broadcast: a
+  # browser that subscribes after the job started (or reloads mid-run) reads
+  # the log from the API and merges by seq instead of staring at an empty page.
   def broadcast(stage:, event:, data:, progress:)
-    AssembleChannel.broadcast_to(@company, { "stage" => stage, "event" => event, "data" => data, "progress" => progress })
+    @seq ||= @company.assemble_events.size
+    payload = { "seq" => @seq, "stage" => stage, "event" => event, "data" => data.as_json, "progress" => progress }
+    @seq += 1
+
+    Company.where(id: @company.id).update_all([ "assemble_events = assemble_events || ?::jsonb", [ payload ].to_json ])
+    AssembleChannel.broadcast_to(@company, payload)
   end
 end

@@ -34,7 +34,7 @@ module Assemble
       person = Person.create!(
         company: @company, department: department,
         name: attrs[:name], email: attrs[:email], title: attrs[:title],
-        location: attrs[:location], start_date: attrs[:start_date], roles: []
+        location: attrs[:location], start_date: attrs[:start_date], roles: RoleInference.for(attrs[:title])
       )
 
       { person: person, row_number: row_number, manager_raw: attrs[:manager] }

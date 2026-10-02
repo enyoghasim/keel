@@ -26,6 +26,16 @@ RSpec.describe "Api::Companies", type: :request do
       expect(Company.last.roster_csv).to be_attached
     end
 
+    it "answers 429 once an address has tried to start an Assemble 10 times in an hour" do
+      create(:company) # every attempt is refused (one company per deployment), but each still counts
+      10.times { post "/api/companies", params: { company: { name: "Acme" } }, headers: { "REMOTE_ADDR" => "203.0.113.9" } }
+
+      post "/api/companies", params: { company: { name: "Acme" } }, headers: { "REMOTE_ADDR" => "203.0.113.9" }
+
+      expect(response).to have_http_status(:too_many_requests)
+      expect(response.parsed_body["message"]).to match(/too many requests/i)
+    end
+
     it "refuses a second company: a deployment serves one" do
       create(:company, name: "Nubo Logistics")
 

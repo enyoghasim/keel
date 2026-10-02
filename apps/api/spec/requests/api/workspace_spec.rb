@@ -8,7 +8,7 @@ RSpec.describe "Api::Workspace", type: :request do
       get "/api/workspace"
 
       expect(response).to have_http_status(:ok)
-      expect(response.parsed_body["data"]).to eq({ "company" => nil })
+      expect(response.parsed_body["data"]).to eq({ "company" => nil, "demo_reset" => false })
     end
 
     it "names the company the deployment serves, without needing a sign-in" do
@@ -18,6 +18,14 @@ RSpec.describe "Api::Workspace", type: :request do
       get "/api/workspace"
 
       expect(response.parsed_body["data"]["company"]).to include("id" => company.id, "name" => "Nubo Logistics", "assembling" => false)
+    end
+
+    it "says whether this deployment lets a signed-in admin reset the demo" do
+      allow(Demo::Reset).to receive(:enabled?).and_return(true)
+
+      get "/api/workspace"
+
+      expect(response.parsed_body["data"]["demo_reset"]).to be(true)
     end
 
     it "says the company is still assembling while its roster import has stages left" do

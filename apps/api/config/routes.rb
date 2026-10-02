@@ -12,11 +12,17 @@ Rails.application.routes.draw do
     resource :workspace, only: :show
     resources :companies, only: [ :create, :show ] do
       resource :session, only: [ :create, :show, :update, :destroy ]
+      resources :assemble_events, only: :index
+      resource :demo_reset, only: :create
       resources :people, only: [ :index, :show ]
       resources :departments, only: [ :index, :show ]
       resources :policies, only: [ :index, :show ] do
         resources :rules, only: [ :index, :show ]
+        resources :rule_resolutions, only: [ :create, :show ]
         post :test, on: :member
+        get :conflicts, on: :member
+        post :conflict_fixes, on: :member
+        post :publish, on: :member
       end
       resources :requests, only: [ :index, :create, :show ]
       resources :workflows, only: [ :index, :show ] do

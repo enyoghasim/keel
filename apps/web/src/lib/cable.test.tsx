@@ -115,4 +115,27 @@ describe('useChannel', () => {
     expect(first).toHaveBeenCalledWith({ n: 2 })
     expect(second).not.toHaveBeenCalledWith({ n: 2 })
   })
+
+  it('calls onConnected each time the subscription connects, and at once when it already has', async () => {
+    const useChannel = await importFreshUseChannel()
+    const first = vi.fn()
+    function Connected({ onConnected }: { onConnected: () => void }) {
+      useChannel('AssembleChannel', { company_id: '1' }, vi.fn(), onConnected)
+      return null
+    }
+    render(<Connected onConnected={first} />)
+
+    const subscriptionsCreate = vi.mocked(createConsumer).mock.results[0]!.value.subscriptions.create
+    const mixin = subscriptionsCreate.mock.calls[0][1]
+    expect(first).not.toHaveBeenCalled()
+
+    mixin.connected()
+    expect(first).toHaveBeenCalledTimes(1)
+    mixin.connected() // a reconnect after a dropped socket
+    expect(first).toHaveBeenCalledTimes(2)
+
+    const late = vi.fn()
+    render(<Connected onConnected={late} />)
+    expect(late).toHaveBeenCalledTimes(1)
+  })
 })

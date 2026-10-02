@@ -62,6 +62,8 @@ module Api
       return approve_rule_proposal if @change_proposal.kind == "rule"
       return approve_workflow_proposal if @change_proposal.kind == "workflow"
 
+      @change_proposal.ensure_org_diff_current!(@company)
+
       approve_anyway = ActiveModel::Type::Boolean.new.cast(params[:approve_anyway])
       reason = params[:reason]
       return render_error(message: "a reason is required to approve anyway") if approve_anyway && reason.blank?
@@ -83,6 +85,8 @@ module Api
       end
 
       render_success(data: serialize(@change_proposal), message: "Change proposal approved.")
+    rescue ChangeProposal::StaleDiff => e
+      render_error(message: e.message)
     end
 
     def reject

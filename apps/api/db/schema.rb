@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_201000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -115,6 +115,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_190000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "assemble_completed_stages", default: [], null: false, array: true
+    t.jsonb "assemble_events", default: [], null: false
   end
 
   create_table "departments", force: :cascade do |t|
@@ -294,6 +295,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_190000) do
     t.index ["requester_id"], name: "index_requests_on_requester_id"
   end
 
+  create_table "rule_resolutions", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "person_id", null: false
+    t.bigint "rule_id", null: false
+    t.bigint "new_rule_id"
+    t.integer "ambiguity_index", null: false
+    t.string "answer", null: false
+    t.string "status", default: "pending", null: false
+    t.text "error_message"
+    t.string "model"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_rule_resolutions_on_company_id"
+    t.index ["new_rule_id"], name: "index_rule_resolutions_on_new_rule_id"
+    t.index ["person_id"], name: "index_rule_resolutions_on_person_id"
+    t.index ["rule_id"], name: "index_rule_resolutions_on_rule_id"
+  end
+
   create_table "rules", force: :cascade do |t|
     t.bigint "policy_id", null: false
     t.bigint "source_chunk_id", null: false
@@ -415,6 +434,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_190000) do
   add_foreign_key "policies", "companies"
   add_foreign_key "requests", "companies"
   add_foreign_key "requests", "people", column: "requester_id"
+  add_foreign_key "rule_resolutions", "companies"
+  add_foreign_key "rule_resolutions", "people"
+  add_foreign_key "rule_resolutions", "rules"
+  add_foreign_key "rule_resolutions", "rules", column: "new_rule_id"
   add_foreign_key "rules", "chunks", column: "source_chunk_id"
   add_foreign_key "rules", "policies"
   add_foreign_key "sessions", "people"

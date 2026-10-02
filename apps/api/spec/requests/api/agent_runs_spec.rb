@@ -78,6 +78,32 @@ RSpec.describe "Api::AgentRuns", type: :request do
       end
     end
 
+    describe "per-IP rate limiting (a public demo can't let one visitor spend the model budget)" do
+      def ask(as_ip: "203.0.113.9")
+        post "/api/companies/#{company.id}/agent_runs", params: { message: "Hi" }, as: :json, headers: { "REMOTE_ADDR" => as_ip }
+      end
+
+      before do
+        stub_const("Api::AgentRunsController::HOURLY_LIMIT", 1000) # isolate the address limit from the per-person one
+        sign_in(person)
+      end
+
+      it "answers 429 from the 61st run an address starts in an hour" do
+        60.times { ask; AgentRun.update_all(status: "completed") }
+
+        expect { ask }.not_to have_enqueued_job(AgentJob)
+
+        expect(response).to have_http_status(:too_many_requests)
+        expect(response.parsed_body["message"]).to match(/too many requests/i)
+      end
+
+      it "counts each address on its own" do
+        60.times { ask; AgentRun.update_all(status: "completed") }
+
+        expect { ask(as_ip: "198.51.100.4") }.to have_enqueued_job(AgentJob)
+      end
+    end
+
     it "rejects a blank message" do
       sign_in(person)
 

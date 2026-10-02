@@ -22,6 +22,12 @@ import { Card } from '@/components/ui/card'
 // Radix Select can't hold an empty value, so "the active version" gets a sentinel.
 const ACTIVE_VERSION = 'active'
 
+const SUITE_EMPTY: Record<EvalSuite, string> = {
+  insights: 'No eval runs yet. Start one to score how well Keel understands analytics questions.',
+  policy_extraction: 'No eval runs yet. Start one to score how faithfully Keel turns handbook passages into rules.',
+  agent: 'No eval runs yet. Start one to score how well the agent picks tools and answers.',
+}
+
 const SUITE_BLURBS: Record<EvalSuite, string> = {
   insights: 'Each run sends every active insights case through Insights::Interpreter and scores the result field by field.',
   policy_extraction:
@@ -155,7 +161,7 @@ export function TrustView({ companyId }: { companyId: string }) {
       {startRun.isError && <p className="text-[13px] text-destructive">{(startRun.error as Error).message}</p>}
 
       {runs.length === 0 ? (
-        <PagePlaceholder note="No eval runs yet. Start one to score how well Keel understands analytics questions." />
+        <PagePlaceholder note={SUITE_EMPTY[suite]} />
       ) : (
         <>
           <AccuracyTrend runs={runs.filter((run) => run.suite === suite)} />

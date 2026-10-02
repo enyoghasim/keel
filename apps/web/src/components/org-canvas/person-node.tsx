@@ -20,6 +20,8 @@ export function PersonNode({ data, selected }: NodeProps<Node<PersonNodeData>>) 
       }`}
     >
       <Handle type="target" position={Position.Top} className="bg-border-strong!" />
+      {/* Where the spine of a stacked column connects. */}
+      <Handle id="left" type="target" position={Position.Left} className="bg-border-strong!" />
       <div
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold ${colorClass}`}
       >

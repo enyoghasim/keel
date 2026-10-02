@@ -97,7 +97,7 @@ module Seeds
       "expense" => [
         { "key" => "approval", "type" => "approval", "assignee" => "manager_of(requester)" },
         { "key" => "finance_notify", "type" => "notify", "assignee" => "role:finance_lead",
-          "when" => { "field" => "payload.amount_eur", "op" => "gt", "value" => 2000 } }
+          "when" => { "field" => "payload.amount_eur", "op" => "gt", "value" => 1000 } }
       ],
       "equipment" => [
         { "key" => "approval", "type" => "approval", "assignee" => "manager_of(requester)" },

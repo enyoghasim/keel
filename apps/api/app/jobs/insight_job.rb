@@ -35,6 +35,6 @@ class InsightJob < ApplicationJob
     insight_query.update!(status: "failed", error_message: UNINTERPRETABLE)
   rescue StandardError => e
     Rails.logger.error("[InsightJob] #{e.class}: #{e.message}")
-    insight_query.update!(status: "failed", error_message: UNEXPECTED)
+    insight_query.update!(status: "failed", error_message: Llm::Failure.message_for(e, fallback: UNEXPECTED))
   end
 end

@@ -60,6 +60,51 @@ RSpec.describe AssembleJob, type: :job do
       .to have_broadcasted_to(company).from_channel(AssembleChannel).with(hash_including("stage" => "workflows", "event" => "workflow_generated"))
   end
 
+  it "broadcasts an import_issue event for each row the graph builder could not resolve" do
+    ImportIssue.create!(company: company, row_number: 78, field: "manager", raw_value: "Chidi Unknownson", message: "could not uniquely match manager 'Chidi Unknownson'")
+
+    expect { described_class.perform_now(company.id) }
+      .to have_broadcasted_to(company).from_channel(AssembleChannel).with(
+        hash_including("stage" => "graph", "event" => "import_issue",
+                       "data" => hash_including("row_number" => 78, "field" => "manager", "raw_value" => "Chidi Unknownson"))
+      )
+  end
+
+  it "broadcasts a rule_rejected event for a rule whose source quote was not in the handbook" do
+    allow(Assemble::PolicyExtractor).to receive(:call).and_return(
+      Assemble::PolicyExtractor::Result.new(
+        policy: policy, rules: [ rule ],
+        rejected: [ { "key" => "expense_cfo", "source_quote" => "The CFO must countersign." } ]
+      )
+    )
+
+    expect { described_class.perform_now(company.id) }
+      .to have_broadcasted_to(company).from_channel(AssembleChannel).with(
+        hash_including("stage" => "policies", "event" => "rule_rejected",
+                       "data" => hash_including("key" => "expense_cfo", "source_quote" => "The CFO must countersign."))
+      )
+  end
+
+  it "says in each rule_extracted event whether the rule still has a question for a person" do
+    rule.update!(ambiguities: [ { "phrase" => "up to", "question" => "Including travel?", "options" => [ "Yes", "No" ] } ])
+
+    expect { described_class.perform_now(company.id) }
+      .to have_broadcasted_to(company).from_channel(AssembleChannel).with(
+        hash_including("event" => "rule_extracted", "data" => hash_including("needs_input" => true))
+      )
+  end
+
+  it "tells the page why it stopped, in words a person can act on, when a stage fails" do
+    allow(Assemble::CsvMapper).to receive(:call).and_raise(RubyLLM::ConfigurationError, "Missing configuration for OpenAI: openai_api_key")
+
+    expect { described_class.perform_now(company.id) }
+      .to have_broadcasted_to(company).from_channel(AssembleChannel)
+      .with(hash_including("event" => "failed", "data" => { "message" => Llm::Failure::NO_MODEL }))
+      .and raise_error(RubyLLM::ConfigurationError)
+
+    expect(company.reload.assemble_events.last["event"]).to eq("failed")
+  end
+
   it "skips stages already marked complete, for a retried job" do
     company.update!(assemble_completed_stages: %w[csv_mapping graph_building])
 
@@ -68,5 +113,29 @@ RSpec.describe AssembleJob, type: :job do
     expect(Assemble::CsvMapper).not_to have_received(:call)
     expect(Assemble::GraphBuilder).not_to have_received(:call)
     expect(Assemble::HandbookChunker).to have_received(:call)
+  end
+end
+
+RSpec.describe AssembleJob, "event log", type: :job do
+  let(:company) { create(:company) }
+  let(:person) { create(:person, company: company) }
+
+  before do
+    company.roster_csv.attach(io: StringIO.new("Name\nAda Nwosu"), filename: "roster.csv", content_type: "text/csv")
+    allow(Assemble::CsvMapper).to receive(:call).and_return([ Assemble::CsvMapper::Mapping.new("Name", "name", 1.0) ])
+    allow(Assemble::GraphBuilder).to receive(:call).and_return([ person ])
+  end
+
+  it "keeps every event it broadcasts on the company, numbered, so a browser that subscribed late can catch up" do
+    described_class.perform_now(company.id)
+
+    events = company.reload.assemble_events
+    expect(events.map { _1["seq"] }).to eq((0...events.size).to_a)
+    expect(events.map { _1["event"] }).to start_with("mapping_complete", "person_added")
+  end
+
+  it "broadcasts the same numbered event it stores" do
+    expect { described_class.perform_now(company.id) }
+      .to have_broadcasted_to(company).from_channel(AssembleChannel).with(hash_including("event" => "mapping_complete", "seq" => 0))
   end
 end

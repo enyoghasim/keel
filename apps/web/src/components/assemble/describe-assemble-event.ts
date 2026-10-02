@@ -14,6 +14,12 @@ export function describeAssembleEvent(event: AssembleEvent): string {
       return `Embedded ${event.data.count} handbook chunks`
     case 'rule_extracted':
       return `Extracted rule "${event.data.key}" (${event.data.category})`
+    case 'failed':
+      return String(event.data.message)
+    case 'import_issue':
+      return `Row ${event.data.row_number}: ${event.data.message}`
+    case 'rule_rejected':
+      return `Dropped rule "${event.data.key}" (${event.data.category}): its quote isn't in the handbook`
     case 'workflow_generated':
       return `Generated the ${event.data.request_kind} workflow`
     default:

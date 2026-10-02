@@ -1,15 +1,22 @@
 import type { Ambiguity } from 'api-types'
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 
-// Rules::AmbiguityResolver — the service SPEC.md section 7 describes for
-// turning an answered question into an updated rule version — doesn't exist
-// on the backend yet, so choosing an option can't actually resolve anything.
-// This still shows the real question/options from the extracted rule, and is
-// honest about the gap rather than faking a save.
-export function AmbiguityBanner({ ambiguity }: { ambiguity: Ambiguity }) {
-  const [resolution, setResolution] = useState<string | null>(null)
-
+// An open question on a rule (SPEC.md section 7). Choosing an option is a
+// person's decision: the page sends it to the API, which has the model rewrite
+// the rule and saves it as a new version. While that runs the chosen option
+// stays pressed and the others are disabled.
+export function AmbiguityBanner({
+  ambiguity,
+  answering = null,
+  error = null,
+  onAnswer,
+}: {
+  ambiguity: Ambiguity
+  /** The option being applied right now, if any. */
+  answering?: string | null
+  error?: string | null
+  onAnswer?: (option: string) => void
+}) {
   return (
     <div className="rounded border border-warning/40 bg-warning-muted px-3 py-2.5">
       <p className="text-[12.5px] font-medium">{ambiguity.question}</p>
@@ -20,20 +27,17 @@ export function AmbiguityBanner({ ambiguity }: { ambiguity: Ambiguity }) {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setResolution(option)}
-            aria-pressed={resolution === option}
+            onClick={() => onAnswer?.(option)}
+            disabled={answering !== null}
+            aria-pressed={answering === option}
             className="border-warning/50 hover:bg-warning-muted"
           >
             {option}
           </Button>
         ))}
       </div>
-      {resolution && (
-        <p className="mt-2 text-[12px] text-muted-foreground">
-          Selected "{resolution}". Resolving ambiguities isn't wired up in the API yet — this would send the rule,
-          question and answer to the LLM and save the result as a new rule version.
-        </p>
-      )}
+      {answering && <p className="mt-2 text-[12px] text-muted-foreground">Updating the rule for “{answering}”…</p>}
+      {error && <p className="mt-2 text-[12px] text-destructive">{error}</p>}
     </div>
   )
 }
