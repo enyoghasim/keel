@@ -10,7 +10,7 @@ import { Route as proposalsRoute } from './routes/proposals'
 import { Route as trustRoute } from './routes/trust'
 import { Route as workflowsRoute } from './routes/workflows'
 
-const routeTree = rootRoute.addChildren([
+export const routeTree = rootRoute.addChildren([
   indexRoute,
   assembleRoute,
   graphRoute,
