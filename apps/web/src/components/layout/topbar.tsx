@@ -72,7 +72,7 @@ export function Topbar() {
       <button
         type="button"
         onClick={() => setCommandOpen(true)}
-        className="flex min-w-0 max-w-105 flex-1 items-center gap-2 rounded border border-border bg-secondary px-2.5 py-1.5 text-[13px] text-muted-foreground"
+        className="flex min-w-0 max-w-105 flex-1 items-center gap-2 overflow-hidden whitespace-nowrap rounded border border-border bg-secondary px-2.5 py-1.5 text-[13px] text-muted-foreground"
       >
         <SearchIcon className="h-3.75 w-3.75 shrink-0" />
         Ask Keel or search…
