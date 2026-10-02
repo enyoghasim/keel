@@ -1,5 +1,5 @@
 export type { Envelope } from './hand-written/response'
-export type { Company } from './hand-written/company'
+export type { Company, Workspace } from './hand-written/company'
 export type { Person } from './hand-written/person'
 export type { SignInParams } from './hand-written/session'
 export type { Department } from './hand-written/department'
