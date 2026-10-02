@@ -27,6 +27,9 @@ Rails.application.routes.draw do
       resources :personal_access_tokens, only: [ :index, :create, :destroy ]
       resources :insights, only: [ :index, :create, :show ]
       resources :eval_runs, only: [ :index, :create, :show ]
+      resources :prompt_versions, only: [ :index, :show ] do
+        post :promote, on: :member
+      end
       resources :agent_runs, only: [ :index, :create, :show ] do
         post :feedback, on: :member
       end
