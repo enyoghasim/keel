@@ -31,6 +31,7 @@ const ngozi: Person = {
 
 const pending: AgentRun = {
   id: 5,
+  conversation_id: 'c1',
   person_id: 2,
   message: 'Can I expense a €1,200 flight to RubyConf?',
   status: 'pending',
@@ -77,6 +78,7 @@ describe('CommandBar', () => {
     mockApi({
       'GET /api/companies/1/session': envelope(ngozi),
       'GET /api/companies/1/insights': envelope([]),
+      'GET /api/companies/1/agent_runs': envelope([]),
     })
     const { router } = await renderApp('/assemble')
 
@@ -93,6 +95,7 @@ describe('CommandBar', () => {
     const user = userEvent.setup()
     const fetchMock = mockApi({
       'GET /api/companies/1/session': envelope(ngozi),
+      'GET /api/companies/1/agent_runs': envelope([]),
       'POST /api/companies/1/agent_runs': { status: 202, body: { success: true, message: '', data: pending } },
       // The trace drawer refetches on mount, by which time the run has finished.
       'GET /api/companies/1/agent_runs/5': [envelope(pending), envelope(completed)],
@@ -125,5 +128,105 @@ describe('CommandBar', () => {
     await user.click(within(answer).getByRole('button', { name: 'Show trace (1 step)' }))
     const trace = await screen.findByRole('dialog', { name: 'Agent trace' })
     expect(within(trace).getByText('check_policy')).toBeInTheDocument()
+  })
+
+  describe('conversations', () => {
+    const followUpPending: AgentRun = { ...pending, id: 6, message: 'And what about €2,000?' }
+    const followUpDone: AgentRun = { ...followUpPending, status: 'completed', final_text: 'Then Tunde and Ada both approve.' }
+    const other: AgentRun = { ...completed, id: 9, conversation_id: 'c2', message: 'Who is my manager?', final_text: 'Tunde Bakare.' }
+
+    it('continues the open conversation with a follow-up, keeping the earlier turn on screen', async () => {
+      const user = userEvent.setup()
+      const fetchMock = mockApi({
+        'GET /api/companies/1/session': envelope(ngozi),
+        'GET /api/companies/1/agent_runs': envelope([]),
+        'POST /api/companies/1/agent_runs': [
+          { status: 202, body: { success: true, message: '', data: { ...completed } } },
+          { status: 202, body: { success: true, message: '', data: followUpPending } },
+        ],
+      })
+      await renderApp('/assemble')
+
+      await user.click(screen.getByRole('button', { name: /ask keel or search/i }))
+      const bar = await screen.findByRole('dialog', { name: 'Ask Keel' })
+      await user.type(within(bar).getByRole('combobox'), 'Can I expense a €1,200 flight to RubyConf?{Enter}')
+      await within(bar).findByText('Yes, but Tunde Bakare has to approve it first.')
+
+      await user.type(within(bar).getByRole('textbox', { name: 'Ask a follow-up' }), 'And what about €2,000?{Enter}')
+
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/companies/1/agent_runs',
+          expect.objectContaining({ method: 'POST', body: JSON.stringify({ message: 'And what about €2,000?', conversation_id: 'c1' }) }),
+        ),
+      )
+      expect(await within(bar).findAllByRole('region', { name: 'Agent answer' })).toHaveLength(2)
+      expect(within(bar).getByText('Yes, but Tunde Bakare has to approve it first.')).toBeInTheDocument()
+      // The follow-up waits for the answer in flight before another can be sent.
+      expect(within(bar).getByRole('textbox', { name: 'Ask a follow-up' })).toBeDisabled()
+      act(() => agentSubscription()[1].received({ event: 'run', run: followUpDone }))
+      expect(await within(bar).findByText('Then Tunde and Ada both approve.')).toBeInTheDocument()
+      expect(within(bar).getByRole('textbox', { name: 'Ask a follow-up' })).toBeEnabled()
+    })
+
+    it('lists recent conversations, newest first, and reopens one with its whole thread', async () => {
+      const user = userEvent.setup()
+      mockApi({
+        'GET /api/companies/1/session': envelope(ngozi),
+        // Newest first: the follow-up and its earlier turn share a conversation.
+        'GET /api/companies/1/agent_runs': envelope([other, followUpDone, completed]),
+        'GET /api/companies/1/agent_runs?conversation_id=c1': envelope([followUpDone, completed]),
+      })
+      await renderApp('/assemble')
+
+      await user.keyboard('{Meta>}k{/Meta}')
+      const bar = await screen.findByRole('dialog', { name: 'Ask Keel' })
+      const recent = await within(bar).findAllByRole('option', { name: /\?$/ })
+      expect(recent.map((o) => o.textContent)).toEqual(['Who is my manager?', 'And what about €2,000?'])
+
+      await user.click(recent[1])
+
+      const turns = await within(bar).findAllByRole('region', { name: 'Agent answer' })
+      expect(turns.map((t) => within(t).getByText(/\?$/).textContent)).toEqual([completed.message, followUpDone.message])
+      expect(localStorage.getItem('keel-agent-conversation:1')).toBe('c1')
+    })
+
+    it('brings the last conversation back after a page refresh, even mid-run', async () => {
+      const user = userEvent.setup()
+      localStorage.setItem('keel-agent-conversation:1', 'c1')
+      mockApi({
+        'GET /api/companies/1/session': envelope(ngozi),
+        'GET /api/companies/1/agent_runs?conversation_id=c1': envelope([pending]),
+      })
+      await renderApp('/assemble')
+
+      // The trace button is live before the bar is ever opened.
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Agent trace' })).toBeEnabled())
+      await user.keyboard('{Meta>}k{/Meta}')
+      const bar = await screen.findByRole('dialog', { name: 'Ask Keel' })
+      expect(await within(bar).findByText('Thinking…')).toBeInTheDocument()
+
+      act(() => agentSubscription()[1].received({ event: 'run', run: completed }))
+      expect(await within(bar).findByText('Yes, but Tunde Bakare has to approve it first.')).toBeInTheDocument()
+    })
+
+    it('starts a new conversation from "New conversation", forgetting the open one', async () => {
+      const user = userEvent.setup()
+      localStorage.setItem('keel-agent-conversation:1', 'c1')
+      mockApi({
+        'GET /api/companies/1/session': envelope(ngozi),
+        'GET /api/companies/1/agent_runs': envelope([completed]),
+        'GET /api/companies/1/agent_runs?conversation_id=c1': envelope([completed]),
+      })
+      await renderApp('/assemble')
+
+      await user.keyboard('{Meta>}k{/Meta}')
+      const bar = await screen.findByRole('dialog', { name: 'Ask Keel' })
+      await user.click(await within(bar).findByRole('button', { name: 'New conversation' }))
+
+      expect(await within(bar).findByRole('combobox')).toBeInTheDocument()
+      expect(localStorage.getItem('keel-agent-conversation:1')).toBeNull()
+      expect(within(bar).getByRole('option', { name: completed.message })).toBeInTheDocument()
+    })
   })
 })

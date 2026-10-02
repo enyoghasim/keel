@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AgentTrace } from '../agent/agent-trace'
 import { CommandBar } from '../agent/command-bar'
+import { useAgentConversation } from '../agent/use-agent-conversation'
 import { useCurrentPerson, useSignOut } from '../../lib/auth'
 import { getCurrentCompanyId } from '../../lib/current-company'
 import { effectiveTheme, initTheme, toggleTheme, type Theme } from '../../lib/theme'
@@ -43,9 +44,10 @@ function PersonChip({ companyId }: { companyId: string }) {
 export function Topbar() {
   const [theme, setTheme] = useState<Theme>(() => effectiveTheme())
   const [commandOpen, setCommandOpen] = useState(false)
-  const [runId, setRunId] = useState<number | null>(null)
-  const [traceOpen, setTraceOpen] = useState(false)
+  const [traceRunId, setTraceRunId] = useState<number | null>(null)
   const companyId = getCurrentCompanyId()
+  const conversation = useAgentConversation(companyId, commandOpen)
+  const latestRunId = conversation.runs.at(-1)?.id ?? null
 
   useEffect(() => {
     initTheme()
@@ -81,8 +83,8 @@ export function Topbar() {
         <button
           type="button"
           title="Agent trace"
-          disabled={runId === null}
-          onClick={() => setTraceOpen(true)}
+          disabled={latestRunId === null}
+          onClick={() => setTraceRunId(latestRunId)}
           className="grid h-8.5 w-8.5 place-items-center rounded border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40"
         >
           <BellTraceIcon className="h-4 w-4" />
@@ -102,16 +104,15 @@ export function Topbar() {
         open={commandOpen}
         onOpenChange={setCommandOpen}
         companyId={companyId}
-        runId={runId}
-        onRunStarted={setRunId}
-        onShowTrace={() => {
+        conversation={conversation}
+        onShowTrace={(runId) => {
           // The command bar is modal, so the drawer opens once it's closed.
           setCommandOpen(false)
-          setTraceOpen(true)
+          setTraceRunId(runId)
         }}
       />
-      {traceOpen && companyId && runId !== null && (
-        <AgentTrace companyId={companyId} runId={runId} onClose={() => setTraceOpen(false)} />
+      {companyId && traceRunId !== null && (
+        <AgentTrace companyId={companyId} runId={traceRunId} onClose={() => setTraceRunId(null)} />
       )}
     </header>
   )
