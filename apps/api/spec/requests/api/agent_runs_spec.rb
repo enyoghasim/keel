@@ -34,6 +34,31 @@ RSpec.describe "Api::AgentRuns", type: :request do
     end
   end
 
+  describe "GET /api/companies/:company_id/agent_runs" do
+    it "lists the signed-in person's recent runs, newest first, capped, without anyone else's" do
+      sign_in(person)
+      create(:agent_run, company: company, person: person, message: "First", created_at: 2.hours.ago)
+      create(:agent_run, company: company, person: person, message: "Second", created_at: 1.hour.ago)
+      create(:agent_run, company: company)
+      stub_const("Api::AgentRunsController::RECENT_LIMIT", 2)
+      create(:agent_run, company: company, person: person, message: "Third", created_at: 1.minute.ago)
+
+      get "/api/companies/#{company.id}/agent_runs"
+
+      expect(response.parsed_body["data"].map { _1["message"] }).to eq(%w[Third Second])
+      expect(response.parsed_body["data"].first).to include("status" => "pending", "steps" => [])
+    end
+
+    it "requires sign-in, and membership of the company" do
+      get "/api/companies/#{company.id}/agent_runs"
+      expect(response).to have_http_status(:unauthorized)
+
+      sign_in(person)
+      get "/api/companies/#{create(:company).id}/agent_runs"
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
   describe "GET /api/companies/:company_id/agent_runs/:id" do
     it "returns the run with its full trace" do
       sign_in(person)

@@ -7,8 +7,15 @@ module Api
   class AgentRunsController < ApplicationController
     include CompanyScoped
 
+    RECENT_LIMIT = 20
+
     before_action :require_current_person!
     before_action :require_company_member!
+
+    def index
+      recent = @company.agent_runs.where(person: current_person).includes(:agent_steps).order(created_at: :desc, id: :desc).limit(RECENT_LIMIT)
+      render_success(data: recent.map(&:as_payload))
+    end
 
     def show
       agent_run = @company.agent_runs.where(person: current_person).find(params[:id])
