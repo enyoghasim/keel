@@ -36,3 +36,13 @@ export type {
 } from './hand-written/workflow'
 export type { Insight, InsightStatus, InsightUnit, InsightRow, InsightResult } from './hand-written/insight'
 export type { InsightQuery, InsightFilter } from './generated/insight-query'
+export type {
+  EvalSuite,
+  EvalRunStatus,
+  EvalRun,
+  EvalDiffEntry,
+  EvalResult,
+  EvalRunWithResults,
+  EvalRunsMeta,
+  EvalChannelEvent,
+} from './hand-written/eval'
