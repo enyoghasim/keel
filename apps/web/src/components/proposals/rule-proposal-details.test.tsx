@@ -14,6 +14,7 @@ const proposal: RuleChangeProposal = {
   status: 'pending',
   decided_by_id: null,
   decided_at: null,
+  explanation: null,
   created_at: '2026-10-02T00:00:00Z',
   diff: {
     policy_id: 3,

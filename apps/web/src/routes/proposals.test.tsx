@@ -1,10 +1,15 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { AgentRun, Department, OrgChangeProposal, Person, RuleChangeProposal, WorkflowChangeProposal } from 'api-types'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
+
+// The page subscribes to Action Cable; keep jsdom from opening a socket.
+vi.mock('@rails/actioncable', () => ({
+  createConsumer: vi.fn(() => ({ subscriptions: { create: vi.fn(() => ({ unsubscribe: vi.fn() })) } })),
+}))
 
 const people: Person[] = [
   {
@@ -71,6 +76,7 @@ const cleanProposal: OrgChangeProposal = {
   status: 'pending',
   decided_by_id: null,
   decided_at: null,
+  explanation: null,
   created_at: '2026-01-01T00:00:00Z',
 }
 
@@ -98,6 +104,7 @@ const brokenProposal: OrgChangeProposal = {
   status: 'pending',
   decided_by_id: null,
   decided_at: null,
+  explanation: null,
   created_at: '2026-01-02T00:00:00Z',
 }
 
@@ -111,6 +118,7 @@ const ruleProposal: RuleChangeProposal = {
   status: 'pending',
   decided_by_id: null,
   decided_at: null,
+  explanation: null,
   created_at: '2026-01-03T00:00:00Z',
   diff: {
     policy_id: 1,
@@ -158,6 +166,7 @@ const workflowProposal: WorkflowChangeProposal = {
   status: 'pending',
   decided_by_id: null,
   decided_at: null,
+  explanation: null,
   created_at: '2026-01-04T00:00:00Z',
   diff: {
     workflow_id: 5,
@@ -486,5 +495,25 @@ describe('/proposals', () => {
 
     const drawer = await screen.findByRole('dialog', { name: 'Agent trace' })
     expect(within(drawer).getByText('propose_rule_change')).toBeInTheDocument()
+  })
+
+  it('shows the plain-English explanation of a proposal, once it has one', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    mockApi({
+      'GET /api/companies/1/change_proposals': {
+        body: { success: true, message: '', data: [{ ...cleanProposal, explanation: 'Ngozi’s requests would go to Ada instead of Tunde.' }, brokenProposal] },
+      },
+      ...peopleRoute,
+      ...departmentsRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/proposals')
+    await user.click(await screen.findByRole('button', { name: /Move Ngozi under Ada/ }))
+    expect(within(screen.getByRole('region', { name: 'In plain English' })).getByText(/requests would go to Ada instead of Tunde/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Remove Sales department head/ }))
+
+    expect(screen.getAllByRole('region', { name: 'In plain English' })).toHaveLength(1)
   })
 })

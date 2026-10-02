@@ -169,7 +169,7 @@ describe('/workflows', () => {
     }
     const proposal: WorkflowChangeProposal = {
       id: 8, company_id: 1, kind: 'workflow', title: 'Expense approval: Added an IT step', proposed_by: 'user', agent_run_id: null,
-      status: 'pending', decided_by_id: null, decided_at: null, created_at: '2026-10-02T00:00:00Z',
+      status: 'pending', decided_by_id: null, decided_at: null, explanation: null, created_at: '2026-10-02T00:00:00Z',
       diff: {
         workflow_id: 5, request_kind: 'expense', instruction: pendingEdit.instruction, before: expenseWorkflow.steps,
         after: [...expenseWorkflow.steps, { key: 'it_setup', type: 'task', title: 'Set up accounts', assignee: 'role:it_admin' }],

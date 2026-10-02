@@ -134,6 +134,13 @@ export function ProposalRow({
           {proposal.kind === 'rule' && <RuleProposalDetails proposal={proposal} people={people} />}
           {proposal.kind === 'workflow' && <WorkflowProposalDetails proposal={proposal} people={people} />}
 
+          {proposal.explanation && (
+            <section aria-label="In plain English">
+              <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">In plain English</h3>
+              <p className="text-[13px]">{proposal.explanation}</p>
+            </section>
+          )}
+
           {canDecide && proposal.agent_run_id !== null && <TraceButton companyId={companyId} proposalId={proposal.id} />}
 
           <ApproveRejectBar companyId={companyId} proposal={proposal} brokenCount={broken} blocker={blocker} canDecide={canDecide} />
