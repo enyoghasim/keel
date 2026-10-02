@@ -49,8 +49,18 @@ RSpec.describe Agent::Runner do
 
     expect(chat.instructions).to include("Nubo", "Ngozi Okafor", "Account Executive", "Sales", "Tunde Bakare", "sales_lead", "2026-10-02")
     expect(chat.instructions).to include("Never state a policy outcome without calling check_policy")
-    expect(chat.tools.keys).to contain_exactly("search_people", "check_policy", "create_request", "run_insight", "org_lookup", "who_approves", "list_my_requests")
+    expect(chat.tools.keys).to contain_exactly("search_people", "check_policy", "create_request", "run_insight", "org_lookup", "who_approves", "list_my_requests", "search_handbook")
     expect(chat.asked).to eq("Can I expense a €1,200 flight to RubyConf?")
+  end
+
+  it "offers the change-proposing tools only to an hr_admin, and tells the model never to call a proposal a change" do
+    agent_run.person.update!(roles: [ "hr_admin" ])
+    chat = script({ content: "Hi!" })
+
+    described_class.call(agent_run)
+
+    expect(chat.tools.keys).to include("propose_org_change", "propose_rule_change")
+    expect(chat.instructions).to include("a proposal is not a change")
   end
 
   it "streams each step as it's recorded" do
