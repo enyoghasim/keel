@@ -9,6 +9,16 @@ RSpec.describe Rules::Condition do
       expect(described_class.match?(node, { "payload.category" => "travel" })).to be false
     end
 
+    it "doesn't match an ordering comparison when the request doesn't carry the field, instead of crashing" do
+      # e.g. a leave request with no notice_days against "notice_days < 14"
+      %w[gt gte lt lte].each do |op|
+        node = { "field" => "payload.notice_days", "op" => op, "value" => 14 }
+
+        expect(described_class.match?(node, { "payload.days" => 5 })).to be(false), "#{op} should not match a missing field"
+      end
+      expect(described_class.match?({ "field" => "payload.notice_days", "op" => "between", "value" => [ 1, 14 ] }, {})).to be false
+    end
+
     it "matches a neq leaf" do
       node = { "field" => "payload.category", "op" => "neq", "value" => "conference" }
 

@@ -21,7 +21,7 @@ module Impact
     end
 
     # Representative payloads standing in for "every request kind" — a
-    # small/medium/large expense and a week-ish of leave — evaluated
+    # small/medium/large expense and a week-ish of leave booked a month ahead — evaluated
     # against the company's actual active rules.
     def self.scenarios(company)
       expense_rules = company.active_rule_definitions("expense")
@@ -31,7 +31,7 @@ module Impact
         { payload: { "amount_eur" => 100 }, rules: expense_rules },
         { payload: { "amount_eur" => 800 }, rules: expense_rules },
         { payload: { "amount_eur" => 3000 }, rules: expense_rules },
-        { payload: { "days" => 5 }, rules: leave_rules }
+        { payload: { "days" => 5, "notice_days" => 30 }, rules: leave_rules }
       ]
     end
     private_class_method :scenarios
