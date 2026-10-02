@@ -96,6 +96,21 @@ const unresolvedRequest: Request = {
 
 const peopleRoute = { 'GET /api/companies/1/people': { body: { success: true, message: '', data: people } } }
 
+// A person distinct from `people` above, so the Topbar's signed-in chip
+// doesn't add an extra occurrence of a name these tests already assert on.
+const currentPerson: Person = {
+  id: 99,
+  name: 'Chiamaka Eze',
+  email: 'chiamaka@nubo.test',
+  title: 'HR Admin',
+  department_id: null,
+  manager_id: null,
+  location: null,
+  start_date: null,
+  roles: ['hr_admin'],
+}
+const sessionRoute = { 'GET /api/companies/1/session': { body: { success: true, message: '', data: currentPerson } } }
+
 describe('/inbox', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -113,6 +128,7 @@ describe('/inbox', () => {
     mockApi({
       'GET /api/companies/1/requests': { body: { success: true, message: '', data: [] } },
       ...peopleRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/inbox')
@@ -127,6 +143,7 @@ describe('/inbox', () => {
         body: { success: true, message: '', data: [leaveRequest, unresolvedRequest] },
       },
       ...peopleRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/inbox')
@@ -155,6 +172,7 @@ describe('/inbox', () => {
       ],
       'POST /api/step_runs/100/act': { body: { success: true, message: 'Step updated.', data: acted } },
       ...peopleRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/inbox')
@@ -172,6 +190,7 @@ describe('/inbox', () => {
         body: { success: true, message: 'Step updated.', data: { ...leaveRequest.workflow_run!.step_runs[0], overridden: true } },
       },
       ...peopleRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/inbox')
@@ -213,6 +232,7 @@ describe('/inbox', () => {
     mockApi({
       'GET /api/companies/1/requests': { body: { success: true, message: '', data: [leaveRequest, expenseRequest] } },
       ...peopleRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/inbox')

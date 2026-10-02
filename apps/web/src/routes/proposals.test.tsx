@@ -104,6 +104,21 @@ const departmentsRoute = {
   'GET /api/companies/1/departments': { body: { success: true, message: '', data: departments } },
 }
 
+// A person distinct from `people` above, so the Topbar's signed-in chip
+// doesn't add an extra occurrence of a name these tests already assert on.
+const currentPerson: Person = {
+  id: 99,
+  name: 'Chiamaka Eze',
+  email: 'chiamaka@nubo.test',
+  title: 'HR Admin',
+  department_id: null,
+  manager_id: null,
+  location: null,
+  start_date: null,
+  roles: ['hr_admin'],
+}
+const sessionRoute = { 'GET /api/companies/1/session': { body: { success: true, message: '', data: currentPerson } } }
+
 describe('/proposals', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -122,6 +137,7 @@ describe('/proposals', () => {
       'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [] } },
       ...peopleRoute,
       ...departmentsRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/proposals')
@@ -137,6 +153,7 @@ describe('/proposals', () => {
       },
       ...peopleRoute,
       ...departmentsRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/proposals')
@@ -155,6 +172,7 @@ describe('/proposals', () => {
       'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [cleanProposal] } },
       ...peopleRoute,
       ...departmentsRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/proposals')
@@ -172,6 +190,7 @@ describe('/proposals', () => {
       'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [brokenProposal] } },
       ...peopleRoute,
       ...departmentsRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/proposals')
@@ -204,6 +223,7 @@ describe('/proposals', () => {
       },
       ...peopleRoute,
       ...departmentsRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/proposals')
@@ -227,6 +247,7 @@ describe('/proposals', () => {
       },
       ...peopleRoute,
       ...departmentsRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/proposals')

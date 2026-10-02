@@ -35,6 +35,21 @@ const peopleRoute = { 'GET /api/companies/1/people': { body: { success: true, me
 const departmentsRoute = {
   'GET /api/companies/1/departments': { body: { success: true, message: '', data: departments } },
 }
+// A distinct person from the chart data above — reusing `manager` here would
+// make it appear once more as the Topbar's signed-in chip, breaking assertions
+// that count how many times "Tunde Bakare" appears in the chart itself.
+const currentPerson: Person = {
+  id: 99,
+  name: 'Chiamaka Eze',
+  email: 'chiamaka@nubo.test',
+  title: 'HR Admin',
+  department_id: null,
+  manager_id: null,
+  location: null,
+  start_date: null,
+  roles: ['hr_admin'],
+}
+const sessionRoute = { 'GET /api/companies/1/session': { body: { success: true, message: '', data: currentPerson } } }
 
 describe('/graph', () => {
   beforeEach(() => {
@@ -53,6 +68,7 @@ describe('/graph', () => {
     mockApi({
       'GET /api/companies/1/people': { body: { success: true, message: '', data: [] } },
       ...departmentsRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/graph')
@@ -62,7 +78,7 @@ describe('/graph', () => {
 
   it('renders the org chart with a placeholder panel until a person is selected', async () => {
     setCurrentCompanyId('1')
-    mockApi({ ...peopleRoute, ...departmentsRoute })
+    mockApi({ ...peopleRoute, ...departmentsRoute, ...sessionRoute })
 
     await renderApp('/graph')
 
@@ -73,7 +89,7 @@ describe('/graph', () => {
 
   it('shows the selected person in the panel on node click', async () => {
     setCurrentCompanyId('1')
-    mockApi({ ...peopleRoute, ...departmentsRoute })
+    mockApi({ ...peopleRoute, ...departmentsRoute, ...sessionRoute })
 
     await renderApp('/graph')
     fireEvent.click(await screen.findByText('Ngozi Doe'))
@@ -88,7 +104,7 @@ describe('/graph', () => {
 
   it('has a colour-by-department toggle that starts checked', async () => {
     setCurrentCompanyId('1')
-    mockApi({ ...peopleRoute, ...departmentsRoute })
+    mockApi({ ...peopleRoute, ...departmentsRoute, ...sessionRoute })
 
     await renderApp('/graph')
     await screen.findByText('Tunde Bakare')

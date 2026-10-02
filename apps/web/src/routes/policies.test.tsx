@@ -66,6 +66,19 @@ const leavePolicyWithRules: PolicyWithRules = {
 const people: Person[] = []
 const peopleRoute = { 'GET /api/companies/1/people': { body: { success: true, message: '', data: people } } }
 
+const currentPerson: Person = {
+  id: 1,
+  name: 'Ada Nwosu',
+  email: 'ada@nubo.test',
+  title: 'HR Admin',
+  department_id: null,
+  manager_id: null,
+  location: null,
+  start_date: null,
+  roles: ['hr_admin'],
+}
+const sessionRoute = { 'GET /api/companies/1/session': { body: { success: true, message: '', data: currentPerson } } }
+
 describe('/policies', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -80,7 +93,7 @@ describe('/policies', () => {
 
   it('shows an empty state when the company has no policies', async () => {
     setCurrentCompanyId('1')
-    mockApi({ 'GET /api/companies/1/policies': { body: { success: true, message: '', data: [] } } })
+    mockApi({ 'GET /api/companies/1/policies': { body: { success: true, message: '', data: [] } }, ...sessionRoute })
 
     await renderApp('/policies')
 
@@ -93,6 +106,7 @@ describe('/policies', () => {
       'GET /api/companies/1/policies': { body: { success: true, message: '', data: [expensePolicy, leavePolicy] } },
       'GET /api/companies/1/policies/5': { body: { success: true, message: '', data: expensePolicyWithRules } },
       ...peopleRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/policies')
@@ -112,6 +126,7 @@ describe('/policies', () => {
       'GET /api/companies/1/policies/5': { body: { success: true, message: '', data: expensePolicyWithRules } },
       'GET /api/companies/1/policies/6': { body: { success: true, message: '', data: leavePolicyWithRules } },
       ...peopleRoute,
+      ...sessionRoute,
     })
 
     await renderApp('/policies')

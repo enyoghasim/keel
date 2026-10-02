@@ -1,10 +1,10 @@
 import { Outlet, createRootRoute } from '@tanstack/react-router'
-import { Shell } from '../components/layout/shell'
+import { AuthGate } from '../components/auth/auth-gate'
 
 export const Route = createRootRoute({
   component: () => (
-    <Shell>
+    <AuthGate>
       <Outlet />
-    </Shell>
+    </AuthGate>
   ),
 })
