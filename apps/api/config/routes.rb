@@ -4,6 +4,8 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
   mount ActionCable.server => "/cable"
+  # Keel's MCP server (SPEC.md section 13), authenticated by personal access token.
+  mount KeelMcp::Endpoint.new => "/mcp"
 
   namespace :api do
     resources :companies, only: [ :create, :show ] do
