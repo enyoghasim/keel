@@ -6,6 +6,9 @@ module Workflows
   class Runtime
     TERMINAL_STATUS = { "auto_approve" => "approved", "reject" => "rejected", "blocked" => "blocked" }.freeze
 
+    DryRunResult = Data.define(:outcome, :matched_rule_keys, :errors, :steps)
+    StepPreview = Data.define(:step_key, :type, :reference, :resolved_person_id, :matched)
+
     def initialize(snapshot)
       @snapshot = snapshot
       @engine = Rules::Engine.new(snapshot)
@@ -53,7 +56,40 @@ module Workflows
       step_run
     end
 
+    # "Test run" (SPEC.md section 8): previews how a workflow would resolve
+    # right now, with nothing saved. A terminal decision (auto_approve,
+    # reject, blocked) short-circuits just like #start. Otherwise every step
+    # is resolved up front rather than one at a time — unlike a real run,
+    # nothing here can change the snapshot between steps, so resolving them
+    # all now gives the same answer as resolving each as it becomes active.
+    def dry_run(workflow, requester_id:, payload:, rules:)
+      decision = @engine.evaluate(Rules::RequestInput.new(requester_id: requester_id, payload: payload), rules)
+
+      if TERMINAL_STATUS.key?(decision.outcome)
+        return DryRunResult.new(decision.outcome, decision.rule_keys, decision.errors,
+          [ StepPreview.new("system", "system", nil, nil, true) ])
+      end
+
+      ctx = Rules::Context.build(Rules::RequestInput.new(requester_id: requester_id, payload: payload), @snapshot)
+      steps = workflow.steps.flat_map { preview_step(_1, ctx, decision, requester_id) }
+
+      DryRunResult.new(decision.outcome, decision.rule_keys, decision.errors, steps)
+    end
+
     private
+
+    def preview_step(step, ctx, decision, requester_id)
+      matched = step["when"].nil? || Rules::Condition.match?(step["when"], ctx)
+
+      if step["type"] == "approval"
+        return [ StepPreview.new(step["key"], "approval", nil, nil, false) ] unless matched
+
+        decision.approvers.map { StepPreview.new(step["key"], "approval", "person:#{_1}", _1, true) }
+      else
+        resolved_id = matched ? @resolver.resolve(step["assignee"], requester_id: requester_id).person_ids.first : nil
+        [ StepPreview.new(step["key"], step["type"], step["assignee"], resolved_id, matched) ]
+      end
+    end
 
     def request_input(request) = Rules::RequestInput.new(requester_id: request.requester_id, payload: request.payload)
 

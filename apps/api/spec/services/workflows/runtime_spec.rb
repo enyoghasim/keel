@@ -168,4 +168,83 @@ RSpec.describe Workflows::Runtime do
     expect(system_step.reload).to have_attributes(overridden: true, override_reason: "Policy exception approved by HR")
     expect(request.reload.status).to eq("rejected")
   end
+
+  describe "#dry_run" do
+    def small_expense_rule
+      Rules::RuleDefinition.new(
+        key: "small_expense", priority: 1,
+        conditions: { "field" => "payload.amount_eur", "op" => "lte", "value" => 500 },
+        actions: { "decision" => "auto_approve" },
+      )
+    end
+
+    it "previews a single system step for a terminal decision, without persisting anything" do
+      company = create(:company)
+      requester = create(:person, company: company)
+
+      result = runtime_for(company).dry_run(nil, requester_id: requester.id, payload: { "amount_eur" => 100 }, rules: [ small_expense_rule ])
+
+      expect(result.outcome).to eq("auto_approve")
+      expect(result.steps).to eq([ Workflows::Runtime::StepPreview.new("system", "system", nil, nil, true) ])
+      expect(WorkflowRun.count).to eq(0)
+      expect(StepRun.count).to eq(0)
+    end
+
+    it "previews one entry per approver in a multi-approver chain, all resolved at once" do
+      company = create(:company)
+      manager = create(:person, company: company)
+      finance_lead = create(:person, :finance_lead, company: company)
+      requester = create(:person, company: company, manager: manager)
+      workflow = create(:workflow, company: company, steps: [ { "key" => "approval", "type" => "approval" } ])
+
+      result = runtime_for(company).dry_run(
+        workflow, requester_id: requester.id, payload: { "amount_eur" => 900 },
+        rules: [ big_expense_rule([ "manager_of(requester)", "role:finance_lead" ]) ]
+      )
+
+      expect(result.outcome).to eq("require_approval")
+      expect(result.steps).to eq([
+        Workflows::Runtime::StepPreview.new("approval", "approval", "person:#{manager.id}", manager.id, true),
+        Workflows::Runtime::StepPreview.new("approval", "approval", "person:#{finance_lead.id}", finance_lead.id, true)
+      ])
+      expect(WorkflowRun.count).to eq(0)
+    end
+
+    it "resolves a notify step's assignee and marks a step whose condition doesn't match" do
+      company = create(:company)
+      manager = create(:person, company: company)
+      finance_lead = create(:person, :finance_lead, company: company)
+      requester = create(:person, company: company, manager: manager)
+      workflow = create(:workflow, company: company, steps: [
+        { "key" => "manager", "type" => "approval" },
+        { "key" => "finance", "type" => "notify", "assignee" => "role:finance_lead",
+          "when" => { "field" => "payload.amount_eur", "op" => "gt", "value" => 1500 } }
+      ])
+
+      result = runtime_for(company).dry_run(
+        workflow, requester_id: requester.id, payload: { "amount_eur" => 900 },
+        rules: [ big_expense_rule([ "manager_of(requester)" ]) ]
+      )
+
+      expect(result.steps).to eq([
+        Workflows::Runtime::StepPreview.new("manager", "approval", "person:#{manager.id}", manager.id, true),
+        Workflows::Runtime::StepPreview.new("finance", "notify", "role:finance_lead", nil, false)
+      ])
+    end
+
+    it "surfaces resolver errors (self-approval, unresolved reference) without raising" do
+      company = create(:company)
+      requester = create(:person, :without_manager, company: company)
+      workflow = create(:workflow, company: company, steps: [ { "key" => "approval", "type" => "approval" } ])
+
+      result = runtime_for(company).dry_run(
+        workflow, requester_id: requester.id, payload: { "amount_eur" => 900 },
+        rules: [ big_expense_rule([ "manager_of(requester)" ]) ]
+      )
+
+      expect(result.outcome).to eq("blocked")
+      expect(result.errors).to eq([ "manager_of(requester) resolved to nobody" ])
+      expect(result.steps).to eq([ Workflows::Runtime::StepPreview.new("system", "system", nil, nil, true) ])
+    end
+  end
 end
