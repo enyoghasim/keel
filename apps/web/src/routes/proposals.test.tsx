@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { Department, OrgChangeProposal, Person, RuleChangeProposal } from 'api-types'
+import type { Department, OrgChangeProposal, Person, RuleChangeProposal, WorkflowChangeProposal } from 'api-types'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
@@ -145,6 +145,37 @@ const ruleProposal: RuleChangeProposal = {
       summary: 'This would have changed 1 of 4 past expense decisions: 1 would have been auto-approved instead of sent for approval.',
       flipped: [{ request_id: 9, requester_id: 3, payload: { amount_eur: 700 }, before: 'require_approval', after: 'auto_approve' }],
     },
+  },
+}
+
+const workflowProposal: WorkflowChangeProposal = {
+  id: 4,
+  company_id: 1,
+  kind: 'workflow',
+  title: 'Leave Workflow: Added an IT step',
+  proposed_by: 'user',
+  agent_run_id: null,
+  status: 'pending',
+  decided_by_id: null,
+  decided_at: null,
+  created_at: '2026-01-04T00:00:00Z',
+  diff: {
+    workflow_id: 5,
+    request_kind: 'leave',
+    instruction: 'IT sets up accounts after the manager approves',
+    before: [{ key: 'approval', type: 'approval', assignee: 'manager_of(requester)' }],
+    after: [
+      { key: 'approval', type: 'approval', assignee: 'manager_of(requester)' },
+      { key: 'it_setup', type: 'task', title: 'Set up accounts', assignee: 'role:it_admin' },
+    ],
+  },
+  impact: {
+    steps: { added: ['it_setup'], removed: [], changed: [], moved: [] },
+    scenarios_run: 3,
+    affected_count: 3,
+    affected: [],
+    broken: [{ step_key: 'it_setup', reference: 'role:it_admin', person_count: 3 }],
+    in_flight: 0,
   },
 }
 
@@ -370,5 +401,27 @@ describe('/proposals', () => {
     expect(await screen.findByText(/would have changed 1 of 4 past expense decisions/)).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'expense_small_auto after' })).toHaveTextContent('amount ≤ €800')
     expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled()
+  })
+
+  it('lists a workflow proposal with its graph, and holds Approve behind a reason while a new step resolves to nobody', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    mockApi({
+      'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [workflowProposal] } },
+      ...peopleRoute,
+      ...departmentsRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/proposals')
+
+    expect(await screen.findByText(/Workflow change · proposed by a person/)).toBeInTheDocument()
+    expect(screen.getByText('3 people affected')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Added an IT step/ }))
+
+    expect(await screen.findByText('Set up accounts')).toBeInTheDocument()
+    expect(screen.getByText(/role:it_admin resolves to nobody for 3 people/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
   })
 })

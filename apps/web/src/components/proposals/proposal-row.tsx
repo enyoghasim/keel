@@ -5,6 +5,7 @@ import { ApproveRejectBar } from './approve-reject-bar'
 import { ImpactSummaryCards } from './impact-summary-cards'
 import { ProposalDiff } from './proposal-diff'
 import { RuleProposalDetails } from './rule-proposal-details'
+import { WorkflowProposalDetails } from './workflow-proposal-details'
 
 function Count({ label, value, danger }: { label: string; value: number; danger?: boolean }) {
   return (
@@ -40,7 +41,7 @@ export function ProposalRow({
   canDecide: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
-  const broken = proposal.kind === 'org' ? proposal.impact.broken.length : 0
+  const broken = proposal.kind === 'rule' ? 0 : proposal.impact.broken.length
 
   return (
     <Card className="gap-0 p-0">
@@ -63,6 +64,12 @@ export function ProposalRow({
               <Count label="rerouted" value={proposal.impact.rerouted.length} />
               <Count label="broken" value={broken} danger />
               <Count label="self-approval" value={proposal.impact.self_approval.length} danger />
+            </>
+          )}
+          {proposal.kind === 'workflow' && (
+            <>
+              <Count label="people affected" value={proposal.impact.affected_count} />
+              <Count label="broken" value={broken} danger />
             </>
           )}
           {proposal.kind === 'rule' && <Count
@@ -91,9 +98,7 @@ export function ProposalRow({
             </>
           )}
           {proposal.kind === 'rule' && <RuleProposalDetails proposal={proposal} people={people} />}
-          {proposal.kind === 'workflow' && (
-            <p className="text-[13px] text-muted-foreground">Workflow proposals can't be previewed yet.</p>
-          )}
+          {proposal.kind === 'workflow' && <WorkflowProposalDetails proposal={proposal} people={people} />}
 
           <ApproveRejectBar companyId={companyId} proposal={proposal} brokenCount={broken} canDecide={canDecide} />
         </div>
