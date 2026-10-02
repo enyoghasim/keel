@@ -31,6 +31,8 @@ module Org
       case op["op"]
       when "change_manager"
         people.dig(op["person_id"])["manager_id"] = op["to"]
+      when "move_person"
+        people.dig(op["person_id"])["department_id"] = op["department_id"]
       when "set_department_head"
         departments.dig(op["department_id"])["head_id"] = op["to"]
       when "assign_role"

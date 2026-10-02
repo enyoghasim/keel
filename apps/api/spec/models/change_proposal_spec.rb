@@ -78,6 +78,18 @@ RSpec.describe ChangeProposal, type: :model do
       expect(person.reload.roles).to eq([ "finance_lead" ])
     end
 
+    it "applies a move_person operation to the real person record" do
+      company = create(:company)
+      sales = create(:department, company: company, name: "Sales")
+      person = create(:person, company: company)
+      change_proposal = create(:change_proposal, company: company,
+        diff: [ { "op" => "move_person", "person_id" => person.id, "department_id" => sales.id } ])
+
+      change_proposal.apply_org_diff!(company)
+
+      expect(person.reload.department_id).to eq(sales.id)
+    end
+
     it "raises on an unknown operation" do
       company = create(:company)
       change_proposal = create(:change_proposal, company: company, diff: [ { "op" => "nonsense" } ])

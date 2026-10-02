@@ -21,6 +21,8 @@ class ChangeProposal < ApplicationRecord
       case op["op"]
       when "change_manager"
         company.people.find(op["person_id"]).update!(manager_id: op["to"])
+      when "move_person"
+        company.people.find(op["person_id"]).update!(department_id: company.departments.find(op["department_id"]).id)
       when "set_department_head"
         company.departments.find(op["department_id"]).update!(head_id: op["to"])
       when "assign_role"

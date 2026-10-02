@@ -130,6 +130,18 @@ RSpec.describe Org::GraphSnapshot do
       expect(snapshot.holders_of("finance_lead")).to eq([])
     end
 
+    it "applies a move_person operation, so department-scoped rules and head_of(requester.department) follow" do
+      company = create(:company)
+      sales = create(:department, company: company, name: "Sales")
+      person = create(:person, company: company)
+      snapshot = described_class.load(company)
+
+      changed = snapshot.with_change([ { "op" => "move_person", "person_id" => person.id, "department_id" => sales.id } ])
+
+      expect(changed.people[person.id]["department_id"]).to eq(sales.id)
+      expect(snapshot.people[person.id]["department_id"]).not_to eq(sales.id)
+    end
+
     it "applies multiple operations in order" do
       company = create(:company)
       manager = create(:person, company: company)
