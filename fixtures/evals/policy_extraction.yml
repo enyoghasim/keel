@@ -1,0 +1,139 @@
+# Policy extraction eval suite (SPEC.md section 12): a handbook passage and
+# the rules a good extraction produces. Scored by behaviour on probe
+# requests (Evals::PolicyExtractionScorer), not by comparing JSON, so key
+# names and rule structure here are free — only what the rules DO counts.
+# `ambiguities` lists vague phrases a good extraction must flag rather than
+# guess. Passages for the first six come from the Nubo handbook seed
+# (db/seeds/nubo_handbook.rb). Load with `bin/rails evals:load`.
+- key: nubo_leave
+  input:
+    category: leave
+    passage: "Leave. Every employee has 20 days of paid annual leave. Leave of 3 days or fewer is approved automatically. Leave of more than 3 days needs your manager's approval, and must be requested with 14 days' notice for more than 3 days; requests with less notice are declined."
+  expected:
+    rules:
+      - { key: short, priority: 1, conditions: { field: payload.days, op: lte, value: 3 }, actions: { decision: auto_approve } }
+      - { key: long, priority: 1, conditions: { field: payload.days, op: gt, value: 3 }, actions: { decision: require_approval, approvers: ["manager_of(requester)"] } }
+      - key: notice
+        priority: 2
+        conditions: { all: [{ field: payload.days, op: gt, value: 3 }, { field: payload.notice_days, op: lt, value: 14 }] }
+        actions: { decision: reject, reason: "Needs 14 days' notice" }
+
+- key: nubo_expense_thresholds
+  input:
+    category: expense
+    passage: "Expenses. Expenses of €500 or less are approved automatically. Expenses over €500 need your manager's approval. Expenses over €2,000 also need the finance lead's approval."
+  expected:
+    rules:
+      - { key: small, priority: 1, conditions: { field: payload.amount_eur, op: lte, value: 500 }, actions: { decision: auto_approve } }
+      - { key: medium, priority: 1, conditions: { field: payload.amount_eur, op: gt, value: 500 }, actions: { decision: require_approval, approvers: ["manager_of(requester)"] } }
+      - { key: large, priority: 2, conditions: { field: payload.amount_eur, op: gt, value: 2000 }, actions: { decision: require_approval, approvers: ["manager_of(requester)", "role:finance_lead"] } }
+
+- key: nubo_conference_engineers
+  input:
+    category: expense
+    passage: "Engineers attending conferences are automatically approved up to €1,000."
+  expected:
+    rules:
+      - key: conference
+        priority: 3
+        conditions: { all: [{ field: requester.department, op: eq, value: Engineering }, { field: payload.category, op: eq, value: conference }, { field: payload.amount_eur, op: lte, value: 1000 }] }
+        actions: { decision: auto_approve }
+    ambiguities: ["attending conferences"]
+
+- key: nubo_travel_under_800
+  input:
+    category: expense
+    passage: "Travel. Business travel under €800 is approved automatically when booked through the company travel portal. Book at least a week ahead where you can."
+  expected:
+    rules:
+      - key: travel
+        priority: 1
+        conditions: { all: [{ field: payload.category, op: eq, value: travel }, { field: payload.amount_eur, op: lt, value: 800 }] }
+        actions: { decision: auto_approve }
+
+- key: nubo_equipment
+  input:
+    category: equipment
+    passage: "Equipment. Equipment up to €1,500 needs your manager's approval and is ordered by IT. Equipment over €1,500 also needs the finance lead's approval."
+  expected:
+    rules:
+      - { key: standard, priority: 1, conditions: { field: payload.amount_eur, op: lte, value: 1500 }, actions: { decision: require_approval, approvers: ["manager_of(requester)"] } }
+      - { key: large, priority: 2, conditions: { field: payload.amount_eur, op: gt, value: 1500 }, actions: { decision: require_approval, approvers: ["manager_of(requester)", "role:finance_lead"] } }
+
+- key: nubo_remote_two_days
+  input:
+    category: remote
+    passage: "Remote work. Remote work is generally allowed two days a week. Teams agree their office days together, and warehouse roles are always on site."
+  expected:
+    rules:
+      - { key: remote, priority: 1, conditions: { field: payload.days, op: lte, value: 2 }, actions: { decision: auto_approve } }
+    ambiguities: ["generally allowed"]
+
+- key: meals_daily_cap
+  input:
+    category: expense
+    passage: "Meals while travelling are reimbursed without approval up to €50 per day. Anything above that needs your manager's approval."
+  expected:
+    rules:
+      - key: meals
+        priority: 5
+        conditions: { all: [{ field: payload.category, op: eq, value: meals }, { field: payload.amount_eur, op: lte, value: 50 }] }
+        actions: { decision: auto_approve }
+
+- key: alcohol_never_reimbursed
+  input:
+    category: expense
+    passage: "Alcohol is never reimbursed, whatever the occasion."
+  expected:
+    rules:
+      - { key: alcohol, priority: 10, conditions: { field: payload.category, op: eq, value: alcohol }, actions: { decision: reject, reason: "Alcohol is never reimbursed" } }
+
+- key: it_and_finance_over_1000
+  input:
+    category: equipment
+    passage: "Any equipment purchase over €1,000 must be approved by both the IT admin and the finance lead."
+  expected:
+    rules:
+      - key: big_equipment
+        priority: 5
+        conditions: { field: payload.amount_eur, op: gt, value: 1000 }
+        actions: { decision: require_approval, approvers: ["role:it_admin", "role:finance_lead"] }
+
+- key: new_joiner_expenses
+  input:
+    category: expense
+    passage: "During their first 3 months, employees need the finance lead's approval for any expense over €100."
+  expected:
+    rules:
+      - key: new_joiner
+        priority: 5
+        conditions: { all: [{ field: requester.tenure_months, op: lt, value: 3 }, { field: payload.amount_eur, op: gt, value: 100 }] }
+        actions: { decision: require_approval, approvers: ["role:finance_lead"] }
+
+- key: tiered_leave
+  input:
+    category: leave
+    passage: "Leave of 4 to 10 days needs your manager's approval. Leave of more than 10 days needs both your manager's and HR's approval."
+  expected:
+    rules:
+      - { key: mid, priority: 1, conditions: { field: payload.days, op: between, value: [4, 10] }, actions: { decision: require_approval, approvers: ["manager_of(requester)"] } }
+      - { key: long, priority: 2, conditions: { field: payload.days, op: gt, value: 10 }, actions: { decision: require_approval, approvers: ["manager_of(requester)", "role:hr_admin"] } }
+
+- key: barcelona_travel_vague
+  input:
+    category: expense
+    passage: "Team dinners are covered when it is reasonable to do so."
+  expected:
+    rules: []
+    ambiguities: ["reasonable"]
+
+- key: lagos_equipment_stipend
+  input:
+    category: equipment
+    passage: "Employees based in Lagos may buy a chair or desk accessories up to €300 without approval."
+  expected:
+    rules:
+      - key: lagos_stipend
+        priority: 5
+        conditions: { all: [{ field: requester.location, op: eq, value: Lagos }, { field: payload.amount_eur, op: lte, value: 300 }] }
+        actions: { decision: auto_approve }
