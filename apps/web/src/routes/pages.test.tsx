@@ -24,11 +24,6 @@ const pages = [
     note: /Workflows::Runtime and the workflow steps endpoint/,
   },
   {
-    path: '/proposals',
-    heading: 'Proposals',
-    note: /ChangeProposal and Impact::Analyzer/,
-  },
-  {
     path: '/inbox',
     heading: 'Inbox',
     note: /Workflows::Runtime\.act and step_runs/,

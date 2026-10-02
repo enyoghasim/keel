@@ -1,0 +1,99 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { ChangeProposal, Envelope } from 'api-types'
+import { useState } from 'react'
+import { api } from '../../lib/api'
+
+function statusNote(proposal: ChangeProposal) {
+  const decidedAt = proposal.decided_at ? ` on ${new Date(proposal.decided_at).toLocaleString()}` : ''
+  return `This proposal was ${proposal.status}${decidedAt}.`
+}
+
+export function ApproveRejectBar({
+  companyId,
+  proposal,
+  brokenCount,
+}: {
+  companyId: string
+  proposal: ChangeProposal
+  brokenCount: number
+}) {
+  const queryClient = useQueryClient()
+  const [approveAnyway, setApproveAnyway] = useState(false)
+  const [reason, setReason] = useState('')
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['change_proposals', companyId] })
+
+  const approve = useMutation({
+    mutationFn: () =>
+      api.post<Envelope<ChangeProposal>>(
+        `/companies/${companyId}/change_proposals/${proposal.id}/approve`,
+        approveAnyway ? { approve_anyway: true, reason } : {},
+      ),
+    onSuccess: invalidate,
+  })
+
+  const reject = useMutation({
+    mutationFn: () =>
+      api.post<Envelope<ChangeProposal>>(`/companies/${companyId}/change_proposals/${proposal.id}/reject`, {}),
+    onSuccess: invalidate,
+  })
+
+  if (proposal.status !== 'pending') {
+    return <p className="text-[13px] text-muted-foreground">{statusNote(proposal)}</p>
+  }
+
+  // SPEC.md section 10: Approve is disabled while there are broken chains,
+  // unless "Approve anyway" is ticked with a reason — mirrors the
+  // controller's refusal in Api::ChangeProposalsController#approve.
+  const approveDisabled = brokenCount > 0 && (!approveAnyway || reason.trim() === '')
+
+  return (
+    <div className="space-y-2.5">
+      {brokenCount > 0 && (
+        <label className="flex items-start gap-2 text-[13px]">
+          <input
+            type="checkbox"
+            checked={approveAnyway}
+            onChange={(e) => setApproveAnyway(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span className="flex-1">
+            Approve anyway, despite {brokenCount} broken {brokenCount === 1 ? 'chain' : 'chains'}
+            {approveAnyway && (
+              <input
+                type="text"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Reason for approving anyway"
+                aria-label="Reason for approving anyway"
+                className="mt-1.5 block w-full rounded border border-border bg-card px-2.5 py-1.5 text-[13px]"
+              />
+            )}
+          </span>
+        </label>
+      )}
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => approve.mutate()}
+          disabled={approveDisabled || approve.isPending}
+          className="rounded bg-primary px-3.5 py-1.5 text-[13px] font-medium text-primary-foreground shadow-btn disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Approve
+        </button>
+        <button
+          type="button"
+          onClick={() => reject.mutate()}
+          disabled={reject.isPending}
+          className="rounded border border-border bg-card px-3.5 py-1.5 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Reject
+        </button>
+      </div>
+
+      {approve.isError && <p className="text-[13px] text-destructive">{(approve.error as Error).message}</p>}
+      {reject.isError && <p className="text-[13px] text-destructive">{(reject.error as Error).message}</p>}
+    </div>
+  )
+}

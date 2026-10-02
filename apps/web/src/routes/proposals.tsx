@@ -1,6 +1,8 @@
 import { createRoute } from '@tanstack/react-router'
 import { PageHeader } from '../components/layout/PageHeader'
 import { PagePlaceholder } from '../components/layout/PagePlaceholder'
+import { ProposalsView } from '../components/proposals/ProposalsView'
+import { getCurrentCompanyId } from '../lib/currentCompany'
 import { Route as rootRoute } from './__root'
 
 export const Route = createRoute({
@@ -10,13 +12,19 @@ export const Route = createRoute({
 })
 
 function ProposalsPage() {
+  const companyId = getCurrentCompanyId()
+
   return (
     <>
       <PageHeader
         title="Proposals"
         subtitle="Every AI-proposed change, with a computed impact report. Nothing applies until a human approves it."
       />
-      <PagePlaceholder note="Impact summary and diff views land once ChangeProposal and Impact::Analyzer exist." />
+      {companyId ? (
+        <ProposalsView companyId={companyId} />
+      ) : (
+        <PagePlaceholder note="No company yet — assemble one on the Assemble page first." />
+      )}
     </>
   )
 }

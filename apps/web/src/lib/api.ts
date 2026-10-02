@@ -6,11 +6,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   })
 
+  const body = (await response.json()) as T
+
   if (!response.ok) {
-    throw new Error(`${init?.method ?? 'GET'} ${path} failed: ${response.status}`)
+    const message = (body as { message?: string } | null)?.message
+    throw new Error(message || `${init?.method ?? 'GET'} ${path} failed: ${response.status}`)
   }
 
-  return response.json() as Promise<T>
+  return body
 }
 
 export const api = {
