@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ChangeProposal, Department, Envelope, Person } from 'api-types'
 import { api } from '../../lib/api'
+import { useCurrentPerson } from '../../lib/auth'
 import { PagePlaceholder } from '../layout/page-placeholder'
 import { ProposalRow } from './proposal-row'
 
 export function ProposalsView({ companyId }: { companyId: string }) {
+  const canDecide = useCurrentPerson(companyId).data?.data?.roles.includes('hr_admin') ?? false
   const proposalsQuery = useQuery({
     queryKey: ['change_proposals', companyId],
     queryFn: () => api.get<Envelope<ChangeProposal[]>>(`/companies/${companyId}/change_proposals`),
@@ -40,7 +42,14 @@ export function ProposalsView({ companyId }: { companyId: string }) {
   return (
     <div className="space-y-3">
       {proposals.map((proposal) => (
-        <ProposalRow key={proposal.id} proposal={proposal} companyId={companyId} people={people} departments={departments} />
+        <ProposalRow
+          key={proposal.id}
+          proposal={proposal}
+          companyId={companyId}
+          people={people}
+          departments={departments}
+          canDecide={canDecide}
+        />
       ))}
     </div>
   )

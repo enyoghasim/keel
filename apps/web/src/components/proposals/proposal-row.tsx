@@ -31,11 +31,13 @@ export function ProposalRow({
   companyId,
   people,
   departments,
+  canDecide,
 }: {
   proposal: ChangeProposal
   companyId: string
   people: Map<number, Person>
   departments: Map<number, Department>
+  canDecide: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const broken = proposal.kind === 'org' ? proposal.impact.broken.length : 0
@@ -93,7 +95,7 @@ export function ProposalRow({
             <p className="text-[13px] text-muted-foreground">Workflow proposals can't be previewed yet.</p>
           )}
 
-          <ApproveRejectBar companyId={companyId} proposal={proposal} brokenCount={broken} />
+          <ApproveRejectBar companyId={companyId} proposal={proposal} brokenCount={broken} canDecide={canDecide} />
         </div>
       )}
     </Card>

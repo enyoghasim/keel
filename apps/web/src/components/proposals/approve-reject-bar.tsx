@@ -14,10 +14,12 @@ export function ApproveRejectBar({
   companyId,
   proposal,
   brokenCount,
+  canDecide,
 }: {
   companyId: string
   proposal: ChangeProposal
   brokenCount: number
+  canDecide: boolean
 }) {
   const queryClient = useQueryClient()
   const [approveAnyway, setApproveAnyway] = useState(false)
@@ -46,6 +48,10 @@ export function ApproveRejectBar({
 
   if (proposal.status !== 'pending') {
     return <p className="text-[13px] text-muted-foreground">{statusNote(proposal)}</p>
+  }
+
+  if (!canDecide) {
+    return <p className="text-[13px] text-muted-foreground">Waiting for an HR admin to approve or reject this proposal.</p>
   }
 
   // SPEC.md section 10: Approve is disabled while there are broken chains,

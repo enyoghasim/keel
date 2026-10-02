@@ -282,6 +282,23 @@ describe('/proposals', () => {
     expect(await screen.findByText(/this proposal was approved/i)).toBeInTheDocument()
   })
 
+  it('shows people who are not hr_admins that a proposal awaits an HR admin, without decision buttons', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    mockApi({
+      'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [cleanProposal] } },
+      ...peopleRoute,
+      ...departmentsRoute,
+      'GET /api/companies/1/session': { body: { success: true, message: '', data: { ...currentPerson, roles: [] } } },
+    })
+
+    await renderApp('/proposals')
+    await user.click(await screen.findByRole('button', { name: /Move Ngozi under Ada/ }))
+
+    expect(screen.getByText(/waiting for an hr admin/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
+  })
+
   it('sends the reason typed for a rejection, which the API turns into a candidate test case', async () => {
     const user = userEvent.setup()
     setCurrentCompanyId('1')
