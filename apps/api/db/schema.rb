@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_182000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -316,6 +316,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_182000) do
     t.datetime "expires_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "conversation_id"
     t.index ["person_id"], name: "index_sessions_on_person_id"
     t.index ["token_digest"], name: "index_sessions_on_token_digest", unique: true
   end

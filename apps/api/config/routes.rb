@@ -11,7 +11,7 @@ Rails.application.routes.draw do
     # Which company this deployment serves — public, so a fresh browser can find it.
     resource :workspace, only: :show
     resources :companies, only: [ :create, :show ] do
-      resource :session, only: [ :create, :show, :destroy ]
+      resource :session, only: [ :create, :show, :update, :destroy ]
       resources :people, only: [ :index, :show ]
       resources :departments, only: [ :index, :show ]
       resources :policies, only: [ :index, :show ] do
