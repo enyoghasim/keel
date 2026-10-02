@@ -136,6 +136,8 @@ interface ChangeProposalBase {
   // The agent run (trace) that proposed it, when the agent did.
   agent_run_id: number | null
   status: ChangeProposalStatus
+  // Plain-English paragraph written from the impact alone; null until the job has run (or if it could not).
+  explanation: string | null
   decided_by_id: number | null
   decided_at: string | null
   created_at: string
