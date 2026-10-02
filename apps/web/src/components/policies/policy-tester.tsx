@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import type { Envelope, Person, PolicyTestResult } from 'api-types'
 import { useState } from 'react'
 import { api } from '../../lib/api'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const OUTCOME_LABEL: Record<PolicyTestResult['outcome'], string> = {
   auto_approve: 'Auto approve',
@@ -73,19 +74,18 @@ export function PolicyTester({
           <label htmlFor="tester-requester" className="block text-[12px] font-medium">
             Requester
           </label>
-          <select
-            id="tester-requester"
-            value={requesterId}
-            onChange={(e) => setRequesterId(e.target.value)}
-            className="mt-1 block w-full rounded border border-border bg-background px-2.5 py-1.5 text-[13px]"
-          >
-            <option value="">Choose a person…</option>
-            {people.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
-          </select>
+          <Select value={requesterId} onValueChange={setRequesterId}>
+            <SelectTrigger id="tester-requester" className="mt-1">
+              <SelectValue placeholder="Choose a person…" />
+            </SelectTrigger>
+            <SelectContent>
+              {people.map((person) => (
+                <SelectItem key={person.id} value={String(person.id)}>
+                  {person.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div>

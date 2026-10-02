@@ -5,6 +5,7 @@ import { api } from '../../lib/api'
 import { useCurrentPerson } from '../../lib/auth'
 import { PagePlaceholder } from '../layout/page-placeholder'
 import { StepRunRow } from './step-run-row'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface ActionableRow {
   request: Request
@@ -81,22 +82,23 @@ export function InboxView({ companyId }: { companyId: string }) {
   return (
     <div className="space-y-3">
       {isHrAdmin && (
-        <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
           Acting as
-          <select
-            value={actingAs}
-            onChange={(e) => setActingAs(e.target.value)}
-            className="rounded border border-border bg-card px-2 py-1 text-[13px] text-foreground"
-          >
-            <option value="self">You</option>
-            <option value="all">Everyone</option>
-            {otherAssignees.map((id) => (
-              <option key={id} value={id}>
-                {people.get(id)?.name ?? `person #${id}`}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Select value={actingAs} onValueChange={setActingAs}>
+            <SelectTrigger aria-label="Acting as" className="h-auto w-auto py-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="self">You</SelectItem>
+              <SelectItem value="all">Everyone</SelectItem>
+              {otherAssignees.map((id) => (
+                <SelectItem key={id} value={String(id)}>
+                  {people.get(id)?.name ?? `person #${id}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       )}
 
       {visibleRows.length === 0 ? (

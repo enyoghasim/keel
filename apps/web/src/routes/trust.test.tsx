@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
+import { chooseOption } from '../test/choose-option'
 
 // Same stable-spy setup as assemble.test.tsx and insights.test.tsx.
 const { subscriptionsCreate } = vi.hoisted(() => ({
@@ -260,9 +261,9 @@ describe('/trust', () => {
     })
 
     await renderApp('/trust')
-    await user.selectOptions(await screen.findByLabelText('Suite'), 'policy_extraction')
-    await user.selectOptions(screen.getByLabelText('Prompt version'), '1')
-    await user.selectOptions(screen.getByLabelText('Stability samples'), '5')
+    await chooseOption(user, await screen.findByLabelText('Suite'), 'Policy extraction')
+    await chooseOption(user, screen.getByLabelText('Prompt version'), 'v1')
+    await chooseOption(user, screen.getByLabelText('Stability samples'), '5 compiles')
     await user.click(screen.getByRole('button', { name: 'Run policy extraction suite' }))
 
     await screen.findByRole('region', { name: 'Run #8' })

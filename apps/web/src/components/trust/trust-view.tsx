@@ -15,7 +15,12 @@ import { RunDetail } from './run-detail'
 import { RunList } from './run-list'
 import { Scoreboard } from './scoreboard'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card } from '@/components/ui/card'
+
+// Radix Select can't hold an empty value, so "the active version" gets a sentinel.
+const ACTIVE_VERSION = 'active'
 
 const SUITE_BLURBS: Record<EvalSuite, string> = {
   insights: 'Each run sends every active insights case through Insights::Interpreter and scores the result field by field.',
@@ -29,7 +34,7 @@ export function TrustView({ companyId }: { companyId: string }) {
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null)
   const [compareIds, setCompareIds] = useState<number[]>([])
   const [suite, setSuite] = useState<EvalSuite>('insights')
-  const [promptVersionId, setPromptVersionId] = useState('')
+  const [promptVersionId, setPromptVersionId] = useState(ACTIVE_VERSION)
   const [stabilitySamples, setStabilitySamples] = useState(0)
 
   const currentPerson = useCurrentPerson(companyId).data?.data
@@ -48,7 +53,7 @@ export function TrustView({ companyId }: { companyId: string }) {
       api.post<Envelope<EvalRun>>(`/companies/${companyId}/eval_runs`, {
         suite,
         // Only the policy extraction suite has prompt versions to pick and compiles to sample.
-        ...(suite === 'policy_extraction' && promptVersionId ? { prompt_version_id: Number(promptVersionId) } : {}),
+        ...(suite === 'policy_extraction' && promptVersionId !== ACTIVE_VERSION ? { prompt_version_id: Number(promptVersionId) } : {}),
         ...(suite === 'policy_extraction' && stabilitySamples > 0 ? { stability_samples: stabilitySamples } : {}),
       }),
     onSuccess: (response) => {
@@ -85,50 +90,53 @@ export function TrustView({ companyId }: { companyId: string }) {
         <p className="text-[13px] text-muted-foreground">{canRun ? SUITE_BLURBS[suite] : 'Only an hr_admin can start an eval run.'}</p>
         {canRun && (
           <div className="flex flex-wrap items-end gap-3">
-            <label className="text-[12px] font-medium">
-              Suite
-              <select
-                value={suite}
-                onChange={(event) => setSuite(event.target.value as EvalSuite)}
-                className="mt-1 block rounded border border-border bg-card px-2 py-1.5 text-[13px]"
-              >
-                {runnableSuites.map((name) => (
-                  <option key={name} value={name}>
-                    {SUITE_LABELS[name]}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="w-44 space-y-1">
+              <Label htmlFor="eval-suite">Suite</Label>
+              <Select value={suite} onValueChange={(value) => setSuite(value as EvalSuite)}>
+                <SelectTrigger id="eval-suite">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {runnableSuites.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {SUITE_LABELS[name]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {suite === 'policy_extraction' && (
               <>
-                <label className="text-[12px] font-medium">
-                  Prompt version
-                  <select
-                    value={promptVersionId}
-                    onChange={(event) => setPromptVersionId(event.target.value)}
-                    className="mt-1 block rounded border border-border bg-card px-2 py-1.5 text-[13px]"
-                  >
-                    <option value="">Active version</option>
-                    {extractorVersions.map((version) => (
-                      <option key={version.id} value={version.id}>
-                        v{version.version}
-                        {version.active ? ' (active)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-[12px] font-medium">
-                  Stability samples
-                  <select
-                    value={stabilitySamples}
-                    onChange={(event) => setStabilitySamples(Number(event.target.value))}
-                    className="mt-1 block rounded border border-border bg-card px-2 py-1.5 text-[13px]"
-                  >
-                    <option value={0}>Off</option>
-                    <option value={3}>3 compiles</option>
-                    <option value={5}>5 compiles</option>
-                  </select>
-                </label>
+                <div className="w-40 space-y-1">
+                  <Label htmlFor="eval-prompt-version">Prompt version</Label>
+                  <Select value={promptVersionId} onValueChange={setPromptVersionId}>
+                    <SelectTrigger id="eval-prompt-version">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ACTIVE_VERSION}>Active version</SelectItem>
+                      {extractorVersions.map((version) => (
+                        <SelectItem key={version.id} value={String(version.id)}>
+                          v{version.version}
+                          {version.active ? ' (active)' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-40 space-y-1">
+                  <Label htmlFor="eval-stability">Stability samples</Label>
+                  <Select value={String(stabilitySamples)} onValueChange={(value) => setStabilitySamples(Number(value))}>
+                    <SelectTrigger id="eval-stability">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Off</SelectItem>
+                      <SelectItem value="3">3 compiles</SelectItem>
+                      <SelectItem value="5">5 compiles</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </>
             )}
             <Button type="button" onClick={() => startRun.mutate()} disabled={startRun.isPending || activeRuns.length > 0} className="shrink-0">

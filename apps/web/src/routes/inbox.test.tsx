@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
+import { chooseOption } from '../test/choose-option'
 
 const people: Person[] = [
   {
@@ -233,7 +234,7 @@ describe('/inbox', () => {
       })
 
       await renderApp('/inbox')
-      await user.selectOptions(await screen.findByLabelText('Acting as'), 'Everyone')
+      await chooseOption(user, await screen.findByLabelText('Acting as'), 'Everyone')
 
       expect(await screen.findByText('Leave request from Ngozi Doe')).toBeInTheDocument()
       expect(screen.getAllByText('Leave request from Ngozi Doe')).toHaveLength(1)
@@ -272,7 +273,7 @@ describe('/inbox', () => {
       })
 
       await renderApp('/inbox')
-      await user.selectOptions(await screen.findByLabelText('Acting as'), 'Tunde Bakare')
+      await chooseOption(user, await screen.findByLabelText('Acting as'), 'Tunde Bakare')
 
       expect(await screen.findByText('Leave request from Ngozi Doe')).toBeInTheDocument()
       expect(screen.queryByText('Expense request from Tunde Bakare')).not.toBeInTheDocument()
@@ -302,7 +303,7 @@ describe('/inbox', () => {
       })
 
       await renderApp('/inbox')
-      await user.selectOptions(await screen.findByLabelText('Acting as'), 'Everyone')
+      await chooseOption(user, await screen.findByLabelText('Acting as'), 'Everyone')
       await user.click(await screen.findByRole('button', { name: 'Approve' }))
 
       expect(await screen.findByText(/all caught up/i)).toBeInTheDocument()
