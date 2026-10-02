@@ -1,6 +1,8 @@
 import { createRoute } from '@tanstack/react-router'
 import { PageHeader } from '../components/layout/page-header'
 import { PagePlaceholder } from '../components/layout/page-placeholder'
+import { PoliciesView } from '../components/policies/policies-view'
+import { getCurrentCompanyId } from '../lib/current-company'
 import { Route as rootRoute } from './__root'
 
 export const Route = createRoute({
@@ -10,13 +12,19 @@ export const Route = createRoute({
 })
 
 function PoliciesPage() {
+  const companyId = getCurrentCompanyId()
+
   return (
     <>
       <PageHeader
         title="Policies"
         subtitle="The handbook and the rules compiled from it, side by side."
       />
-      <PagePlaceholder note="Rule cards and the handbook pane land once Rules::Engine and policy extraction exist." />
+      {companyId ? (
+        <PoliciesView companyId={companyId} />
+      ) : (
+        <PagePlaceholder note="No company yet — assemble one on the Assemble page first." />
+      )}
     </>
   )
 }

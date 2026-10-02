@@ -9,11 +9,6 @@ const pages = [
     note: /Org::GraphSnapshot and the people\/departments endpoints/,
   },
   {
-    path: '/policies',
-    heading: 'Policies',
-    note: /Rules::Engine and policy extraction/,
-  },
-  {
     path: '/workflows',
     heading: 'Workflows',
     note: /Workflows::Runtime and the workflow steps endpoint/,
