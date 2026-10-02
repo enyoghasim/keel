@@ -74,4 +74,56 @@ RSpec.describe Agent::Runner do
     expect(agent_run.reload).to have_attributes(status: "failed", error_message: "Stopped after 8 model turns without a final answer.")
     expect(agent_run.agent_steps.where(kind: "llm").count).to eq(8)
   end
+
+  describe "conversation memory" do
+    def earlier(message, final_text, **attrs)
+      create(:agent_run, company: company, person: asker, conversation_id: agent_run.conversation_id, message: message,
+        status: "completed", final_text: final_text, **attrs)
+    end
+
+    it "replays earlier questions and answers of the same conversation, oldest first, before the new message" do
+      earlier("Can I expense a flight?", "Yes, up to €500 without approval.", created_at: 2.hours.ago)
+      earlier("And a hotel?", "Same limit.", created_at: 1.hour.ago)
+      chat = script({ content: "Then Tunde has to approve." })
+
+      agent_run.update!(message: "And what about €2,000?")
+      described_class.call(agent_run)
+
+      expect(chat.history).to eq([
+        [ :user, "Can I expense a flight?" ], [ :assistant, "Yes, up to €500 without approval." ],
+        [ :user, "And a hotel?" ], [ :assistant, "Same limit." ]
+      ])
+      expect(chat.asked).to eq("And what about €2,000?")
+    end
+
+    it "only keeps the last #{Agent::Runner::HISTORY_TURNS} turns, so a long conversation can't grow the prompt without bound" do
+      (Agent::Runner::HISTORY_TURNS + 2).times { |i| earlier("Question #{i}", "Answer #{i}", created_at: (20 - i).minutes.ago) }
+      chat = script({ content: "ok" })
+
+      described_class.call(agent_run)
+
+      expect(chat.history.select { _1.first == :user }.map(&:last)).to eq((2..Agent::Runner::HISTORY_TURNS + 1).map { "Question #{_1}" })
+    end
+
+    it "leaves out turns with no answer, other conversations, other people's runs and later messages" do
+      earlier("Failed one", nil, status: "failed", error_message: "boom", created_at: 3.hours.ago)
+      create(:agent_run, company: company, person: asker, message: "Other conversation", status: "completed", final_text: "No.", created_at: 2.hours.ago)
+      create(:agent_run, company: company, conversation_id: agent_run.conversation_id, message: "Someone else", status: "completed", final_text: "No.", created_at: 90.minutes.ago)
+      earlier("Asked afterwards", "Later.", created_at: 1.minute.from_now)
+      chat = script({ content: "Hi" })
+
+      described_class.call(agent_run)
+
+      expect(chat.history).to eq([])
+    end
+
+    it "keeps each run's trace separate: the earlier turns add no steps to this run" do
+      earlier("Earlier", "Answer.", created_at: 1.hour.ago)
+      script({ content: "Fine." })
+
+      described_class.call(agent_run)
+
+      expect(agent_run.agent_steps.count).to eq(1)
+    end
+  end
 end

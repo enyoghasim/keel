@@ -5,16 +5,19 @@
 # executes against the registered tool instance), so the runner's trace
 # recording is tested against the gem's contract, not a guess at it.
 class FakeChat
-  attr_reader :instructions, :tools, :asked
+  attr_reader :instructions, :tools, :asked, :history
 
   # turns: [{ tool_calls: [{ name:, arguments: }], tokens: [in, out] }, ..., { content: "final", tokens: [in, out] }]
   def initialize(turns)
     @turns = turns
     @tools = {}
+    @history = []
     @callbacks = Hash.new { |h, k| h[k] = [] }
   end
 
   def with_instructions(text) = tap { @instructions = text }
+  # Earlier turns replayed before ask, as [role, content] pairs.
+  def add_message(attrs) = tap { @history << [ attrs[:role], attrs[:content] ] }
   def with_tools(*tools) = tap { tools.each { |t| @tools[t.name] = t } }
 
   %i[before_message after_message before_tool_call after_tool_result].each do |name|
