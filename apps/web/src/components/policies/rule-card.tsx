@@ -22,10 +22,18 @@ export function RuleCard({
   rule,
   matched,
   onHover,
+  onAnswer,
+  answering = null,
+  answerError = null,
 }: {
   rule: Rule
   matched: boolean
   onHover: (ruleId: number | null) => void
+  /** A person picked an option for one of this rule's open questions. */
+  onAnswer?: (ambiguityIndex: number, option: string) => void
+  /** The option being applied for this rule right now, if any. */
+  answering?: string | null
+  answerError?: string | null
 }) {
   const [showJson, setShowJson] = useState(false)
 
@@ -58,7 +66,13 @@ export function RuleCard({
       {rule.ambiguities.length > 0 && (
         <div className="mt-2.5 space-y-2">
           {rule.ambiguities.map((ambiguity, index) => (
-            <AmbiguityBanner key={index} ambiguity={ambiguity} />
+            <AmbiguityBanner
+              key={index}
+              ambiguity={ambiguity}
+              answering={answering}
+              error={index === 0 ? answerError : null}
+              onAnswer={(option) => onAnswer?.(index, option)}
+            />
           ))}
         </div>
       )}
