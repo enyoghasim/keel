@@ -19,6 +19,7 @@ Rails.application.routes.draw do
       resources :requests, only: [ :index, :create, :show ]
       resources :workflows, only: [ :index, :show ] do
         post :test_run, on: :member
+        resources :edits, controller: "workflow_edits", only: [ :create, :show ]
       end
       resources :change_proposals, only: [ :index, :create, :show ] do
         post :approve, on: :member

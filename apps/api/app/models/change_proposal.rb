@@ -3,6 +3,7 @@ class ChangeProposal < ApplicationRecord
   belongs_to :decided_by, class_name: "Person", optional: true
   # The trace this proposal came from, when the agent proposed it (AGENTS.md rule 3).
   belongs_to :agent_run, optional: true
+  has_many :workflow_edits, dependent: :nullify
 
   KINDS = %w[org rule workflow].freeze
   STATUSES = %w[pending approved rejected].freeze

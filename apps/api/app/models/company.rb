@@ -1,4 +1,6 @@
 class Company < ApplicationRecord
+  # First, so the edits go before the workflows, proposals and people they reference.
+  has_many :workflow_edits, dependent: :destroy
   has_many :departments, dependent: :destroy
   has_many :people, dependent: :destroy
   has_many :workflows, dependent: :destroy

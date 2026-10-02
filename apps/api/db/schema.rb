@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_175000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -328,6 +328,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_175000) do
     t.index ["workflow_run_id"], name: "index_step_runs_on_workflow_run_id"
   end
 
+  create_table "workflow_edits", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "person_id", null: false
+    t.bigint "workflow_id", null: false
+    t.bigint "change_proposal_id"
+    t.text "instruction", null: false
+    t.string "status", default: "pending", null: false
+    t.text "error_message"
+    t.string "model"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["change_proposal_id"], name: "index_workflow_edits_on_change_proposal_id"
+    t.index ["company_id"], name: "index_workflow_edits_on_company_id"
+    t.index ["person_id"], name: "index_workflow_edits_on_person_id"
+    t.index ["workflow_id"], name: "index_workflow_edits_on_workflow_id"
+  end
+
   create_table "workflow_runs", force: :cascade do |t|
     t.bigint "request_id", null: false
     t.bigint "workflow_id"
@@ -383,6 +400,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_175000) do
   add_foreign_key "source_documents", "companies"
   add_foreign_key "step_runs", "people", column: "resolved_person_id"
   add_foreign_key "step_runs", "workflow_runs"
+  add_foreign_key "workflow_edits", "change_proposals"
+  add_foreign_key "workflow_edits", "companies"
+  add_foreign_key "workflow_edits", "people"
+  add_foreign_key "workflow_edits", "workflows"
   add_foreign_key "workflow_runs", "requests"
   add_foreign_key "workflow_runs", "workflows"
   add_foreign_key "workflows", "companies"
