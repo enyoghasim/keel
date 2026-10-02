@@ -282,6 +282,33 @@ describe('/proposals', () => {
     expect(await screen.findByText(/this proposal was approved/i)).toBeInTheDocument()
   })
 
+  it('sends the reason typed for a rejection, which the API turns into a candidate test case', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    const rejected = { ...cleanProposal, status: 'rejected' as const, decided_at: '2026-01-03T00:00:00Z' }
+    const fetchMock = mockApi({
+      'GET /api/companies/1/change_proposals': [
+        { body: { success: true, message: '', data: [cleanProposal] } },
+        { body: { success: true, message: '', data: [rejected] } },
+      ],
+      'POST /api/companies/1/change_proposals/1/reject': { body: { success: true, message: '', data: rejected } },
+      ...peopleRoute,
+      ...departmentsRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/proposals')
+    await user.click(await screen.findByRole('button', { name: /Move Ngozi under Ada/ }))
+    await user.type(screen.getByLabelText('Reason for rejecting (optional)'), 'Ada is on leave')
+    await user.click(screen.getByRole('button', { name: 'Reject' }))
+
+    await screen.findByText(/this proposal was rejected/i)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/companies/1/change_proposals/1/reject',
+      expect.objectContaining({ body: JSON.stringify({ reason: 'Ada is on leave' }) }),
+    )
+  })
+
   it('rejects a proposal and refreshes the list to show it decided', async () => {
     const user = userEvent.setup()
     setCurrentCompanyId('1')
