@@ -1,5 +1,5 @@
 import type { Department, OrgDiffOp, Person } from 'api-types'
-import { describeDiffOp } from './describeDiffOp'
+import { describeDiffOp } from './describe-diff-op'
 
 export function ProposalDiff({
   diff,

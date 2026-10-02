@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { getCurrentCompanyId, setCurrentCompanyId } from './currentCompany'
+import { getCurrentCompanyId, setCurrentCompanyId } from './current-company'
 
 describe('currentCompany', () => {
   beforeEach(() => {

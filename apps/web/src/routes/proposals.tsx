@@ -1,8 +1,8 @@
 import { createRoute } from '@tanstack/react-router'
-import { PageHeader } from '../components/layout/PageHeader'
-import { PagePlaceholder } from '../components/layout/PagePlaceholder'
-import { ProposalsView } from '../components/proposals/ProposalsView'
-import { getCurrentCompanyId } from '../lib/currentCompany'
+import { PageHeader } from '../components/layout/page-header'
+import { PagePlaceholder } from '../components/layout/page-placeholder'
+import { ProposalsView } from '../components/proposals/proposals-view'
+import { getCurrentCompanyId } from '../lib/current-company'
 import { Route as rootRoute } from './__root'
 
 export const Route = createRoute({

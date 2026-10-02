@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { renderApp } from '../../test/renderApp'
+import { renderApp } from '../../test/render-app'
 
 describe('Topbar', () => {
   beforeEach(() => {

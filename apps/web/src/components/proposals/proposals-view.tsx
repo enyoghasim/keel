@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ChangeProposal, Department, Envelope, Person } from 'api-types'
 import { api } from '../../lib/api'
-import { PagePlaceholder } from '../layout/PagePlaceholder'
-import { ProposalRow } from './ProposalRow'
+import { PagePlaceholder } from '../layout/page-placeholder'
+import { ProposalRow } from './proposal-row'
 
 export function ProposalsView({ companyId }: { companyId: string }) {
   const proposalsQuery = useQuery({

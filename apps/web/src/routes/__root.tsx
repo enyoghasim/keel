@@ -1,5 +1,5 @@
 import { Outlet, createRootRoute } from '@tanstack/react-router'
-import { Shell } from '../components/layout/Shell'
+import { Shell } from '../components/layout/shell'
 
 export const Route = createRootRoute({
   component: () => (

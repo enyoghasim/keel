@@ -2,9 +2,9 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ChangeProposal, Department, Person } from 'api-types'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { setCurrentCompanyId } from '../lib/currentCompany'
-import { mockApi } from '../test/mockApi'
-import { renderApp } from '../test/renderApp'
+import { setCurrentCompanyId } from '../lib/current-company'
+import { mockApi } from '../test/mock-api'
+import { renderApp } from '../test/render-app'
 
 const people: Person[] = [
   {

@@ -1,6 +1,6 @@
 import { DirectUpload } from '@rails/activestorage'
 import { describe, expect, it, vi } from 'vitest'
-import { uploadFile } from './directUpload'
+import { uploadFile } from './direct-upload'
 
 vi.mock('@rails/activestorage', () => ({
   DirectUpload: vi.fn(),

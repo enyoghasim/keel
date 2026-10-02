@@ -1,6 +1,6 @@
 import { createRoute } from '@tanstack/react-router'
-import { PageHeader } from '../components/layout/PageHeader'
-import { PagePlaceholder } from '../components/layout/PagePlaceholder'
+import { PageHeader } from '../components/layout/page-header'
+import { PagePlaceholder } from '../components/layout/page-placeholder'
 import { Route as rootRoute } from './__root'
 
 export const Route = createRoute({

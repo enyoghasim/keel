@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { KeelMark } from '../icons/KeelMark'
+import { KeelMark } from '../icons/keel-mark'
 import { SettingsIcon } from '../icons/nav-icons'
 import { navGroups } from './nav-items'
 

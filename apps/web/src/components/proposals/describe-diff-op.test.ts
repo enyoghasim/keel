@@ -1,6 +1,6 @@
 import type { Department, Person } from 'api-types'
 import { describe, expect, it } from 'vitest'
-import { describeDiffOp } from './describeDiffOp'
+import { describeDiffOp } from './describe-diff-op'
 
 const people = new Map<number, Person>([
   [1, { id: 1, name: 'Tunde Bakare', email: '', title: null, department_id: null, manager_id: null, location: null, start_date: null, roles: [] }],

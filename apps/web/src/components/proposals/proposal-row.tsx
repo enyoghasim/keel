@@ -1,8 +1,8 @@
 import type { ChangeProposal, Department, Person } from 'api-types'
 import { useState } from 'react'
-import { ApproveRejectBar } from './ApproveRejectBar'
-import { ImpactSummaryCards } from './ImpactSummaryCards'
-import { ProposalDiff } from './ProposalDiff'
+import { ApproveRejectBar } from './approve-reject-bar'
+import { ImpactSummaryCards } from './impact-summary-cards'
+import { ProposalDiff } from './proposal-diff'
 
 function Count({ label, value, danger }: { label: string; value: number; danger?: boolean }) {
   return (
