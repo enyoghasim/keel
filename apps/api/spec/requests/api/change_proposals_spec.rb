@@ -23,6 +23,15 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       expect(body["impact"]["broken"]).to eq([])
     end
 
+    it "includes the plain-English explanation once there is one" do
+      company = create(:company)
+      proposal = create(:change_proposal, company: company, explanation: "Ada gets more work.")
+
+      get "/api/companies/#{company.id}/change_proposals/#{proposal.id}"
+
+      expect(response.parsed_body["data"]).to include("explanation" => "Ada gets more work.")
+    end
+
     it "returns an error envelope when kind is missing" do
       company = create(:company)
 

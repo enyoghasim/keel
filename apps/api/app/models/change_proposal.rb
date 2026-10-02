@@ -14,6 +14,12 @@ class ChangeProposal < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
   validates :proposed_by, inclusion: { in: PROPOSED_BY_VALUES }
 
+  # Written off the request thread by the LLM, from the computed impact only.
+  after_create_commit { ProposalExplanationJob.perform_later(id) }
+
+  # What the Proposals page needs to refresh a proposal's explanation.
+  BROADCAST_FIELDS = %i[id explanation].freeze
+
   class StaleDiff < StandardError; end
 
   # The "after" rules of a rule proposal as engine input, keyed by rule key.
