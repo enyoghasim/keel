@@ -2,7 +2,6 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { AgentRun, Person } from 'api-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { setCurrentCompanyId } from '../../lib/current-company'
 import { mockApi } from '../../test/mock-api'
 import { renderApp } from '../../test/render-app'
 
@@ -74,7 +73,6 @@ const agentSubscription = () =>
 describe('CommandBar', () => {
   beforeEach(() => {
     localStorage.clear()
-    setCurrentCompanyId('1')
   })
 
   it('opens with ⌘K and jumps to a page', async () => {

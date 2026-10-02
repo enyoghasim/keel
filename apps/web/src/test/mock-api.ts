@@ -15,8 +15,15 @@ type RouteTable = Record<string, MockedResponse | MockedResponse[]>
  * asserting a refetch after a mutation sees updated data. Throws if a
  * request isn't in the table, so an unmocked call fails loudly instead of
  * hanging.
+ *
+ * Every app render first asks GET /api/workspace which company the
+ * deployment serves; unless a test mocks it, that answers "company 1".
  */
-export function mockApi(routes: RouteTable) {
+export const workspaceWithCompany = { body: { success: true, message: '', data: { company: { id: 1, name: 'Nubo', assembling: false } } } }
+export const workspaceWithoutCompany = { body: { success: true, message: '', data: { company: null } } }
+
+export function mockApi(userRoutes: RouteTable) {
+  const routes: RouteTable = { 'GET /api/workspace': workspaceWithCompany, ...userRoutes }
   const calls = new Map<string, number>()
 
   const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {

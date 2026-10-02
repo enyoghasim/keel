@@ -4,7 +4,7 @@ import { AgentTrace } from '../agent/agent-trace'
 import { CommandBar } from '../agent/command-bar'
 import { useAgentConversation } from '../agent/use-agent-conversation'
 import { useCurrentPerson, useSignOut } from '../../lib/auth'
-import { getCurrentCompanyId } from '../../lib/current-company'
+import { useCompanyId } from '../../lib/workspace'
 import { effectiveTheme, initTheme, toggleTheme, type Theme } from '../../lib/theme'
 import { BellTraceIcon, ChevronDownIcon, MoonIcon, SearchIcon, SunIcon } from '../icons/nav-icons'
 
@@ -46,7 +46,7 @@ export function Topbar() {
   const [theme, setTheme] = useState<Theme>(() => effectiveTheme())
   const [commandOpen, setCommandOpen] = useState(false)
   const [traceRunId, setTraceRunId] = useState<number | null>(null)
-  const companyId = getCurrentCompanyId()
+  const companyId = useCompanyId()
   const conversation = useAgentConversation(companyId, commandOpen)
   const latestRunId = conversation.runs.at(-1)?.id ?? null
 

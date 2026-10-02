@@ -2,7 +2,6 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { EvalResult, EvalRun, EvalRunWithResults, Person } from 'api-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
 import { chooseOption } from '../test/choose-option'
@@ -93,16 +92,8 @@ describe('/trust', () => {
     localStorage.clear()
   })
 
-  it('shows an empty state when no company has been selected yet', async () => {
-    await renderApp('/trust')
-
-    expect(await screen.findByRole('heading', { name: 'Trust' })).toBeInTheDocument()
-    expect(screen.getByText(/assemble one on the assemble page first/i)).toBeInTheDocument()
-  })
-
   it('shows a scoreboard per suite and drills into the latest run, failures first with what differed', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const latest: EvalRunWithResults = {
       ...run(2, { accuracy: 0.5, passed_count: 1, cases_count: 2 }),
       results: [
@@ -137,7 +128,6 @@ describe('/trust', () => {
 
   it('shows stability, judge and cost on the scoreboard, and what each failing probe got wrong', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const extraction = run(5, {
       suite: 'policy_extraction',
       accuracy: 0,
@@ -191,7 +181,6 @@ describe('/trust', () => {
 
   it('starts a run and fills it in live from EvalChannel', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const pending = run(3, { status: 'pending', accuracy: null, cases_count: 0, passed_count: 0, model: null })
     const fetchMock = mockApi({
       ...sidePanels,
@@ -245,7 +234,6 @@ describe('/trust', () => {
 
   it('starts a policy extraction run of a chosen prompt version with stability sampling', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const pending = run(8, { suite: 'policy_extraction', status: 'pending', accuracy: null, cases_count: 0, passed_count: 0, model: null })
     const versions = [
       { id: 2, key: 'policy_extractor', version: 2, model: null, active: true, notes: null, created_at: '2026-10-02T00:00:00Z', latest_run: null, regressions: [] },
@@ -275,7 +263,6 @@ describe('/trust', () => {
 
   it('starts an agent run of a chosen agent_system prompt version, with no stability sampling', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const pending = run(9, { suite: 'agent', status: 'pending', accuracy: null, cases_count: 0, passed_count: 0, model: null })
     const versions = [
       { id: 4, key: 'agent_system', version: 2, model: null, active: true, notes: null, created_at: '2026-10-02T00:00:00Z', latest_run: null, regressions: [] },
@@ -306,7 +293,6 @@ describe('/trust', () => {
 
   it('compares two runs, listing the cases that flipped', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       ...sidePanels,
       'GET /api/companies/1/session': envelope(person(['hr_admin'])),
@@ -331,7 +317,6 @@ describe('/trust', () => {
   })
 
   it("hides the run button from someone who isn't an hr_admin", async () => {
-    setCurrentCompanyId('1')
     mockApi({
       ...sidePanels,
       'GET /api/companies/1/session': envelope(person([])),

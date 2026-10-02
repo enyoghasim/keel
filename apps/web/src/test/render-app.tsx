@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router'
-import { render } from '@testing-library/react'
+import { render, waitFor, screen } from '@testing-library/react'
+import { expect } from 'vitest'
 import { routeTree } from '../router'
 
 /**
@@ -23,6 +24,10 @@ export async function renderApp(path: string) {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   )
+
+  // AuthGate shows a placeholder until the backend has said which company
+  // this is and whether anyone is signed in; tests start from what follows.
+  await waitFor(() => expect(screen.queryByText(/^(Loading…|Checking your session…)$/)).not.toBeInTheDocument())
 
   return { ...view, router }
 }

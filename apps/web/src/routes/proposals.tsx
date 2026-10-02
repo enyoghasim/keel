@@ -2,7 +2,7 @@ import { createRoute } from '@tanstack/react-router'
 import { PageHeader } from '../components/layout/page-header'
 import { PagePlaceholder } from '../components/layout/page-placeholder'
 import { ProposalsView } from '../components/proposals/proposals-view'
-import { getCurrentCompanyId } from '../lib/current-company'
+import { useCompanyId } from '../lib/workspace'
 import { Route as rootRoute } from './__root'
 
 export const Route = createRoute({
@@ -12,7 +12,7 @@ export const Route = createRoute({
 })
 
 function ProposalsPage() {
-  const companyId = getCurrentCompanyId()
+  const companyId = useCompanyId()
 
   return (
     <>

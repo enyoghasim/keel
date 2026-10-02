@@ -2,7 +2,6 @@ import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Insight, Person } from 'api-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
 
@@ -75,15 +74,7 @@ describe('/insights', () => {
     localStorage.clear()
   })
 
-  it('shows an empty state when no company has been selected yet', async () => {
-    await renderApp('/insights')
-
-    expect(await screen.findByRole('heading', { name: 'Insights' })).toBeInTheDocument()
-    expect(screen.getByText(/assemble one on the assemble page first/i)).toBeInTheDocument()
-  })
-
   it('offers four suggested questions so the page never starts blank', async () => {
-    setCurrentCompanyId('1')
     mockApi({ ...sessionRoute, 'GET /api/companies/1/insights': envelope([]) })
 
     await renderApp('/insights')
@@ -97,7 +88,6 @@ describe('/insights', () => {
 
   it('asks a suggested question, then shows how it was understood and the answer once InsightChannel reports back', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const fetchMock = mockApi({
       ...sessionRoute,
       'GET /api/companies/1/insights': [envelope([]), envelope([answered])],
@@ -128,7 +118,6 @@ describe('/insights', () => {
 
   it('asks a typed question and shows a clarifying question back instead of an answer', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const clarifying: Insight = { ...pending, question: 'Leave last quarter?', status: 'needs_clarification', clarification: 'Calendar Q3 or fiscal?' }
     mockApi({
       ...sessionRoute,
@@ -149,7 +138,6 @@ describe('/insights', () => {
 
   it('reopens a recent question, showing the friendly reason it could not be answered', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const failed: Insight = {
       ...pending,
       id: 4,

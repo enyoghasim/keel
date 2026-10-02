@@ -1,7 +1,6 @@
 import { fireEvent, screen } from '@testing-library/react'
 import type { Department, Person } from 'api-types'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
 
@@ -56,15 +55,7 @@ describe('/graph', () => {
     localStorage.clear()
   })
 
-  it('shows an empty state when no company has been selected yet', async () => {
-    await renderApp('/graph')
-
-    expect(await screen.findByRole('heading', { name: 'Graph' })).toBeInTheDocument()
-    expect(screen.getByText(/assemble one on the assemble page first/i)).toBeInTheDocument()
-  })
-
   it('shows an empty state when the company has no people yet', async () => {
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/people': { body: { success: true, message: '', data: [] } },
       ...departmentsRoute,
@@ -77,7 +68,6 @@ describe('/graph', () => {
   })
 
   it('renders the org chart with a placeholder panel until a person is selected', async () => {
-    setCurrentCompanyId('1')
     mockApi({ ...peopleRoute, ...departmentsRoute, ...sessionRoute })
 
     await renderApp('/graph')
@@ -88,7 +78,6 @@ describe('/graph', () => {
   })
 
   it('shows the selected person in the panel on node click', async () => {
-    setCurrentCompanyId('1')
     mockApi({ ...peopleRoute, ...departmentsRoute, ...sessionRoute })
 
     await renderApp('/graph')
@@ -103,7 +92,6 @@ describe('/graph', () => {
   })
 
   it('has a colour-by-department toggle that starts checked', async () => {
-    setCurrentCompanyId('1')
     mockApi({ ...peopleRoute, ...departmentsRoute, ...sessionRoute })
 
     await renderApp('/graph')
