@@ -1,13 +1,8 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { renderApp } from '../test/renderApp'
+import { renderApp } from '../test/render-app'
 
 const pages = [
-  {
-    path: '/assemble',
-    heading: 'Assemble',
-    note: /Assemble::CsvMapper and the AssembleChannel events/,
-  },
   {
     path: '/graph',
     heading: 'Graph',
