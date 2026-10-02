@@ -55,6 +55,27 @@ describe('CandidateQueue', () => {
     expect(within(item).getByText(/check_policy/)).toBeInTheDocument()
   })
 
+  it('shows the handbook text behind an override candidate', async () => {
+    mockApi(
+      list([
+        {
+          ...candidate,
+          id: 8,
+          suite: 'policy_extraction',
+          key: 'override_step_run_3',
+          source: 'override',
+          input: { category: 'expense', passage: "Expenses over €500 need your manager's approval." },
+          notes: 'Approver override: VP signed off verbally',
+        },
+      ]),
+    )
+    renderQueue()
+
+    const item = await screen.findByRole('listitem', { name: 'override_step_run_3' })
+    expect(within(item).getByText(/Handbook text: “Expenses over €500 need your manager's approval\.”/)).toBeInTheDocument()
+    expect(within(item).getByText('Approver override: VP signed off verbally')).toBeInTheDocument()
+  })
+
   it('adds a case to the suite with the expected outcome the reviewer filled in', async () => {
     const user = userEvent.setup()
     const fetchMock = mockApi({

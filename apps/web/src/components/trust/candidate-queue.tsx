@@ -18,6 +18,7 @@ function Observed({ input }: { input: EvalCase['input'] }) {
   return (
     <div className="space-y-1 text-[13px]">
       {message && <p className="font-medium">{message}</p>}
+      {typeof input.passage === 'string' && <p className="text-muted-foreground">Handbook text: “{input.passage}”</p>}
       {observed?.final_text && <p className="text-muted-foreground">Answered: {observed.final_text}</p>}
       {observed?.tool_calls && observed.tool_calls.length > 0 && (
         <p className="font-mono text-[11.5px] text-muted-foreground">Tools: {observed.tool_calls.map((call) => call.name).join(', ')}</p>
