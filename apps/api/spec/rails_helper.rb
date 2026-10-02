@@ -37,6 +37,9 @@ end
 RSpec.configure do |config|
   config.include FactoryBot::Syntax::Methods
 
+  # Per-IP rate limits count in this store across requests; start each example from zero.
+  config.before { ApplicationController.rate_limit_store.clear }
+
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
   config.fixture_paths = [
     Rails.root.join('spec/fixtures')

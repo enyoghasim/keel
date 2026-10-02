@@ -11,6 +11,8 @@ module Api
     # Each run spends real model money, so one person gets one run at a time
     # and a modest number per hour.
     HOURLY_LIMIT = 30
+    # The demo signs in with one shared password, so per-person caps alone let one visitor walk through every account.
+    limit_per_ip to: 60, within: 1.hour, only: :create
 
     before_action :require_current_person!
     before_action :require_company_member!

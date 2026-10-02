@@ -2,8 +2,21 @@ class ApplicationController < ActionController::API
   include ActionController::Cookies
   include Renderable
 
+  # Where per-IP rate limits count (SPEC.md section 18's demo guard). Tests run
+  # with a null cache, which would never limit, so they count in memory.
+  class_attribute :rate_limit_store, default: Rails.env.test? ? ActiveSupport::Cache::MemoryStore.new : Rails.cache
+
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
   rescue_from ArgumentError, with: :render_argument_error
+
+  # `rate_limit` for the endpoints that spend model money: per client address,
+  # answering in the usual envelope.
+  def self.limit_per_ip(to:, within:, **options)
+    rate_limit(
+      to: to, within: within, store: rate_limit_store, **options,
+      with: -> { render_error(message: "Too many requests from your address. Please try again later.", status: :too_many_requests) }
+    )
+  end
 
   private
 

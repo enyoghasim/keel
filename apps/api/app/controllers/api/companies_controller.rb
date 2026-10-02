@@ -3,6 +3,9 @@ module Api
   # both uploaded beforehand via Active Storage direct upload and referenced
   # here by signed_id, then kicks off AssembleJob (SPEC.md section 6).
   class CompaniesController < ApplicationController
+    # An Assemble run spends model money; a deployment serves one company, so a handful of tries is plenty.
+    limit_per_ip to: 10, within: 1.hour, only: :create
+
     def create
       if Company.exists?
         return render_error(message: "This workspace already has a company.", errors: [ "This workspace already has a company." ])
