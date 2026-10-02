@@ -1,0 +1,1 @@
+This project's agent conventions live in [AGENTS.md](../AGENTS.md) at the repo root. Read it, and the relevant subproject's `AGENTS.md`, before making changes.
