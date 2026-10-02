@@ -231,11 +231,12 @@ describe('CommandBar', () => {
 
     it('lists recent conversations, newest first, and reopens one with its whole thread', async () => {
       const user = userEvent.setup()
-      mockApi({
+      const fetchMock = mockApi({
         'GET /api/companies/1/session': envelope(ngozi),
         // Newest first: the follow-up and its earlier turn share a conversation.
         'GET /api/companies/1/agent_runs': envelope([other, followUpDone, completed]),
         'GET /api/companies/1/agent_runs?conversation_id=c1': envelope([followUpDone, completed]),
+      'PATCH /api/companies/1/session': envelope(ngozi),
       })
       await renderApp('/assemble')
 
@@ -248,14 +249,13 @@ describe('CommandBar', () => {
 
       const turns = await within(bar).findAllByRole('region', { name: 'Agent answer' })
       expect(turns.map((t) => within(t).getByText(/\?$/).textContent)).toEqual([completed.message, followUpDone.message])
-      expect(localStorage.getItem('keel-agent-conversation:1')).toBe('c1')
+      expect(fetchMock).toHaveBeenCalledWith('/api/companies/1/session', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ conversation_id: 'c1' }) }))
     })
 
     it('brings the last conversation back after a page refresh, even mid-run', async () => {
       const user = userEvent.setup()
-      localStorage.setItem('keel-agent-conversation:1', 'c1')
       mockApi({
-        'GET /api/companies/1/session': envelope(ngozi),
+        'GET /api/companies/1/session': envelope({ ...ngozi, conversation_id: 'c1' }),
         'GET /api/companies/1/agent_runs?conversation_id=c1': envelope([pending]),
       })
       await renderApp('/assemble')
@@ -272,9 +272,9 @@ describe('CommandBar', () => {
 
     it('starts a new conversation from "New conversation", forgetting the open one', async () => {
       const user = userEvent.setup()
-      localStorage.setItem('keel-agent-conversation:1', 'c1')
-      mockApi({
-        'GET /api/companies/1/session': envelope(ngozi),
+      const fetchMock = mockApi({
+        'GET /api/companies/1/session': envelope({ ...ngozi, conversation_id: 'c1' }),
+      'PATCH /api/companies/1/session': envelope(ngozi),
         'GET /api/companies/1/agent_runs': envelope([completed]),
         'GET /api/companies/1/agent_runs?conversation_id=c1': envelope([completed]),
       })
@@ -285,7 +285,7 @@ describe('CommandBar', () => {
       await user.click(await within(bar).findByRole('button', { name: 'New conversation' }))
 
       expect(await within(bar).findByRole('combobox')).toBeInTheDocument()
-      expect(localStorage.getItem('keel-agent-conversation:1')).toBeNull()
+      expect(fetchMock).toHaveBeenCalledWith('/api/companies/1/session', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ conversation_id: null }) }))
       expect(within(bar).getByRole('option', { name: completed.message })).toBeInTheDocument()
     })
   })

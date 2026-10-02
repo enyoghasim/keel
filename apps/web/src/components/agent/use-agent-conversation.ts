@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AgentRun, Envelope } from 'api-types'
 import { useCallback, useState } from 'react'
 import { api } from '../../lib/api'
-import { getStoredConversationId, setStoredConversationId } from '../../lib/agent-conversation'
+import { useCurrentPerson } from '../../lib/auth'
 import { agentRunQueryKey } from './use-agent-run'
 
 const recentKey = (companyId: string) => ['agent_runs', companyId, 'recent'] as const
@@ -15,17 +15,19 @@ export function latestPerConversation(runs: AgentRun[]) {
 }
 
 /**
- * The command bar's conversation: which thread is open (remembered across
- * refreshes), its runs oldest first, and the person's recent conversations
+ * The command bar's conversation: which thread is open (kept on the session, so it
+ * survives a refresh), its runs oldest first, and the person's recent conversations
  * to reopen. Each run keeps its own live cache entry (useAgentRun), seeded
  * here from what the API returned so opening a thread doesn't refetch every
  * run; the channel is the source of truth for anything still working.
  */
 export function useAgentConversation(companyId: string | null, enabled: boolean) {
   const queryClient = useQueryClient()
-  const [conversationId, setConversationId] = useState<string | null>(() =>
-    companyId ? getStoredConversationId(companyId) : null,
-  )
+  // The open thread lives on the server's session; `chosen` is what this tab
+  // picked since, shown at once while the PATCH below catches the server up.
+  const savedId = useCurrentPerson(companyId).data?.data?.conversation_id ?? null
+  const [chosen, setChosen] = useState<{ id: string | null } | null>(null)
+  const conversationId = chosen ? chosen.id : savedId
 
   const seed = useCallback(
     (runs: AgentRun[]) => {
@@ -64,8 +66,8 @@ export function useAgentConversation(companyId: string | null, enabled: boolean)
 
   const open = useCallback(
     (id: string | null) => {
-      setConversationId(id)
-      if (companyId) setStoredConversationId(companyId, id)
+      setChosen({ id })
+      if (companyId) api.patch(`/companies/${companyId}/session`, { conversation_id: id }).catch(() => {})
     },
     [companyId],
   )
