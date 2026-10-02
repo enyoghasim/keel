@@ -39,6 +39,9 @@ gem "neighbor"
 # Extracts handbook text page by page
 gem "pdf-reader"
 
+# Parses the uploaded roster CSV (no longer a default gem as of Ruby 3.4)
+gem "csv"
+
 # Validates LLM output against a JSON Schema before it is saved
 gem "json_schemer"
 

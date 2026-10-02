@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_093436) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_094320) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -60,6 +60,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_093436) do
     t.jsonb "settings", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "assemble_completed_stages", default: [], null: false, array: true
   end
 
   create_table "departments", force: :cascade do |t|
