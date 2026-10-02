@@ -18,11 +18,13 @@ RSpec.describe "Api::AgentRuns", type: :request do
 
     it "starts a new conversation by default, and continues one of the person's own when asked" do
       sign_in(person)
-      earlier = create(:agent_run, company: company, person: person)
+      earlier = create(:agent_run, company: company, person: person, status: "completed")
 
       post "/api/companies/#{company.id}/agent_runs", params: { message: "Hi" }, as: :json
       expect(response.parsed_body["data"]["conversation_id"]).to be_present
       expect(response.parsed_body["data"]["conversation_id"]).not_to eq(earlier.conversation_id)
+
+      AgentRun.update_all(status: "completed") # one run at a time, so let the first finish
 
       post "/api/companies/#{company.id}/agent_runs", params: { message: "And €2,000?", conversation_id: earlier.conversation_id }, as: :json
       expect(response).to have_http_status(:accepted)
@@ -38,6 +40,42 @@ RSpec.describe "Api::AgentRuns", type: :request do
       }.not_to have_enqueued_job(AgentJob)
 
       expect(response).to have_http_status(:not_found)
+    end
+
+    describe "rate limiting (each run spends real model money)" do
+      def ask = post("/api/companies/#{company.id}/agent_runs", params: { message: "Hi" }, as: :json)
+
+      before { sign_in(person) }
+
+      %w[pending running].each do |status|
+        it "answers 429 while the person already has a #{status} run" do
+          create(:agent_run, company: company, person: person, status: status)
+
+          expect { ask }.not_to have_enqueued_job(AgentJob)
+
+          expect(response).to have_http_status(:too_many_requests)
+          expect(response.parsed_body["message"]).to match(/still working/i)
+        end
+      end
+
+      it "answers 429 once the person has started 30 runs in the last hour" do
+        create_list(:agent_run, 30, company: company, person: person, status: "completed", created_at: 30.minutes.ago)
+
+        expect { ask }.not_to have_enqueued_job(AgentJob)
+
+        expect(response).to have_http_status(:too_many_requests)
+        expect(response.parsed_body["message"]).to match(/too many/i)
+      end
+
+      it "still accepts the 30th run, and ignores older runs and other people's" do
+        create_list(:agent_run, 28, company: company, person: person, status: "completed", created_at: 10.minutes.ago)
+        create_list(:agent_run, 5, company: company, person: person, status: "completed", created_at: 2.hours.ago)
+        create_list(:agent_run, 5, company: company, status: "running")
+
+        expect { ask }.to have_enqueued_job(AgentJob)
+
+        expect(response).to have_http_status(:accepted)
+      end
     end
 
     it "rejects a blank message" do
