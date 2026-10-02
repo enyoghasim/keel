@@ -27,6 +27,16 @@ RSpec.describe Assemble::GraphBuilder do
     expect(company.import_issues).to be_empty
   end
 
+  it "gives a person the roles their job title implies, so role references have a holder" do
+    company = create(:company)
+    titled = Assemble::CsvMapper::Mapping.new("Job Title", "title", 1.0)
+    rows = [ [ "Amaka Obi", "amaka@nubo.example", "Finance", "", "Finance Lead" ], [ "Ada Nwosu", "ada@nubo.example", "Finance", "", "Accountant" ] ]
+
+    people = described_class.call(company: company, headers: headers + [ "Job Title" ], rows: rows, mappings: mappings + [ titled ])
+
+    expect(people.map(&:roles)).to eq([ %w[finance_lead], [] ])
+  end
+
   it "reuses an existing department for people in the same department" do
     company = create(:company)
     rows = [
