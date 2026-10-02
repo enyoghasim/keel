@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button'
+
 // SPEC.md section 11's four suggested questions, so the page never starts
 // with a blank box.
 const SUGGESTED_QUESTIONS = [
@@ -15,15 +17,16 @@ export function SuggestedQuestions({ onAsk, disabled }: { onAsk: (question: stri
       </p>
       <div className="mx-auto mt-4 grid max-w-2xl gap-2 sm:grid-cols-2">
         {SUGGESTED_QUESTIONS.map((question) => (
-          <button
+          <Button
             key={question}
             type="button"
+            variant="outline"
             disabled={disabled}
             onClick={() => onAsk(question)}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-left text-[13px] hover:border-brand hover:bg-brand-muted disabled:opacity-40"
+            className="h-auto justify-start py-2 text-left whitespace-normal hover:border-brand hover:bg-brand-muted"
           >
             {question}
-          </button>
+          </Button>
         ))}
       </div>
     </div>

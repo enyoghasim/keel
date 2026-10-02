@@ -14,6 +14,7 @@ import {
   YAxis,
 } from 'recharts'
 import { formatInsightValue } from './format-insight-value'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 const COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-6)']
 
@@ -72,17 +73,17 @@ export function InsightChart({ result, chart }: { result: InsightResult; chart: 
         </figure>
       )}
 
-      <table className="w-full text-[13px]">
-        <thead>
-          <tr className="border-b border-border text-left text-[12px] text-muted-foreground">
-            <th className="py-1.5 font-medium">Group</th>
-            <th className="py-1.5 text-right font-medium">Value</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Group</TableHead>
+            <TableHead className="text-right">Value</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {result.rows.map((row, i) => (
-            <tr key={String(row.key ?? row.label)} className="border-b border-border last:border-0">
-              <td className="py-1.5">
+            <TableRow key={String(row.key ?? row.label)}>
+              <TableCell>
                 {chart === 'pie' && showChart && (
                   <span
                     aria-hidden="true"
@@ -91,12 +92,12 @@ export function InsightChart({ result, chart }: { result: InsightResult; chart: 
                   />
                 )}
                 {row.label}
-              </td>
-              <td className="py-1.5 text-right font-mono tabular-nums">{format(row.value)}</td>
-            </tr>
+              </TableCell>
+              <TableCell className="text-right font-mono tabular-nums">{format(row.value)}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   )
 }
