@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_092135) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_093436) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -100,6 +100,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_092135) do
     t.index ["manager_id"], name: "index_people_on_manager_id"
   end
 
+  create_table "policies", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "title", null: false
+    t.string "category", null: false
+    t.string "status", default: "draft", null: false
+    t.integer "version", default: 1, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_policies_on_company_id"
+  end
+
   create_table "requests", force: :cascade do |t|
     t.bigint "company_id", null: false
     t.bigint "requester_id", null: false
@@ -113,6 +124,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_092135) do
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_requests_on_company_id"
     t.index ["requester_id"], name: "index_requests_on_requester_id"
+  end
+
+  create_table "rules", force: :cascade do |t|
+    t.bigint "policy_id", null: false
+    t.bigint "source_chunk_id", null: false
+    t.string "key", null: false
+    t.jsonb "conditions", default: {}, null: false
+    t.jsonb "actions", default: {}, null: false
+    t.integer "priority", default: 0, null: false
+    t.text "source_quote", null: false
+    t.jsonb "ambiguities", default: [], null: false
+    t.string "status", default: "extracted", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["policy_id"], name: "index_rules_on_policy_id"
+    t.index ["source_chunk_id"], name: "index_rules_on_source_chunk_id"
   end
 
   create_table "source_documents", force: :cascade do |t|
@@ -172,8 +199,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_092135) do
   add_foreign_key "people", "companies"
   add_foreign_key "people", "departments"
   add_foreign_key "people", "people", column: "manager_id"
+  add_foreign_key "policies", "companies"
   add_foreign_key "requests", "companies"
   add_foreign_key "requests", "people", column: "requester_id"
+  add_foreign_key "rules", "chunks", column: "source_chunk_id"
+  add_foreign_key "rules", "policies"
   add_foreign_key "source_documents", "companies"
   add_foreign_key "step_runs", "people", column: "resolved_person_id"
   add_foreign_key "step_runs", "workflow_runs"
