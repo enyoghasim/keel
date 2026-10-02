@@ -6,6 +6,8 @@ export const NODE_WIDTH = 216
 export const NODE_HEIGHT = 64
 const X_GAP = 96
 
+export type StepDiffStatus = 'added' | 'removed' | 'changed'
+
 export type FlowNodeKind = 'trigger' | WorkflowStepType
 
 export interface FlowNodeData extends Record<string, unknown> {
@@ -14,6 +16,39 @@ export interface FlowNodeData extends Record<string, unknown> {
   subtitle: string | null
   /** From a test run: present once that step has been previewed, absent before any run. */
   runStatus: 'matched' | 'skipped' | null
+  /** From a workflow proposal: how the step differs from the current workflow. */
+  diffStatus: StepDiffStatus | null
+}
+
+/**
+ * One step list for drawing a proposal (SPEC.md section 8): the proposed
+ * steps, plus every step the change removes put back where it used to be,
+ * with each step's status — added, removed, or changed in place.
+ */
+export function mergeWorkflowSteps(
+  before: WorkflowStep[],
+  after: WorkflowStep[],
+): { steps: WorkflowStep[]; status: Record<string, StepDiffStatus> } {
+  const beforeByKey = new Map(before.map((step) => [step.key, step]))
+  const afterKeys = new Set(after.map((step) => step.key))
+  const status: Record<string, StepDiffStatus> = {}
+  const steps = [...after]
+
+  for (const step of after) {
+    const previous = beforeByKey.get(step.key)
+    if (!previous) status[step.key] = 'added'
+    else if (JSON.stringify(previous) !== JSON.stringify(step)) status[step.key] = 'changed'
+  }
+
+  before.forEach((step, index) => {
+    if (afterKeys.has(step.key)) return
+    status[step.key] = 'removed'
+    // After the nearest earlier step that is still drawn, else at the front.
+    const anchor = before.slice(0, index).reverse().find((earlier) => steps.some((s) => s.key === earlier.key))
+    steps.splice(anchor ? steps.findIndex((s) => s.key === anchor.key) + 1 : 0, 0, step)
+  })
+
+  return { steps, status }
 }
 
 function humanizeRequestKind(kind: string): string {
@@ -51,6 +86,7 @@ export function buildFlowGraph(
   workflow: Workflow,
   testRun: WorkflowTestRunStep[] | null,
   personName: (id: number) => string,
+  diffStatus: Record<string, StepDiffStatus> = {},
 ): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
   const triggerRunStatus: FlowNodeData['runStatus'] = testRun === null ? null : 'matched'
 
@@ -64,6 +100,7 @@ export function buildFlowGraph(
         label: humanizeRequestKind(workflow.trigger.request_kind),
         subtitle: null,
         runStatus: triggerRunStatus,
+        diffStatus: null,
       },
     },
     ...workflow.steps.map((step, index) => ({
@@ -75,6 +112,7 @@ export function buildFlowGraph(
         label: step.title ?? step.key,
         subtitle: stepSubtitle(step, testRun, personName),
         runStatus: stepRunStatus(step, testRun),
+        diffStatus: diffStatus[step.key] ?? null,
       },
     })),
   ]
