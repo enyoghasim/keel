@@ -87,7 +87,7 @@ export interface RuleImpactReport {
     flipped_count: number
     flipped: BacktestFlip[]
     // Same-priority overlaps the rewrite introduces; `example` is a request that triggers one.
-    new_conflicts: { rules: [string, string]; example: Record<string, unknown> }[]
+    new_conflicts: { rules: [string, string]; example: Record<string, unknown>; warning: string }[]
     summary: string
   }
 }
