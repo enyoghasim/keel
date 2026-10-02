@@ -3,6 +3,7 @@ import type { Envelope, PromptVersion } from 'api-types'
 import { api } from '../../lib/api'
 import { promptVersionsQueryKey } from './eval-query-keys'
 import { formatAccuracy } from './format'
+import { VersionAccuracyChart } from './version-accuracy-chart'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -81,6 +82,7 @@ export function PromptVersions({ companyId, canPromote }: { companyId: string; c
   return (
     <Card role="region" aria-label="Prompt versions">
       <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Prompt versions</h2>
+      <VersionAccuracyChart versions={versions} promptKey="policy_extractor" />
       <ul className="divide-y divide-border">
         {versions.map((version) => (
           <VersionRow key={version.id} companyId={companyId} version={version} canPromote={canPromote} />
