@@ -25,7 +25,7 @@ class WorkflowEditJob < ApplicationJob
 
     proposal = edit.company.change_proposals.create!(
       kind: "workflow", title: "#{edit.workflow.name}: #{result.summary}".truncate(120), proposed_by: "user",
-      diff: { "workflow_id" => edit.workflow_id, "instruction" => edit.instruction, "before" => result.before, "after" => result.steps },
+      diff: { "workflow_id" => edit.workflow_id, "request_kind" => edit.workflow.trigger["request_kind"], "instruction" => edit.instruction, "before" => result.before, "after" => result.steps },
       impact: Impact::WorkflowImpact.call(company: edit.company, workflow: edit.workflow, after_steps: result.steps)
     )
     edit.update!(status: "proposed", change_proposal: proposal, model: RubyLLM.config.default_model)

@@ -118,6 +118,7 @@ export interface WorkflowImpactReport {
 // Only the steps change: before/after are the whole step lists.
 export interface WorkflowDiff {
   workflow_id: number
+  request_kind: string
   instruction: string
   before: WorkflowStep[]
   after: WorkflowStep[]

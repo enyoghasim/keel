@@ -25,7 +25,7 @@ RSpec.describe WorkflowEditJob, type: :job do
     proposal = ChangeProposal.last
     expect(edit.reload).to have_attributes(status: "proposed", change_proposal: proposal, model: RubyLLM.config.default_model)
     expect(proposal).to have_attributes(kind: "workflow", status: "pending", proposed_by: "user", title: "#{workflow.name}: Added IT setup")
-    expect(proposal.diff).to eq("workflow_id" => workflow.id, "instruction" => edit.instruction, "before" => [ approval ], "after" => [ approval, it_step ])
+    expect(proposal.diff).to eq("workflow_id" => workflow.id, "request_kind" => "expense", "instruction" => edit.instruction, "before" => [ approval ], "after" => [ approval, it_step ])
     expect(proposal.impact["steps"]).to include("added" => [ "it_setup" ])
     expect(workflow.reload.steps).to eq([ approval ])
     expect(Assemble::WorkflowEditor).to have_received(:call).with(workflow: workflow, instruction: edit.instruction)
