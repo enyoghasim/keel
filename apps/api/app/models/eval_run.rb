@@ -10,4 +10,9 @@ class EvalRun < ApplicationRecord
 
   validates :suite, inclusion: { in: EvalCase::SUITES }
   validates :status, inclusion: { in: STATUSES }
+
+  FIELDS = %i[id person_id suite status model cases_count passed_count started_at finished_at error_message created_at].freeze
+
+  # Shared by Api::EvalRunsController and EvalChannel.
+  def as_payload = as_json(only: FIELDS).merge("accuracy" => accuracy&.to_f)
 end
