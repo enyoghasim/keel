@@ -65,7 +65,8 @@ module Agent
 
         {
           "proposal_id" => proposal.id, "status" => proposal.status, "link" => "/proposals",
-          "total" => backtest["total"], "flipped" => backtest["flipped_count"], "new_conflicts" => backtest["new_conflicts"].size, "summary" => backtest["summary"],
+          "total" => backtest["total"], "flipped" => backtest["flipped_count"], "new_conflicts" => backtest["new_conflicts"].size,
+          "summary" => [ backtest["summary"], *backtest["new_conflicts"].pluck("warning").map { "Warning: #{_1}" } ].join(" "),
           "note" => "The policy has not changed yet. An HR admin has to review and approve this proposal on the Proposals page."
         }
       end

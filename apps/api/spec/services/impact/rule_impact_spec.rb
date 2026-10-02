@@ -67,7 +67,8 @@ RSpec.describe Impact::RuleImpact do
       expect(conflicts.size).to eq(1)
       expect(conflicts.first).to include("rules" => contain_exactly("expense_small_auto", "expense_over_500_manager"))
       expect(conflicts.first["example"]["payload.amount_eur"]).to be_between(501, 800)
-      expect(impact["backtest"]["summary"]).to include("overlaps", "expense_over_500_manager")
+      expect(conflicts.first["warning"]).to include("overlaps with", "same priority", "amount_eur=")
+      expect(impact["backtest"]["summary"]).not_to include("overlaps") # the flip sentence stays about flips
     end
 
     it "stays quiet when both sides are changed consistently" do

@@ -28,7 +28,7 @@ module Impact
         "kind" => policy.category, "total" => report.total, "flipped_count" => report.flipped.size,
         "flipped" => report.flipped.map { serialize(_1, by_input) },
         "new_conflicts" => conflicts,
-        "summary" => [ summary(policy.category, report), *conflicts.map { conflict_warning(_1) } ].join(" ")
+        "summary" => summary(policy.category, report)
       } }
     end
 
@@ -49,16 +49,19 @@ module Impact
 
       Rules::ConflictDetector.call(after_rules).filter_map do |conflict|
         pair = [ conflict.rule_a_key, conflict.rule_b_key ].sort
-        { "rules" => pair, "example" => conflict.probes.first } unless existing.include?(pair)
+        next if existing.include?(pair)
+
+        example = conflict.probes.first
+        { "rules" => pair, "example" => example, "warning" => warning(pair, example) }
       end
     end
     private_class_method :new_conflicts
 
-    def self.conflict_warning(conflict)
-      "Warning: #{conflict['rules'].join(' overlaps with ')} at the same priority, so they disagree on requests such as " \
-        "#{conflict['example'].map { |field, value| "#{field.split('.').last}=#{value}" }.join(', ')} and the more restrictive one wins."
+    def self.warning(rules, example)
+      "#{rules.join(' overlaps with ')} at the same priority, so they disagree on requests such as " \
+        "#{example.map { |field, value| "#{field.split('.').last}=#{value}" }.join(', ')} and the more restrictive one wins."
     end
-    private_class_method :conflict_warning
+    private_class_method :warning
 
     def self.summary(kind, report)
       return "This would not have changed any of the #{report.total} past #{kind} decisions." if report.flipped.empty?
