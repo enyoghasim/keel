@@ -34,6 +34,6 @@ module Api
 
     private
 
-    def serialize(person) = person.as_json(only: %i[id company_id name email title department_id manager_id roles])
+    def serialize(person) = person.as_json(only: Api::PeopleController::FIELDS)
   end
 end
