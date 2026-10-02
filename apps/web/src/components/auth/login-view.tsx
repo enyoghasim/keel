@@ -1,4 +1,8 @@
 import { useState, type FormEvent } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useSignIn } from '../../lib/auth'
 
 export function LoginView({ companyId }: { companyId: string }) {
@@ -13,7 +17,8 @@ export function LoginView({ companyId }: { companyId: string }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-border bg-card p-6">
+      <Card className="w-full max-w-sm p-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <h1 className="text-[17px] font-semibold">Sign in to Keel</h1>
           {/* Mirrors Person::DEMO_PASSWORD (apps/api/app/models/person.rb) — there's no
@@ -24,43 +29,22 @@ export function LoginView({ companyId }: { companyId: string }) {
         </div>
 
         <div>
-          <label htmlFor="email" className="block text-[13px] font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 block w-full rounded border border-border bg-background px-2.5 py-1.5 text-[13px]"
-          />
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5" />
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-[13px] font-medium">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 block w-full rounded border border-border bg-background px-2.5 py-1.5 text-[13px]"
-          />
+          <Label htmlFor="password">Password</Label>
+          <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5" />
         </div>
 
-        <button
-          type="submit"
-          disabled={signIn.isPending}
-          className="w-full rounded bg-primary px-3.5 py-1.5 text-[13px] font-medium text-primary-foreground shadow-btn disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <Button type="submit" disabled={signIn.isPending} className="w-full">
           {signIn.isPending ? 'Signing in…' : 'Sign in'}
-        </button>
+        </Button>
 
         {signIn.isError && <p className="text-[13px] text-destructive">{(signIn.error as Error).message}</p>}
       </form>
+      </Card>
     </div>
   )
 }

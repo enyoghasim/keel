@@ -1,11 +1,13 @@
 import type { EvalRun, EvalRunStatus } from 'api-types'
 import { formatAccuracy, formatRunDate, SUITE_LABELS } from './format'
+import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
-const STATUS_TONE: Record<EvalRunStatus, string> = {
-  pending: 'border-border-strong bg-secondary text-muted-foreground',
-  running: 'border-info/40 bg-info-muted text-info',
-  completed: 'border-success/40 bg-success-muted text-success',
-  failed: 'border-destructive/40 bg-destructive-muted text-destructive',
+const STATUS_VARIANT: Record<EvalRunStatus, 'secondary' | 'info' | 'success' | 'destructive'> = {
+  pending: 'secondary',
+  running: 'info',
+  completed: 'success',
+  failed: 'destructive',
 }
 
 export function RunList({
@@ -22,23 +24,23 @@ export function RunList({
   onToggleCompare: (runId: number) => void
 }) {
   return (
-    <table className="w-full text-[13px]">
-      <caption className="sr-only">Eval runs</caption>
-      <thead>
-        <tr className="border-b border-border text-left text-[12px] text-muted-foreground">
-          <th className="w-8 py-1.5 font-medium">
+    <Table>
+      <TableCaption className="sr-only">Eval runs</TableCaption>
+      <TableHeader>
+        <TableRow className="hover:bg-transparent">
+          <TableHead className="w-8">
             <span className="sr-only">Compare</span>
-          </th>
-          <th className="py-1.5 font-medium">Run</th>
-          <th className="py-1.5 font-medium">Model</th>
-          <th className="py-1.5 font-medium">Status</th>
-          <th className="py-1.5 text-right font-medium">Accuracy</th>
-        </tr>
-      </thead>
-      <tbody>
+          </TableHead>
+          <TableHead>Run</TableHead>
+          <TableHead>Model</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right">Accuracy</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {runs.map((run) => (
-          <tr key={run.id} className={`border-b border-border last:border-0 ${run.id === selectedRunId ? 'bg-secondary' : ''}`}>
-            <td className="py-1.5">
+          <TableRow key={run.id} data-state={run.id === selectedRunId ? 'selected' : undefined}>
+            <TableCell>
               <input
                 type="checkbox"
                 aria-label={`Compare run #${run.id}`}
@@ -46,22 +48,22 @@ export function RunList({
                 disabled={run.status !== 'completed'}
                 onChange={() => onToggleCompare(run.id)}
               />
-            </td>
-            <td className="py-1.5">
+            </TableCell>
+            <TableCell>
               <button type="button" onClick={() => onSelect(run.id)} className="text-left font-medium hover:underline">
                 #{run.id} · {SUITE_LABELS[run.suite]} · {formatRunDate(run.created_at)}
               </button>
-            </td>
-            <td className="py-1.5 text-muted-foreground">{run.model ?? '—'}</td>
-            <td className="py-1.5">
-              <span className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${STATUS_TONE[run.status]}`}>{run.status}</span>
-            </td>
-            <td className="py-1.5 text-right font-mono tabular-nums">
+            </TableCell>
+            <TableCell className="text-muted-foreground">{run.model ?? '—'}</TableCell>
+            <TableCell>
+              <Badge variant={STATUS_VARIANT[run.status]}>{run.status}</Badge>
+            </TableCell>
+            <TableCell className="text-right font-mono tabular-nums">
               {run.status === 'completed' ? `${formatAccuracy(run.accuracy)} (${run.passed_count}/${run.cases_count})` : '—'}
-            </td>
-          </tr>
+            </TableCell>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   )
 }
