@@ -4,6 +4,10 @@ module Api
   # here by signed_id, then kicks off AssembleJob (SPEC.md section 6).
   class CompaniesController < ApplicationController
     def create
+      if Company.exists?
+        return render_error(message: "This workspace already has a company.", errors: [ "This workspace already has a company." ])
+      end
+
       if company_params[:roster_csv].blank?
         return render_error(message: "roster_csv is required", errors: [ "roster_csv is required" ])
       end

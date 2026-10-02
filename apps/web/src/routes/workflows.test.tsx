@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event'
 import type { Person, Workflow, WorkflowChangeProposal, WorkflowEdit, WorkflowTestRunResult } from 'api-types'
 import { act } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
 import { chooseOption } from '../test/choose-option'
@@ -78,15 +77,7 @@ describe('/workflows', () => {
     localStorage.clear()
   })
 
-  it('shows an empty state when no company has been selected yet', async () => {
-    await renderApp('/workflows')
-
-    expect(await screen.findByRole('heading', { name: 'Workflows' })).toBeInTheDocument()
-    expect(screen.getByText(/assemble one on the assemble page first/i)).toBeInTheDocument()
-  })
-
   it('shows an empty state when the company has no workflows', async () => {
-    setCurrentCompanyId('1')
     mockApi({ 'GET /api/companies/1/workflows': { body: { success: true, message: '', data: [] } }, ...sessionRoute })
 
     await renderApp('/workflows')
@@ -95,7 +86,6 @@ describe('/workflows', () => {
   })
 
   it('shows the first workflow selected, with its trigger and steps on the graph', async () => {
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/workflows': { body: { success: true, message: '', data: [expenseWorkflow, leaveWorkflow] } },
       'GET /api/companies/1/workflows/5': { body: { success: true, message: '', data: expenseWorkflow } },
@@ -112,7 +102,6 @@ describe('/workflows', () => {
 
   it('switches workflows when a different tab is picked', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/workflows': { body: { success: true, message: '', data: [expenseWorkflow, leaveWorkflow] } },
       'GET /api/companies/1/workflows/5': { body: { success: true, message: '', data: expenseWorkflow } },
@@ -131,7 +120,6 @@ describe('/workflows', () => {
 
   it('runs a test run and lights up the matched steps with the resolved person', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const testRunResult: WorkflowTestRunResult = {
       outcome: 'require_approval',
       matched_rule_keys: ['big_expense'],
@@ -192,7 +180,6 @@ describe('/workflows', () => {
 
     it('sends the instruction, then shows the proposed graph once the draft arrives, without changing anything', async () => {
       const user = userEvent.setup()
-      setCurrentCompanyId('1')
       const fetchMock = mockApi({
         ...routes,
         'GET /api/companies/1/change_proposals/8': { body: { success: true, message: '', data: proposal } },
@@ -216,7 +203,6 @@ describe('/workflows', () => {
 
     it("shows why a draft failed, and says when the instruction wouldn't change anything", async () => {
       const user = userEvent.setup()
-      setCurrentCompanyId('1')
       mockApi(routes)
 
       await renderApp('/workflows')
@@ -232,7 +218,6 @@ describe('/workflows', () => {
     })
 
     it('is for hr_admins only', async () => {
-      setCurrentCompanyId('1')
       mockApi({
         ...routes,
         'GET /api/companies/1/session': { body: { success: true, message: '', data: { ...currentPerson, roles: [] } } },

@@ -4,7 +4,7 @@ import { PagePlaceholder } from '../components/layout/page-placeholder'
 import { McpCallsPanel } from '../components/settings/mcp-calls-panel'
 import { TokensPanel } from '../components/settings/tokens-panel'
 import { useCurrentPerson } from '../lib/auth'
-import { getCurrentCompanyId } from '../lib/current-company'
+import { useCompanyId } from '../lib/workspace'
 import { Route as rootRoute } from './__root'
 
 export const Route = createRoute({
@@ -14,7 +14,7 @@ export const Route = createRoute({
 })
 
 function SettingsPage() {
-  const companyId = getCurrentCompanyId()
+  const companyId = useCompanyId()
   const personId = useCurrentPerson(companyId).data?.data?.id
 
   return (

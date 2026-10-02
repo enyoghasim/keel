@@ -6,3 +6,8 @@ export interface Company {
   assemble_completed_stages: string[]
   created_at: string
 }
+
+// GET /api/workspace: the one company a deployment serves, or none yet.
+export interface Workspace {
+  company: { id: number; name: string; assembling: boolean } | null
+}

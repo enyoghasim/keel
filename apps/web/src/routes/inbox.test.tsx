@@ -2,7 +2,6 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Person, Request } from 'api-types'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
 import { chooseOption } from '../test/choose-option'
@@ -130,15 +129,7 @@ describe('/inbox', () => {
     localStorage.clear()
   })
 
-  it('shows an empty state when no company has been selected yet', async () => {
-    await renderApp('/inbox')
-
-    expect(await screen.findByRole('heading', { name: 'Inbox' })).toBeInTheDocument()
-    expect(screen.getByText(/assemble one on the assemble page first/i)).toBeInTheDocument()
-  })
-
   it('shows an empty state when nothing is waiting on anyone', async () => {
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/requests': { body: { success: true, message: '', data: [] } },
       ...peopleRoute,
@@ -152,7 +143,6 @@ describe('/inbox', () => {
 
   describe('as a plain employee', () => {
     it('shows only steps assigned to the signed-in person, with no acting-as switch', async () => {
-      setCurrentCompanyId('1')
       mockApi({
         'GET /api/companies/1/requests': { body: { success: true, message: '', data: [assignedToSelf, unresolvedRequest] } },
         ...peopleRoute,
@@ -166,7 +156,6 @@ describe('/inbox', () => {
     })
 
     it('shows a waiting-on-you empty state when nothing is assigned to them, even if other steps are pending', async () => {
-      setCurrentCompanyId('1')
       mockApi({
         'GET /api/companies/1/requests': { body: { success: true, message: '', data: [leaveRequest] } },
         ...peopleRoute,
@@ -181,7 +170,6 @@ describe('/inbox', () => {
 
     it('approves a step run assigned to them and refreshes the list', async () => {
       const user = userEvent.setup()
-      setCurrentCompanyId('1')
       const acted = {
         id: 100,
         step_key: 'manager_approval',
@@ -211,7 +199,6 @@ describe('/inbox', () => {
 
   describe('as an hr_admin', () => {
     it('defaults to their own queue', async () => {
-      setCurrentCompanyId('1')
       mockApi({
         'GET /api/companies/1/requests': { body: { success: true, message: '', data: [leaveRequest] } },
         ...peopleRoute,
@@ -226,7 +213,6 @@ describe('/inbox', () => {
 
     it('can switch to Everyone to see every assigned step, including ones not assigned to them', async () => {
       const user = userEvent.setup()
-      setCurrentCompanyId('1')
       mockApi({
         'GET /api/companies/1/requests': { body: { success: true, message: '', data: [leaveRequest, unresolvedRequest] } },
         ...peopleRoute,
@@ -242,7 +228,6 @@ describe('/inbox', () => {
 
     it('can switch to a specific assignee to see just their queue', async () => {
       const user = userEvent.setup()
-      setCurrentCompanyId('1')
       const expenseRequest: Request = {
         ...leaveRequest,
         id: 3,
@@ -281,7 +266,6 @@ describe('/inbox', () => {
 
     it('can approve a step assigned to someone else', async () => {
       const user = userEvent.setup()
-      setCurrentCompanyId('1')
       const acted = {
         id: 100,
         step_key: 'manager_approval',
@@ -312,7 +296,6 @@ describe('/inbox', () => {
 
   it('overrides a step run only once a reason is given', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/requests': { body: { success: true, message: '', data: [assignedToSelf] } },
       'POST /api/step_runs/100/act': {

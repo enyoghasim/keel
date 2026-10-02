@@ -82,4 +82,42 @@ RSpec.describe "Api::Sessions", type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
   end
+
+  # Which command-bar conversation is open lives with the session on the
+  # server, so a refresh (or another tab) brings the same thread back.
+  describe "the open agent conversation" do
+    let(:company) { create(:company) }
+    let(:person) { create(:person, company: company) }
+
+    it "starts with none, remembers one of the person's own, and can be cleared" do
+      sign_in(person)
+      run = create(:agent_run, company: company, person: person)
+      expect(get("/api/companies/#{company.id}/session") && response.parsed_body["data"]["conversation_id"]).to be_nil
+
+      patch "/api/companies/#{company.id}/session", params: { conversation_id: run.conversation_id }, as: :json
+      expect(response).to have_http_status(:ok)
+
+      get "/api/companies/#{company.id}/session"
+      expect(response.parsed_body["data"]["conversation_id"]).to eq(run.conversation_id)
+
+      patch "/api/companies/#{company.id}/session", params: { conversation_id: nil }, as: :json
+      get "/api/companies/#{company.id}/session"
+      expect(response.parsed_body["data"]["conversation_id"]).to be_nil
+    end
+
+    it "refuses a conversation that isn't the person's own" do
+      sign_in(person)
+      someone_elses = create(:agent_run, company: company)
+
+      patch "/api/companies/#{company.id}/session", params: { conversation_id: someone_elses.conversation_id }, as: :json
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "needs a sign-in" do
+      patch "/api/companies/#{company.id}/session", params: { conversation_id: nil }, as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
 end

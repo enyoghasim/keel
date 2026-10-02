@@ -2,7 +2,6 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { AgentRun, Department, OrgChangeProposal, Person, RuleChangeProposal, WorkflowChangeProposal } from 'api-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
 
@@ -213,15 +212,7 @@ describe('/proposals', () => {
     localStorage.clear()
   })
 
-  it('shows an empty state when no company has been selected yet', async () => {
-    await renderApp('/proposals')
-
-    expect(await screen.findByRole('heading', { name: 'Proposals' })).toBeInTheDocument()
-    expect(screen.getByText(/assemble one on the assemble page first/i)).toBeInTheDocument()
-  })
-
   it('shows an empty state when the company has no proposals', async () => {
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [] } },
       ...peopleRoute,
@@ -235,7 +226,6 @@ describe('/proposals', () => {
   })
 
   it('lists proposals with their kind, status, proposer and impact counts', async () => {
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/change_proposals': {
         body: { success: true, message: '', data: [cleanProposal, brokenProposal] },
@@ -256,7 +246,6 @@ describe('/proposals', () => {
 
   it('expands a row to show the diff in plain language with names resolved, not raw ids', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [cleanProposal] } },
       ...peopleRoute,
@@ -274,7 +263,6 @@ describe('/proposals', () => {
 
   it('disables Approve while there are broken chains, until Approve anyway is ticked with a reason', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [brokenProposal] } },
       ...peopleRoute,
@@ -300,7 +288,6 @@ describe('/proposals', () => {
 
   it('approves a clean proposal and refreshes the list to show it decided', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const approved = { ...cleanProposal, status: 'approved' as const, decided_at: '2026-01-03T00:00:00Z' }
     mockApi({
       'GET /api/companies/1/change_proposals': [
@@ -324,7 +311,6 @@ describe('/proposals', () => {
 
   it('shows people who are not hr_admins that a proposal awaits an HR admin, without decision buttons', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [cleanProposal] } },
       ...peopleRoute,
@@ -341,7 +327,6 @@ describe('/proposals', () => {
 
   it('sends the reason typed for a rejection, which the API turns into a candidate test case', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const rejected = { ...cleanProposal, status: 'rejected' as const, decided_at: '2026-01-03T00:00:00Z' }
     const fetchMock = mockApi({
       'GET /api/companies/1/change_proposals': [
@@ -368,7 +353,6 @@ describe('/proposals', () => {
 
   it('rejects a proposal and refreshes the list to show it decided', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const rejected = { ...cleanProposal, status: 'rejected' as const, decided_at: '2026-01-03T00:00:00Z' }
     mockApi({
       'GET /api/companies/1/change_proposals': [
@@ -392,7 +376,6 @@ describe('/proposals', () => {
 
   it('lists a rule proposal with its flipped count and expands it to the backtest, with Approve enabled', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [ruleProposal] } },
       ...peopleRoute,
@@ -414,7 +397,6 @@ describe('/proposals', () => {
 
   it('lists a workflow proposal with its graph, and holds Approve behind a reason while a new step resolves to nobody', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [workflowProposal] } },
       ...peopleRoute,
@@ -436,7 +418,6 @@ describe('/proposals', () => {
 
   it('holds a rule proposal that creates a conflict behind Approve anyway with a reason', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const conflicted: RuleChangeProposal = {
       ...ruleProposal,
       impact: {
@@ -472,7 +453,6 @@ describe('/proposals', () => {
 
   it("lets an hr_admin open the trace of a proposal the agent made, and doesn't offer one for a person's", async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const run: AgentRun = {
       id: 5, conversation_id: 'c', person_id: 99, message: 'Raise the limit to €800', status: 'completed', final_text: 'Proposed.', total_tokens: 100,
       error_message: null, cost_usd: null, feedback: null, feedback_reason: null, proposal_ids: [3], created_at: '2026-01-03T00:00:00Z',
@@ -499,7 +479,6 @@ describe('/proposals', () => {
 
   it('shows the plain-English explanation of a proposal, once it has one', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/change_proposals': {
         body: { success: true, message: '', data: [{ ...cleanProposal, explanation: 'Ngozi’s requests would go to Ada instead of Tunde.' }, brokenProposal] },

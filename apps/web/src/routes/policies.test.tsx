@@ -2,7 +2,6 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Person, Policy, PolicyWithRules } from 'api-types'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
 
@@ -84,15 +83,7 @@ describe('/policies', () => {
     localStorage.clear()
   })
 
-  it('shows an empty state when no company has been selected yet', async () => {
-    await renderApp('/policies')
-
-    expect(await screen.findByRole('heading', { name: 'Policies' })).toBeInTheDocument()
-    expect(screen.getByText(/assemble one on the assemble page first/i)).toBeInTheDocument()
-  })
-
   it('shows an empty state when the company has no policies', async () => {
-    setCurrentCompanyId('1')
     mockApi({ 'GET /api/companies/1/policies': { body: { success: true, message: '', data: [] } }, ...sessionRoute })
 
     await renderApp('/policies')
@@ -101,7 +92,6 @@ describe('/policies', () => {
   })
 
   it('shows the first policy selected, with its handbook quotes and rule cards', async () => {
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/policies': { body: { success: true, message: '', data: [expensePolicy, leavePolicy] } },
       'GET /api/companies/1/policies/5': { body: { success: true, message: '', data: expensePolicyWithRules } },
@@ -120,7 +110,6 @@ describe('/policies', () => {
 
   it('switches policies and shows an ambiguity banner for an open ambiguity', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/policies': { body: { success: true, message: '', data: [expensePolicy, leavePolicy] } },
       'GET /api/companies/1/policies/5': { body: { success: true, message: '', data: expensePolicyWithRules } },

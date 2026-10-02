@@ -2,8 +2,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Person } from 'api-types'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { setCurrentCompanyId } from '../../lib/current-company'
-import { mockApi } from '../../test/mock-api'
+import { mockApi, workspaceWithoutCompany } from '../../test/mock-api'
 import { renderApp } from '../../test/render-app'
 
 const ada: Person = {
@@ -26,7 +25,6 @@ describe('AuthGate', () => {
   })
 
   it('shows a login form instead of the page when no one is signed in', async () => {
-    setCurrentCompanyId('1')
     mockApi({ 'GET /api/companies/1/session': unauthorized })
 
     await renderApp('/graph')
@@ -37,7 +35,6 @@ describe('AuthGate', () => {
 
   it('renders the page once sign-in succeeds', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/session': unauthorized,
       'POST /api/companies/1/session': { body: { success: true, message: 'Signed in.', data: ada } },
@@ -57,7 +54,6 @@ describe('AuthGate', () => {
 
   it('shows the error from a failed sign-in attempt', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/session': unauthorized,
       'POST /api/companies/1/session': { status: 401, body: { success: false, message: 'Incorrect email or password.' } },
@@ -73,18 +69,39 @@ describe('AuthGate', () => {
     expect(await screen.findByText('Incorrect email or password.')).toBeInTheDocument()
   })
 
-  it('bypasses the gate on /assemble so a new company can always be created', async () => {
-    setCurrentCompanyId('1')
-    mockApi({ 'GET /api/companies/1/session': unauthorized })
+  it('lets /assemble through without a sign-in only while the company is still assembling', async () => {
+    mockApi({
+      'GET /api/workspace': { body: { success: true, message: '', data: { company: { id: 1, name: 'Nubo', assembling: true } } } },
+    })
 
     await renderApp('/assemble')
 
     expect(await screen.findByRole('heading', { name: 'Assemble' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Sign in to Keel' })).not.toBeInTheDocument()
   })
 
-  it('does not gate at all when no company has been assembled yet', async () => {
+  it('asks for a sign-in on /assemble once the company is set up', async () => {
+    mockApi({ 'GET /api/companies/1/session': unauthorized })
+
+    await renderApp('/assemble')
+
+    expect(await screen.findByRole('heading', { name: 'Sign in to Keel' })).toBeInTheDocument()
+  })
+
+  it('sends any page to /assemble while the backend has no company, with no sign-in', async () => {
+    mockApi({ 'GET /api/workspace': workspaceWithoutCompany })
+
+    const { router } = await renderApp('/graph')
+
+    expect(await screen.findByRole('heading', { name: 'Assemble' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/assemble')
+  })
+
+  it('says so when the server cannot be reached, rather than showing a blank page', async () => {
+    mockApi({ 'GET /api/workspace': { status: 500, body: { success: false, message: 'boom' } } })
+
     await renderApp('/graph')
 
-    expect(await screen.findByRole('heading', { name: 'Graph' })).toBeInTheDocument()
+    expect(await screen.findByText(/can't reach its server/)).toBeInTheDocument()
   })
 })

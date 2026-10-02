@@ -2,7 +2,6 @@ import { act, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { OrgChangeProposal } from 'api-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
 
@@ -41,7 +40,6 @@ describe('/proposals live updates', () => {
 
   it('fills the explanation in when the API finishes writing it, without a reload', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     const path = 'GET /api/companies/1/change_proposals'
     mockApi({
       [path]: [ok([proposal]), ok([{ ...proposal, explanation: 'Ada takes on Ngozi’s approvals.' }])],

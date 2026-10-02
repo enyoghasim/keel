@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Envelope, Person, SignInParams } from 'api-types'
+import type { Envelope, SessionPerson, SignInParams } from 'api-types'
 import { api } from './api'
 
 function sessionQueryKey(companyId: string | null) {
@@ -17,7 +17,7 @@ function sessionQueryKey(companyId: string | null) {
 export function useCurrentPerson(companyId: string | null) {
   return useQuery({
     queryKey: sessionQueryKey(companyId),
-    queryFn: () => api.get<Envelope<Person>>(`/companies/${companyId}/session`),
+    queryFn: () => api.get<Envelope<SessionPerson>>(`/companies/${companyId}/session`),
     enabled: companyId !== null,
     staleTime: Infinity,
     retry: false,
@@ -28,7 +28,7 @@ export function useSignIn(companyId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (params: SignInParams) => api.post<Envelope<Person>>(`/companies/${companyId}/session`, params),
+    mutationFn: (params: SignInParams) => api.post<Envelope<SessionPerson>>(`/companies/${companyId}/session`, params),
     onSuccess: (response) => queryClient.setQueryData(sessionQueryKey(companyId), response),
   })
 }

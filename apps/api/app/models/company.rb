@@ -16,6 +16,12 @@ class Company < ApplicationRecord
 
   validates :name, presence: true
 
+  # True while an Assemble import of this company (one with an uploaded
+  # roster) still has pipeline stages to run. A seeded company never was.
+  def assembling?
+    roster_csv.attached? && (AssembleJob::STAGES - assemble_completed_stages).any?
+  end
+
   # The rules Rules::Engine evaluates for a request kind: active rules on
   # this company's active policies of that category.
   def active_rule_definitions(category)

@@ -1,7 +1,6 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
 
@@ -14,16 +13,8 @@ const me = { id: 1, name: 'Ifeoma Adeyemi', email: 'i@nubo.test', title: 'Head o
 describe('/settings', () => {
   beforeEach(() => localStorage.clear())
 
-  it('shows an empty state when no company has been selected yet', async () => {
-    await renderApp('/settings')
-
-    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
-    expect(screen.getByText(/assemble one on the assemble page first/i)).toBeInTheDocument()
-  })
-
   it('shows the person’s MCP tokens, and the sidebar Settings link leads here', async () => {
     const user = userEvent.setup()
-    setCurrentCompanyId('1')
     mockApi({
       'GET /api/companies/1/session': { body: { success: true, message: '', data: me } },
       'GET /api/companies/1/personal_access_tokens': { body: { success: true, message: '', data: [] } },

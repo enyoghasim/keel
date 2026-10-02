@@ -26,6 +26,18 @@ RSpec.describe "Api::Companies", type: :request do
       expect(Company.last.roster_csv).to be_attached
     end
 
+    it "refuses a second company: a deployment serves one" do
+      create(:company, name: "Nubo Logistics")
+
+      expect {
+        post "/api/companies", params: { company: { name: "Acme", roster_csv: roster_csv_signed_id } }
+      }.not_to have_enqueued_job(AssembleJob)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["message"]).to match(/already has a company/)
+      expect(Company.count).to eq(1)
+    end
+
     it "attaches the handbook as a source document when provided" do
       post "/api/companies", params: {
         company: { name: "Acme", roster_csv: roster_csv_signed_id, handbook: handbook_signed_id }
