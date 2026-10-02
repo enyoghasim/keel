@@ -20,15 +20,22 @@ module Rules
       end
     end
 
-    def self.probes(rule_a, rule_b)
-      fields = candidates_by_field(rule_a.conditions).merge(candidates_by_field(rule_b.conditions)) { |_, a, b| a | b }
+    def self.probes(rule_a, rule_b) = probe_contexts([ rule_a, rule_b ])
+    private_class_method :probes
+
+    # Every combination of each numeric threshold's boundary ±1 and each
+    # categorical value mentioned by any of the rules, as contexts keyed by
+    # field name (the shape Condition.match? and Engine.decide take). Public
+    # because the eval harness scores compiled rules by behaviour on these
+    # same probes (SPEC.md section 12).
+    def self.probe_contexts(rules)
+      fields = rules.map { candidates_by_field(_1.conditions) }.reduce({}) { |all, one| all.merge(one) { |_, a, b| a | b } }
       return [] if fields.empty?
 
       keys = fields.keys
       value_sets = fields.values
       value_sets[0].product(*value_sets[1..]).map { |combo| keys.zip(combo).to_h }
     end
-    private_class_method :probes
 
     def self.candidates_by_field(node)
       leaves(node).each_with_object(Hash.new { |h, k| h[k] = [] }) do |leaf, acc|

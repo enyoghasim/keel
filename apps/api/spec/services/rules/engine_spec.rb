@@ -179,4 +179,25 @@ RSpec.describe Rules::Engine do
 
     expect(decision.explanation).to eq("Auto approved — matched rule 'expense_conference_engineering'.")
   end
+
+  describe ".decide" do
+    # The winner-selection half of #evaluate, on a ready-made context, so
+    # callers that probe rules with synthetic contexts (the eval harness) use
+    # exactly the engine's priority and severity tie-break.
+    it "picks the winning rule's action for a context, without needing an org graph" do
+      context = { "requester.department" => "Engineering", "payload.category" => "conference", "payload.amount_eur" => 800 }
+
+      choice = described_class.decide(context, [ expense_small, expense_conference_engineering ])
+
+      expect(choice.action).to eq({ "decision" => "auto_approve" })
+      expect(choice.rule_keys).to eq([ "expense_conference_engineering" ]) # 800 is over expense_small's €500 limit
+    end
+
+    it "falls back to the default action when no rule matches" do
+      choice = described_class.decide({ "payload.amount_eur" => 5000, "requester.department" => "Sales", "payload.category" => "travel" }, [ expense_small ])
+
+      expect(choice.action).to eq(described_class::DEFAULT_ACTION)
+      expect(choice.rule_keys).to eq([])
+    end
+  end
 end
