@@ -46,3 +46,4 @@ export type {
   EvalRunsMeta,
   EvalChannelEvent,
 } from './hand-written/eval'
+export type { AgentRun, AgentRunStatus, AgentStep, AgentChannelEvent } from './hand-written/agent'
