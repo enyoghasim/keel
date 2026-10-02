@@ -38,6 +38,8 @@ const pending: AgentRun = {
   final_text: null,
   total_tokens: 0,
   error_message: null,
+  feedback: null,
+  feedback_reason: null,
   created_at: '2026-10-02T10:00:00Z',
   steps: [],
 }
@@ -128,6 +130,26 @@ describe('CommandBar', () => {
     await user.click(within(answer).getByRole('button', { name: 'Show trace (1 step)' }))
     const trace = await screen.findByRole('dialog', { name: 'Agent trace' })
     expect(within(trace).getByText('check_policy')).toBeInTheDocument()
+  })
+
+  it('lets the person rate a finished answer', async () => {
+    const user = userEvent.setup()
+    const fetchMock = mockApi({
+      'GET /api/companies/1/session': envelope(ngozi),
+      'GET /api/companies/1/agent_runs': envelope([completed]),
+      'GET /api/companies/1/agent_runs?conversation_id=c1': envelope([completed]),
+      'POST /api/companies/1/agent_runs/5/feedback': envelope({ ...completed, feedback: 'up' }),
+    })
+    await renderApp('/assemble')
+
+    await user.click(screen.getByRole('button', { name: /ask keel or search/i }))
+    const bar = await screen.findByRole('dialog', { name: 'Ask Keel' })
+    await user.click(await within(bar).findByRole('option', { name: completed.message }))
+    const answer = await within(bar).findByRole('region', { name: 'Agent answer' })
+    await user.click(within(answer).getByRole('button', { name: 'Good answer' }))
+
+    expect(await within(answer).findByRole('button', { name: 'Good answer', pressed: true })).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/companies/1/agent_runs/5/feedback', expect.objectContaining({ method: 'POST' }))
   })
 
   describe('conversations', () => {

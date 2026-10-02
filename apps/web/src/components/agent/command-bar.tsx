@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { api } from '../../lib/api'
 import { navGroups } from '../layout/nav-items'
+import { AnswerFeedback } from './answer-feedback'
 import { latestPerConversation, type AgentConversation } from './use-agent-conversation'
 import { useAgentRun } from './use-agent-run'
 
@@ -27,6 +28,7 @@ function AgentTurn({ companyId, runId, onShowTrace }: { companyId: string; runId
         </p>
       )}
       {run.status === 'completed' && <p className="whitespace-pre-wrap text-[14px] leading-relaxed">{run.final_text}</p>}
+      {run.status === 'completed' && <AnswerFeedback companyId={companyId} run={run} />}
       {run.status === 'failed' && <p className="text-[13px] text-destructive">{run.error_message}</p>}
       <Button type="button" variant="outline" size="sm" onClick={() => onShowTrace(run.id)}>
         Show trace ({run.steps.length} {run.steps.length === 1 ? 'step' : 'steps'})

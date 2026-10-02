@@ -13,6 +13,8 @@ const run: AgentRun = {
   final_text: 'Yes, with Tunde’s approval.',
   total_tokens: 2070,
   error_message: null,
+  feedback: null,
+  feedback_reason: null,
   created_at: '2026-10-02T10:00:00Z',
   steps: [
     {
