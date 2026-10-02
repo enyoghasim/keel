@@ -12,3 +12,17 @@ export interface PersonalAccessToken {
 export interface CreatedPersonalAccessToken extends PersonalAccessToken {
   token: string
 }
+
+// Mirrors McpCall#as_payload (apps/api/app/models/mcp_call.rb): one tool
+// call an MCP client made with a person's token, as listed by
+// Api::McpCallsController and broadcast on McpCallChannel.
+export interface McpCall {
+  id: number
+  tool_name: string
+  input: Record<string, unknown>
+  output: Record<string, unknown> | null
+  is_error: boolean
+  latency_ms: number | null
+  token_name: string | null
+  created_at: string
+}
