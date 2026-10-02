@@ -124,6 +124,7 @@ RSpec.describe AssembleJob, "event log", type: :job do
     company.roster_csv.attach(io: StringIO.new("Name\nAda Nwosu"), filename: "roster.csv", content_type: "text/csv")
     allow(Assemble::CsvMapper).to receive(:call).and_return([ Assemble::CsvMapper::Mapping.new("Name", "name", 1.0) ])
     allow(Assemble::GraphBuilder).to receive(:call).and_return([ person ])
+    allow(Assemble::PolicyExtractor).to receive(:relevant_chunks_for).and_return([]) # no handbook, so no model calls
   end
 
   it "keeps every event it broadcasts on the company, numbered, so a browser that subscribed late can catch up" do
