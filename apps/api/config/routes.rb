@@ -17,7 +17,11 @@ Rails.application.routes.draw do
       resources :departments, only: [ :index, :show ]
       resources :policies, only: [ :index, :show ] do
         resources :rules, only: [ :index, :show ]
+        resources :rule_resolutions, only: [ :create, :show ]
         post :test, on: :member
+        get :conflicts, on: :member
+        post :conflict_fixes, on: :member
+        post :publish, on: :member
       end
       resources :requests, only: [ :index, :create, :show ]
       resources :workflows, only: [ :index, :show ] do
