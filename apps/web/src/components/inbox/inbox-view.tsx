@@ -49,7 +49,9 @@ export function InboxView({ companyId }: { companyId: string }) {
     return <PagePlaceholder note={`Couldn't load the inbox: ${(failedQuery.error as Error).message}`} />
   }
 
-  const currentPerson = currentPersonQuery.data!.data
+  const currentPerson = currentPersonQuery.data?.data
+  if (!currentPerson) return <PagePlaceholder note="Couldn't load the inbox: no signed-in person." />
+
   const isHrAdmin = currentPerson.roles.includes('hr_admin')
   const people = new Map((peopleQuery.data?.data ?? []).map((person) => [person.id, person]))
   const rows = actionableRows(requestsQuery.data?.data ?? [])
