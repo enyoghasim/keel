@@ -34,11 +34,11 @@ module Api
       end
 
       diff = change_proposal_params[:diff]
-      report = compute_org_impact(diff)
+      impact = Impact::OrgImpact.call(company: @company, diff: diff)
 
       change_proposal = @company.change_proposals.create!(
         kind: params[:kind], title: params[:title], diff: diff,
-        impact: serialize_impact(report), proposed_by: params[:proposed_by].presence || "user", status: "pending"
+        impact: impact, proposed_by: params[:proposed_by].presence || "user", status: "pending"
       )
 
       render_success(data: serialize(change_proposal), message: "Change proposal created.", status: :created)
@@ -56,8 +56,8 @@ module Api
       reason = params[:reason]
       return render_error(message: "a reason is required to approve anyway") if approve_anyway && reason.blank?
 
-      report = compute_org_impact(@change_proposal.diff)
-      current_broken = report.broken.size
+      impact = Impact::OrgImpact.call(company: @company, diff: @change_proposal.diff)
+      current_broken = impact["broken"].size
       original_broken = @change_proposal.impact["broken"]&.size || 0
 
       if current_broken > original_broken && !approve_anyway
@@ -65,13 +65,13 @@ module Api
           message: "impact has gotten worse since this proposal was made " \
                     "(#{current_broken} broken now vs #{original_broken} then) — " \
                     "pass approve_anyway: true with a reason to proceed anyway",
-          errors: serialize_impact(report)
+          errors: impact
         )
       end
 
       ActiveRecord::Base.transaction do
         @change_proposal.apply_org_diff!(@company)
-        updated_impact = serialize_impact(report)
+        updated_impact = impact.dup
         updated_impact["override_reason"] = reason if approve_anyway
         @change_proposal.update!(
           status: "approved", impact: updated_impact,
@@ -97,60 +97,6 @@ module Api
 
     def change_proposal_params
       params.permit(:kind, :title, :proposed_by, diff: [ :op, :person_id, :department_id, :role, :to, :from ])
-    end
-
-    def compute_org_impact(diff)
-      snapshot = Org::GraphSnapshot.load(@company)
-      Impact::Analyzer.call(
-        snapshot: snapshot, diff: diff, scenarios: representative_scenarios, pending_step_runs: pending_step_runs
-      )
-    end
-
-    # SPEC.md section 10: representative payloads standing in for "every
-    # request kind" — a small/medium/large expense and a week-ish of leave —
-    # evaluated against the company's actual active rules.
-    def representative_scenarios
-      expense_rules = @company.active_rule_definitions("expense")
-      leave_rules = @company.active_rule_definitions("leave")
-
-      [
-        { payload: { "amount_eur" => 100 }, rules: expense_rules },
-        { payload: { "amount_eur" => 800 }, rules: expense_rules },
-        { payload: { "amount_eur" => 3000 }, rules: expense_rules },
-        { payload: { "days" => 5 }, rules: leave_rules }
-      ]
-    end
-
-    def pending_step_runs
-      StepRun.where(status: "pending").joins(workflow_run: :request).where(requests: { company_id: @company.id })
-    end
-
-    def serialize_impact(report)
-      {
-        "rerouted" => report.rerouted.map { serialize_classification(_1) },
-        "broken" => report.broken.map { serialize_classification(_1) },
-        "self_approval" => report.self_approval.map { serialize_classification(_1) },
-        "approval_load_changes" => report.approval_load_changes,
-        "rerouted_in_flight" => report.rerouted_in_flight
-      }
-    end
-
-    def serialize_classification(classification)
-      {
-        "person_id" => classification.person_id,
-        "before" => serialize_decision(classification.before),
-        "after" => serialize_decision(classification.after)
-      }
-    end
-
-    def serialize_decision(decision)
-      {
-        "outcome" => decision.outcome,
-        "rule_keys" => decision.rule_keys,
-        "approvers" => decision.approvers,
-        "errors" => decision.errors,
-        "explanation" => decision.explanation
-      }
     end
 
     def serialize(change_proposal) = change_proposal.as_json(only: FIELDS)
