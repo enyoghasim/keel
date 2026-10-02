@@ -127,7 +127,21 @@ describe('/trust', () => {
       'GET /api/companies/1/session': envelope(person(['hr_admin'])),
       'GET /api/companies/1/eval_runs': envelope([], meta),
       'POST /api/companies/1/eval_runs': { status: 202, body: { success: true, message: '', data: pending } },
-      'GET /api/companies/1/eval_runs/3': envelope({ ...pending, results: [] }),
+      // Refetched once the run finishes, so the detail is reloaded whole.
+      'GET /api/companies/1/eval_runs/3': [
+        envelope({ ...pending, results: [] }),
+        envelope({
+          ...pending,
+          status: 'completed',
+          cases_count: 2,
+          passed_count: 1,
+          accuracy: 0.5,
+          results: [
+            result('leave', 'Leave days by department last quarter', true),
+            result('fiscal', 'Leave days last fiscal quarter', false),
+          ],
+        }),
+      ],
     })
 
     await renderApp('/trust')

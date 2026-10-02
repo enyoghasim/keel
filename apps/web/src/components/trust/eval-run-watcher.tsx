@@ -21,6 +21,11 @@ export function EvalRunWatcher({ companyId, runId }: { companyId: string; runId:
         queryClient.setQueryData<Envelope<EvalRunWithResults>>(evalRunQueryKey(companyId, runId), (detail) =>
           detail?.data && { ...detail, data: { ...detail.data, ...event.run } },
         )
+        // A detail fetch that raced the first few result events can be
+        // missing some of them; once the run is over, reload it whole.
+        if (event.run.status === 'completed' || event.run.status === 'failed') {
+          queryClient.invalidateQueries({ queryKey: evalRunQueryKey(companyId, runId) })
+        }
       } else {
         queryClient.setQueryData<Envelope<EvalRunWithResults>>(evalRunQueryKey(companyId, runId), (detail) => {
           if (!detail?.data) return detail
