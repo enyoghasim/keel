@@ -4,6 +4,7 @@ class Company < ApplicationRecord
   has_many :workflows, dependent: :destroy
   has_many :requests, dependent: :destroy
   has_many :import_issues, dependent: :destroy
+  has_many :source_documents, dependent: :destroy
 
   validates :name, presence: true
 end

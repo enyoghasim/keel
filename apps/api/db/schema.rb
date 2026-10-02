@@ -10,9 +10,49 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_085639) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_092135) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "vector"
+
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "record_type", null: false
+    t.bigint "record_id", null: false
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "filename", null: false
+    t.string "content_type"
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.datetime "created_at", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "chunks", force: :cascade do |t|
+    t.bigint "source_document_id", null: false
+    t.integer "page", null: false
+    t.integer "position", null: false
+    t.text "text", null: false
+    t.vector "embedding", limit: 1536
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["source_document_id"], name: "index_chunks_on_source_document_id"
+  end
 
   create_table "companies", force: :cascade do |t|
     t.string "name", null: false
@@ -29,6 +69,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_085639) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_departments_on_company_id"
+  end
+
+  create_table "import_issues", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.integer "row_number", null: false
+    t.string "field", null: false
+    t.string "raw_value"
+    t.string "message", null: false
+    t.boolean "resolved", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_import_issues_on_company_id"
   end
 
   create_table "people", force: :cascade do |t|
@@ -61,6 +113,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_085639) do
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_requests_on_company_id"
     t.index ["requester_id"], name: "index_requests_on_requester_id"
+  end
+
+  create_table "source_documents", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.string "filename", null: false
+    t.string "kind", null: false
+    t.integer "page_count"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_source_documents_on_company_id"
   end
 
   create_table "step_runs", force: :cascade do |t|
@@ -101,13 +163,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_085639) do
     t.index ["company_id"], name: "index_workflows_on_company_id"
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "chunks", "source_documents"
   add_foreign_key "departments", "companies"
   add_foreign_key "departments", "people", column: "head_id"
+  add_foreign_key "import_issues", "companies"
   add_foreign_key "people", "companies"
   add_foreign_key "people", "departments"
   add_foreign_key "people", "people", column: "manager_id"
   add_foreign_key "requests", "companies"
   add_foreign_key "requests", "people", column: "requester_id"
+  add_foreign_key "source_documents", "companies"
   add_foreign_key "step_runs", "people", column: "resolved_person_id"
   add_foreign_key "step_runs", "workflow_runs"
   add_foreign_key "workflow_runs", "requests"
