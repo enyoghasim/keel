@@ -86,4 +86,11 @@ describe('TraceDrawer', () => {
 
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('can be titled for something other than an agent run, such as an MCP call', () => {
+    render(<TraceDrawer run={run} title="MCP call" onClose={() => {}} />)
+
+    expect(screen.getByRole('dialog', { name: 'MCP call' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Agent trace' })).not.toBeInTheDocument()
+  })
 })
