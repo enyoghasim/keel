@@ -73,14 +73,15 @@ module Evals
 
     def self.run_insights_case(eval_run, eval_case)
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      cost = nil
       interpretation = Insights::Interpreter.call(
         company: eval_run.company, question: eval_case.input.fetch("question"), today: Date.iso8601(eval_case.input.fetch("today"))
-      )
+      ) { |call_cost| cost = (cost || 0) + call_cost }
       actual = { "query" => interpretation.query, "clarification" => interpretation.clarification }.compact
       score = InsightsScorer.call(expected: eval_case.expected, actual: actual)
 
       EvalResult.create!(eval_run: eval_run, eval_case: eval_case, passed: score.passed, actual: actual, diff: score.diff,
-        latency_ms: elapsed_ms(started))
+        metrics: { "cost_usd" => cost }.compact, latency_ms: elapsed_ms(started))
     rescue Llm::StructuredAsk::ValidationError => e
       EvalResult.create!(eval_run: eval_run, eval_case: eval_case, passed: false,
         error_message: "Output failed schema validation: #{e.message}", latency_ms: elapsed_ms(started))

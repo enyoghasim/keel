@@ -21,6 +21,19 @@ RSpec.describe Evals::Runner do
     create(:eval_case, suite: "insights", key: key, input: { "question" => question, "today" => "2026-10-02" }, expected: expected)
   end
 
+  it "adds what each interpretation cost onto the case and the run" do
+    add_case("leave", "Leave by department last quarter", { "query" => leave_query })
+    allow(Insights::Interpreter).to receive(:call) do |**, &on_cost|
+      on_cost.call(0.25)
+      Insights::Interpreter::Result.new(query: leave_query, clarification: nil)
+    end
+
+    described_class.call(eval_run)
+
+    expect(eval_run.eval_results.sole.metrics["cost_usd"]).to eq(0.25)
+    expect(eval_run.reload.cost_usd).to eq(BigDecimal("0.25"))
+  end
+
   it "scores every active case and records accuracy, counts and the model on the run" do
     add_case("leave", "Leave by department last quarter", { "query" => leave_query })
     add_case("fiscal", "Leave last fiscal quarter", { "clarification" => true })
