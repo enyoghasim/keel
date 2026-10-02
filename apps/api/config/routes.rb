@@ -14,6 +14,10 @@ Rails.application.routes.draw do
         post :test, on: :member
       end
       resources :requests, only: [ :index, :create, :show ]
+      resources :change_proposals, only: [ :index, :create, :show ] do
+        post :approve, on: :member
+        post :reject, on: :member
+      end
     end
 
     resources :step_runs, only: [] do
