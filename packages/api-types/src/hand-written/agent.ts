@@ -17,8 +17,11 @@ export interface AgentStep {
   tokens: number | null
 }
 
+// Runs sharing a conversation_id are one thread: the agent sees the
+// earlier questions and answers, each run keeping its own trace.
 export interface AgentRun {
   id: number
+  conversation_id: string
   person_id: number
   message: string
   status: AgentRunStatus
