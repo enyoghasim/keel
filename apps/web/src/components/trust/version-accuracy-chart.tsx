@@ -8,7 +8,7 @@ export function VersionAccuracyChart({ versions, promptKey }: { versions: Prompt
   if (points.length < 2) return null
 
   return (
-    <figure aria-label="Accuracy by prompt version" className="m-0">
+    <figure aria-label={`${promptKey} accuracy by prompt version`} className="m-0">
       <ResponsiveContainer width="100%" height={140} initialDimension={{ width: 480, height: 140 }}>
         <BarChart data={points} margin={{ left: 0, right: 16, top: 8 }}>
           <CartesianGrid vertical={false} stroke="var(--border)" />

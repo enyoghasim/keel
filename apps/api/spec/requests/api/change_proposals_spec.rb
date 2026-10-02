@@ -23,6 +23,15 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       expect(body["impact"]["broken"]).to eq([])
     end
 
+    it "includes the plain-English explanation once there is one" do
+      company = create(:company)
+      proposal = create(:change_proposal, company: company, explanation: "Ada gets more work.")
+
+      get "/api/companies/#{company.id}/change_proposals/#{proposal.id}"
+
+      expect(response.parsed_body["data"]).to include("explanation" => "Ada gets more work.")
+    end
+
     it "returns an error envelope when kind is missing" do
       company = create(:company)
 
@@ -279,6 +288,38 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       expect(policy.reload.version).to eq(2)
     end
 
+    context "when the rewrite creates a same-priority conflict" do
+      let(:conflicted) do
+        { "backtest" => { "total" => 1, "flipped_count" => 1, "flipped" => [], "summary" => "x",
+                          "new_conflicts" => [ { "rules" => [ "a", "b" ], "example" => {}, "warning" => "a and b now overlap" } ] } }
+      end
+
+      before { allow(Impact::RuleImpact).to receive(:call).and_return(conflicted) }
+
+      it "refuses to approve it plainly, leaving the policy alone" do
+        post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", as: :json
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["message"]).to match(/1 new conflict.*approve_anyway/)
+        expect(proposal.reload.status).to eq("pending")
+        expect(rule.reload.status).to eq("active")
+      end
+
+      it "needs a reason to approve anyway, and records it" do
+        post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", params: { approve_anyway: true }, as: :json
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["message"]).to match(/reason is required/)
+
+        post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve",
+          params: { approve_anyway: true, reason: "Travel rules are being merged next week" }, as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(proposal.reload).to have_attributes(status: "approved")
+        expect(proposal.impact["override_reason"]).to eq("Travel rules are being merged next week")
+        expect(rule.reload.status).to eq("superseded")
+      end
+    end
+
     it "refuses when the policy's rules changed since the proposal was made" do
       proposal # built against the 500 limit
       rule.update!(conditions: { "field" => "payload.amount_eur", "op" => "lte", "value" => 400 })
@@ -289,6 +330,94 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       expect(response.parsed_body["message"]).to match(/changed since/)
       expect(proposal.reload.status).to eq("pending")
       expect(rule.reload.status).to eq("active")
+    end
+  end
+
+  describe "approving a workflow proposal" do
+    let(:company) { create(:company) }
+    let(:hr) { create(:person, company: company, roles: [ "hr_admin" ]) }
+    let(:approval) { { "key" => "approval", "type" => "approval", "assignee" => "manager_of(requester)" } }
+    let(:workflow) { create(:workflow, company: company, steps: [ approval ]) }
+    let(:it_step) { { "key" => "it_setup", "type" => "task", "assignee" => "role:it_admin" } }
+    let(:diff) { { "workflow_id" => workflow.id, "instruction" => "IT sets up accounts", "before" => [ approval ], "after" => [ approval, it_step ] } }
+    let(:proposal) { create(:change_proposal, company: company, kind: "workflow", diff: diff, impact: { "broken" => [] }) }
+
+    before do
+      create(:person, company: company, manager: hr)
+      sign_in(hr)
+    end
+
+    it "replaces the workflow's steps, bumps its version and re-runs the impact" do
+      create(:person, company: company, manager: hr, roles: [ "it_admin" ])
+
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(proposal.reload).to have_attributes(status: "approved", decided_by_id: hr.id)
+      expect(proposal.impact["steps"]).to include("added" => [ "it_setup" ])
+      expect(workflow.reload).to have_attributes(steps: [ approval, it_step ], version: 2)
+    end
+
+    it "refuses when the workflow changed since the proposal was made" do
+      proposal
+      workflow.update!(steps: [ approval, { "key" => "other", "type" => "notify", "assignee" => "role:hr_admin" } ])
+
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["message"]).to match(/changed since/)
+      expect(proposal.reload.status).to eq("pending")
+    end
+
+    it "refuses when the impact got worse, unless approved anyway with a reason" do
+      # Nobody holds role:it_admin now, though the proposal was made when someone did.
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", as: :json
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["message"]).to match(/impact has gotten worse/)
+      expect(workflow.reload.steps).to eq([ approval ])
+
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve",
+        params: { approve_anyway: true, reason: "IT admin starts Monday" }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(proposal.reload.impact["override_reason"]).to eq("IT admin starts Monday")
+      expect(workflow.reload.steps).to eq([ approval, it_step ])
+    end
+  end
+
+  describe "GET /api/companies/:company_id/change_proposals/:id/trace" do
+    let(:company) { create(:company) }
+    let(:asker) { create(:person, :hr_admin, company: company) }
+    let(:agent_run) { create(:agent_run, company: company, person: asker, status: "completed", final_text: "Proposed.") }
+    let(:proposal) { create(:change_proposal, company: company, proposed_by: "agent", agent_run: agent_run) }
+
+    before { create(:agent_step, agent_run: agent_run, position: 1, kind: "tool", tool_name: "propose_org_change") }
+
+    it "lets any hr_admin reviewer open the agent run that proposed it, though the run is someone else's" do
+      sign_in(create(:person, :hr_admin, company: company))
+
+      get "/api/companies/#{company.id}/change_proposals/#{proposal.id}/trace"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["data"]).to include("id" => agent_run.id, "person_id" => asker.id)
+      expect(response.parsed_body["data"]["steps"].first).to include("tool_name" => "propose_org_change")
+    end
+
+    it "is for the people who may decide the proposal, not anyone in the company" do
+      sign_in(create(:person, company: company))
+
+      get "/api/companies/#{company.id}/change_proposals/#{proposal.id}/trace"
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "is not found for a proposal a person made without the agent" do
+      sign_in(create(:person, :hr_admin, company: company))
+      manual = create(:change_proposal, company: company)
+
+      get "/api/companies/#{company.id}/change_proposals/#{manual.id}/trace"
+
+      expect(response).to have_http_status(:not_found)
     end
   end
 

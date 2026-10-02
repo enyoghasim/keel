@@ -5,10 +5,10 @@ module KeelMcp
   module Server
     TOOLS = [ Tools::WhoApproves, Tools::CheckPolicy, Tools::OrgLookup, Tools::RequestLeave ].freeze
 
-    def self.build(person)
+    def self.build(person, token: nil)
       MCP::Server.new(
         name: "keel", version: "1.0.0", tools: TOOLS,
-        server_context: { person: person }
+        server_context: { person: person, token: token }
       )
     end
   end

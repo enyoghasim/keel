@@ -1,11 +1,14 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ChangeProposal, Department, Envelope, Person } from 'api-types'
+import { useCallback } from 'react'
 import { api } from '../../lib/api'
 import { useCurrentPerson } from '../../lib/auth'
+import { useChannel } from '../../lib/cable'
 import { PagePlaceholder } from '../layout/page-placeholder'
 import { ProposalRow } from './proposal-row'
 
 export function ProposalsView({ companyId }: { companyId: string }) {
+  const queryClient = useQueryClient()
   const canDecide = useCurrentPerson(companyId).data?.data?.roles.includes('hr_admin') ?? false
   const proposalsQuery = useQuery({
     queryKey: ['change_proposals', companyId],
@@ -19,6 +22,11 @@ export function ProposalsView({ companyId }: { companyId: string }) {
     queryKey: ['departments', companyId],
     queryFn: () => api.get<Envelope<Department[]>>(`/companies/${companyId}/departments`),
   })
+
+  // A proposal's plain-English explanation is written by a job after it is
+  // created, so refresh the list when one arrives.
+  const onExplained = useCallback(() => queryClient.invalidateQueries({ queryKey: ['change_proposals', companyId] }), [queryClient, companyId])
+  useChannel('ChangeProposalChannel', { company_id: companyId }, onExplained)
 
   if (proposalsQuery.isPending || peopleQuery.isPending || departmentsQuery.isPending) {
     return <PagePlaceholder note="Loading proposals…" />

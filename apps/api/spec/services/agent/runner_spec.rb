@@ -72,6 +72,29 @@ RSpec.describe Agent::Runner do
     expect(chat.asked).to eq("Can I expense a €1,200 flight to RubyConf?")
   end
 
+  describe "the agent_system prompt version" do
+    def version(template, **attrs) = create(:prompt_version, key: "agent_system", template: template, **attrs)
+
+    it "uses the active version's template, filled in for this person, company and day" do
+      version("You work for {{company}}, helping {{person_name}} ({{person_details}}) on {{today}}.", active: true)
+      chat = script({ content: "Hi!" })
+
+      travel_to(Date.new(2026, 10, 2)) { described_class.call(agent_run) }
+
+      expect(chat.instructions).to eq("You work for Nubo, helping Ngozi Okafor (Account Executive, Sales; manager: Tunde Bakare; roles: sales_lead) on 2026-10-02.")
+    end
+
+    it "uses the version it is given instead of the active one, so an eval can compare prompts" do
+      version("Active prompt", active: true)
+      challenger = version("Challenger prompt for {{person_name}}")
+      chat = script({ content: "Hi!" })
+
+      described_class.call(agent_run, prompt_version: challenger)
+
+      expect(chat.instructions).to eq("Challenger prompt for Ngozi Okafor")
+    end
+  end
+
   it "offers the change-proposing tools only to an hr_admin, and tells the model never to call a proposal a change" do
     agent_run.person.update!(roles: [ "hr_admin" ])
     chat = script({ content: "Hi!" })

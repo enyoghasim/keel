@@ -8,10 +8,13 @@ RSpec.describe Evals::Judge do
   let(:judgement) { { "correctness" => 5, "citation" => 4, "clarity" => 5, "no_false_claims" => 3, "rationale" => "It said the request was filed." } }
   let(:tool_calls) { [ { "name" => "check_policy", "input" => { "request_kind" => "expense" }, "output" => { "decision" => "require_approval" } } ] }
 
+  # What the judge's model replied; `cost` is what ruby_llm priced the message at, nil for a model it has no rates for.
+  def reply(content, cost: nil) = instance_double(RubyLLM::Message, content: content, cost: instance_double(RubyLLM::Cost, total: cost))
+
   before do
     allow(RubyLLM).to receive(:chat).and_return(chat)
     allow(chat).to receive(:with_schema).and_return(chat)
-    allow(chat).to receive(:ask).and_return(instance_double(RubyLLM::Message, content: judgement))
+    allow(chat).to receive(:ask).and_return(reply(judgement))
   end
 
   it "returns the four rubric scores, their mean and the rationale" do
@@ -29,10 +32,20 @@ RSpec.describe Evals::Judge do
   end
 
   it "retries once when the judge's output fails the schema, then raises" do
-    allow(chat).to receive(:ask).and_return(instance_double(RubyLLM::Message, content: { "correctness" => 9 }))
+    allow(chat).to receive(:ask).and_return(reply({ "correctness" => 9 }))
 
     expect { described_class.call(message: "x", tool_calls: [], answer: "y") }.to raise_error(Llm::StructuredAsk::ValidationError)
     expect(chat).to have_received(:ask).twice
+  end
+
+  it "reports what grading cost, so an eval run can count it" do
+    allow(chat).to receive(:ask).and_return(reply(judgement, cost: 1.25))
+
+    expect(described_class.call(message: "x", tool_calls: [], answer: "y").cost_usd).to eq(1.25)
+  end
+
+  it "has no cost when the model has no pricing" do
+    expect(described_class.call(message: "x", tool_calls: [], answer: "y").cost_usd).to be_nil
   end
 
   describe ".agreement" do

@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ProposalExplanation",
+  "description": "A short plain-English explanation of a change proposal's computed impact, for an HR manager (SPEC.md section 10). Written from the impact facts only: Keel rejects any number it doesn't contain.",
+  "type": "object",
+  "required": ["explanation"],
+  "additionalProperties": false,
+  "properties": {
+    "explanation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 800,
+      "description": "One short paragraph, no markdown."
+    }
+  }
+}

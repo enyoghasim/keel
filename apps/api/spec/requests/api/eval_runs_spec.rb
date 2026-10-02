@@ -27,6 +27,16 @@ RSpec.describe "Api::EvalRuns", type: :request do
       expect(response.parsed_body["data"]).to include("prompt_version_id" => version.id, "stability_samples" => 5)
     end
 
+    it "starts an agent run of a chosen agent_system prompt version" do
+      sign_in(hr_admin)
+      version = create(:prompt_version, key: "agent_system", version: 1)
+
+      post "/api/companies/#{company.id}/eval_runs", params: { suite: "agent", prompt_version_id: version.id }, as: :json
+
+      expect(response).to have_http_status(:accepted)
+      expect(response.parsed_body["data"]).to include("suite" => "agent", "prompt_version_id" => version.id)
+    end
+
     it "caps stability samples, and won't use another prompt key's version for the suite" do
       sign_in(hr_admin)
       other_key = create(:prompt_version, key: "agent_system", version: 1)

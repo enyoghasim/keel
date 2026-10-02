@@ -6,6 +6,7 @@ class PersonalAccessToken < ApplicationRecord
   PREFIX = "keel_pat_".freeze
 
   belongs_to :person
+  has_many :mcp_calls, dependent: :nullify
 
   validates :name, :token_digest, presence: true
 

@@ -101,7 +101,7 @@ export function RunDetail({ companyId, runId }: { companyId: string; runId: numb
                 <details>
                   <summary className="cursor-pointer text-[13px]">
                     <span className="font-medium">{caseQuestion(result)}</span>
-                    <span className="ml-2 font-mono text-[11px] text-subtle-foreground">{result.case_key}</span>
+                    <span className="ml-2 break-all font-mono text-[11px] text-subtle-foreground">{result.case_key}</span>
                   </summary>
                   <FailureDrilldown result={result} />
                 </details>

@@ -89,6 +89,37 @@ RSpec.describe "MCP endpoint", type: :request do
     end
   end
 
+  describe "recording calls (SPEC.md section 13's closing shot: the call arriving in Keel's own trace)" do
+    include ActionCable::TestHelper
+
+    it "records each tool call with who made it, its input, output and latency, and broadcasts it" do
+      token = PersonalAccessToken.find_by!(token_digest: PersonalAccessToken.digest(raw_token))
+
+      expect { tool_result("check_policy", { request_kind: "leave", payload: { days: 5 } }) }
+        .to have_broadcasted_to(person).from_channel(McpCallChannel).with(hash_including("tool_name" => "check_policy"))
+
+      call = McpCall.last
+      expect(call).to have_attributes(person: person, company: company, personal_access_token: token, tool_name: "check_policy", is_error: false)
+      expect(call.input).to eq("request_kind" => "leave", "payload" => { "days" => 5 })
+      expect(call.output).to include("decision" => "require_approval")
+      expect(call.latency_ms).to be >= 0
+    end
+
+    it "records a tool-level error as an error call" do
+      tool_result("org_lookup", { person_id: 0 })
+
+      expect(McpCall.last).to have_attributes(tool_name: "org_lookup", is_error: true)
+      expect(McpCall.last.output["error"]).to be_present
+    end
+
+    it "doesn't record listing tools or a rejected token" do
+      rpc("tools/list")
+      post "/mcp", params: { jsonrpc: "2.0", id: 1, method: "tools/list" }.to_json, headers: headers.except("Authorization")
+
+      expect(McpCall.count).to eq(0)
+    end
+  end
+
   it "reports an invalid leave range as a tool error rather than creating anything" do
     _, result = tool_result("request_leave", { start_date: "2026-10-16", end_date: "2026-10-12" })
 

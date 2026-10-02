@@ -1,6 +1,6 @@
 module StaleWork
   # Fails work that a dead worker left pending or running forever. Every
-  # LLM-backed job (AgentJob, InsightJob, EvalRunJob) skips records that
+  # LLM-backed job (AgentJob, InsightJob, EvalRunJob, WorkflowEditJob) skips records that
   # aren't pending and nothing retries them, so a worker that crashes — or,
   # in dev, a server restart that drops the async adapter's in-flight jobs —
   # would otherwise leave the UI spinning on a record that will never
@@ -14,7 +14,7 @@ module StaleWork
     # How long each kind of work may sit unfinished, counted from its last
     # update: an agent run or insight question is a handful of model calls,
     # an eval run is a whole suite of them.
-    TIMEOUTS = { AgentRun => 5.minutes, InsightQuery => 2.minutes, EvalRun => 15.minutes }.freeze
+    TIMEOUTS = { AgentRun => 5.minutes, InsightQuery => 2.minutes, EvalRun => 15.minutes, WorkflowEdit => 2.minutes }.freeze
 
     # Returns how many of each it failed, e.g. { agent_runs: 1, insight_queries: 0, eval_runs: 0 }.
     def self.call = new.call
@@ -45,6 +45,7 @@ module StaleWork
       case record
       when AgentRun then AgentChannel.broadcast_to(record, { "event" => "run", "run" => record.as_payload })
       when InsightQuery then InsightChannel.broadcast_to(record, record.as_payload)
+      when WorkflowEdit then WorkflowEditChannel.broadcast_to(record, record.as_payload)
       when EvalRun then EvalChannel.broadcast_to(record, { "event" => "run", "run" => record.as_payload })
       end
     end

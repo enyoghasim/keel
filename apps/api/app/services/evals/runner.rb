@@ -11,7 +11,7 @@ module Evals
     }.freeze
 
     # Which prompt_versions key each suite's AI service reads.
-    PROMPT_KEYS = { "policy_extraction" => Assemble::PolicyExtractor::PROMPT_KEY }.freeze
+    PROMPT_KEYS = { "policy_extraction" => Assemble::PolicyExtractor::PROMPT_KEY, "agent" => Agent::Runner::PROMPT_KEY }.freeze
 
     def self.call(eval_run, &on_progress)
       run_case = SUITES.fetch(eval_run.suite) { raise ArgumentError, "the #{eval_run.suite} suite isn't runnable" }
@@ -51,12 +51,15 @@ module Evals
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       passage = eval_case.input.fetch("passage")
       chunk = Struct.new(:page, :text).new(1, passage)
+      cost = nil
       samples = Array.new([ eval_run.stability_samples, 1 ].max) do
-        Assemble::PolicyExtractor.compile(category: eval_case.input.fetch("category"), chunks: [ chunk ], prompt_version: eval_run.prompt_version)
+        Assemble::PolicyExtractor.compile(category: eval_case.input.fetch("category"), chunks: [ chunk ], prompt_version: eval_run.prompt_version) do |call_cost|
+          cost = (cost || 0) + call_cost
+        end
       end
 
       score = PolicyExtractionScorer.call(expected: eval_case.expected, actual_rules: samples.first, passage: passage)
-      metrics = score.metrics
+      metrics = score.metrics.merge("cost_usd" => cost).compact
       metrics = metrics.merge("stability" => Behaviour.agreement(samples.map { |rules| rules.map { PolicyExtractionScorer.rule_definition(_1) } })) if samples.size > 1
       actual = { "rules" => samples.first, "ambiguities" => samples.first.flat_map { |rule| (rule["ambiguities"] || []).pluck("phrase") } }
 
@@ -93,7 +96,7 @@ module Evals
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       observed = nil
       ActiveRecord::Base.transaction(requires_new: true) do
-        observed = observe_agent(eval_run.company, eval_case)
+        observed = observe_agent(eval_run.company, eval_case, eval_run.prompt_version)
         raise ActiveRecord::Rollback
       end
 
@@ -104,7 +107,8 @@ module Evals
 
       score = AgentScorer.call(expected: eval_case.expected, tool_calls: observed[:tool_calls])
       judged = Judge.call(message: eval_case.input.fetch("message"), tool_calls: observed[:tool_calls], answer: observed[:final_text])
-      metrics = { "judge" => judged.scores.merge("mean" => judged.mean), "judge_rationale" => judged.rationale, "cost_usd" => observed[:cost_usd] }.compact
+      metrics = { "judge" => judged.scores.merge("mean" => judged.mean), "judge_rationale" => judged.rationale,
+                  "cost_usd" => sum_costs(observed[:cost_usd], judged.cost_usd) }.compact
       if (label = eval_case.expected["judge_label"])
         metrics["judge_agreement"] = Judge.agreement(judged.scores, label)
       end
@@ -117,7 +121,7 @@ module Evals
     end
     private_class_method :run_agent_case
 
-    def self.observe_agent(company, eval_case)
+    def self.observe_agent(company, eval_case, prompt_version)
       input = eval_case.input
       person = if input["person_email"]
         company.people.find_by(email: input["person_email"]) or raise ActiveRecord::RecordNotFound, "Nobody with the email #{input['person_email']} in this company"
@@ -131,7 +135,7 @@ module Evals
           status: "completed", created_at: (Array(input["history"]).size - i).hours.ago)
       end
       agent_run = company.agent_runs.create!(person: person, conversation_id: conversation_id, message: input.fetch("message"))
-      Agent::Runner.call(agent_run)
+      Agent::Runner.call(agent_run, prompt_version: prompt_version)
       agent_run.reload
 
       {
@@ -140,6 +144,10 @@ module Evals
       }
     end
     private_class_method :observe_agent
+
+    # nil when nothing was priced, rather than a false $0.
+    def self.sum_costs(*costs) = costs.compact.then { _1.empty? ? nil : _1.sum }
+    private_class_method :sum_costs
 
     def self.elapsed_ms(started) = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
     private_class_method :elapsed_ms

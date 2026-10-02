@@ -19,12 +19,15 @@ Rails.application.routes.draw do
       resources :requests, only: [ :index, :create, :show ]
       resources :workflows, only: [ :index, :show ] do
         post :test_run, on: :member
+        resources :edits, controller: "workflow_edits", only: [ :create, :show ]
       end
       resources :change_proposals, only: [ :index, :create, :show ] do
         post :approve, on: :member
         post :reject, on: :member
+        get :trace, on: :member
       end
       resources :personal_access_tokens, only: [ :index, :create, :destroy ]
+      resources :mcp_calls, only: [ :index ]
       resources :insights, only: [ :index, :create, :show ]
       resources :eval_runs, only: [ :index, :create, :show ]
       resources :eval_cases, only: [ :index, :update ]

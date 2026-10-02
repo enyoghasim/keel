@@ -1,10 +1,15 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { Department, OrgChangeProposal, Person, RuleChangeProposal } from 'api-types'
-import { beforeEach, describe, expect, it } from 'vitest'
+import type { AgentRun, Department, OrgChangeProposal, Person, RuleChangeProposal, WorkflowChangeProposal } from 'api-types'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
+
+// The page subscribes to Action Cable; keep jsdom from opening a socket.
+vi.mock('@rails/actioncable', () => ({
+  createConsumer: vi.fn(() => ({ subscriptions: { create: vi.fn(() => ({ unsubscribe: vi.fn() })) } })),
+}))
 
 const people: Person[] = [
   {
@@ -71,6 +76,7 @@ const cleanProposal: OrgChangeProposal = {
   status: 'pending',
   decided_by_id: null,
   decided_at: null,
+  explanation: null,
   created_at: '2026-01-01T00:00:00Z',
 }
 
@@ -98,6 +104,7 @@ const brokenProposal: OrgChangeProposal = {
   status: 'pending',
   decided_by_id: null,
   decided_at: null,
+  explanation: null,
   created_at: '2026-01-02T00:00:00Z',
 }
 
@@ -111,6 +118,7 @@ const ruleProposal: RuleChangeProposal = {
   status: 'pending',
   decided_by_id: null,
   decided_at: null,
+  explanation: null,
   created_at: '2026-01-03T00:00:00Z',
   diff: {
     policy_id: 1,
@@ -145,6 +153,38 @@ const ruleProposal: RuleChangeProposal = {
       summary: 'This would have changed 1 of 4 past expense decisions: 1 would have been auto-approved instead of sent for approval.',
       flipped: [{ request_id: 9, requester_id: 3, payload: { amount_eur: 700 }, before: 'require_approval', after: 'auto_approve' }],
     },
+  },
+}
+
+const workflowProposal: WorkflowChangeProposal = {
+  id: 4,
+  company_id: 1,
+  kind: 'workflow',
+  title: 'Leave Workflow: Added an IT step',
+  proposed_by: 'user',
+  agent_run_id: null,
+  status: 'pending',
+  decided_by_id: null,
+  decided_at: null,
+  explanation: null,
+  created_at: '2026-01-04T00:00:00Z',
+  diff: {
+    workflow_id: 5,
+    request_kind: 'leave',
+    instruction: 'IT sets up accounts after the manager approves',
+    before: [{ key: 'approval', type: 'approval', assignee: 'manager_of(requester)' }],
+    after: [
+      { key: 'approval', type: 'approval', assignee: 'manager_of(requester)' },
+      { key: 'it_setup', type: 'task', title: 'Set up accounts', assignee: 'role:it_admin' },
+    ],
+  },
+  impact: {
+    steps: { added: ['it_setup'], removed: [], changed: [], moved: [] },
+    scenarios_run: 3,
+    affected_count: 3,
+    affected: [],
+    broken: [{ step_key: 'it_setup', reference: 'role:it_admin', person_count: 3 }],
+    in_flight: 0,
   },
 }
 
@@ -370,5 +410,110 @@ describe('/proposals', () => {
     expect(await screen.findByText(/would have changed 1 of 4 past expense decisions/)).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'expense_small_auto after' })).toHaveTextContent('amount ≤ €800')
     expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled()
+  })
+
+  it('lists a workflow proposal with its graph, and holds Approve behind a reason while a new step resolves to nobody', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    mockApi({
+      'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [workflowProposal] } },
+      ...peopleRoute,
+      ...departmentsRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/proposals')
+
+    expect(await screen.findByText(/Workflow change · proposed by a person/)).toBeInTheDocument()
+    expect(screen.getByText('3 people affected')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Added an IT step/ }))
+
+    expect(await screen.findByText('Set up accounts')).toBeInTheDocument()
+    expect(screen.getByText(/role:it_admin resolves to nobody for 3 people/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
+  })
+
+  it('holds a rule proposal that creates a conflict behind Approve anyway with a reason', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    const conflicted: RuleChangeProposal = {
+      ...ruleProposal,
+      impact: {
+        backtest: {
+          ...ruleProposal.impact.backtest,
+          new_conflicts: [{ rules: ['expense_small_auto', 'expense_travel'], example: { amount_eur: 700 }, warning: 'These two rules now overlap at the same priority.' }],
+        },
+      },
+    }
+    const fetchMock = mockApi({
+      'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [conflicted] } },
+      'POST /api/companies/1/change_proposals/3/approve': { body: { success: true, message: '', data: { ...conflicted, status: 'approved' } } },
+      ...peopleRoute,
+      ...departmentsRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/proposals')
+    await user.click(await screen.findByRole('button', { name: /Raise the limit to €800/ }))
+
+    const approveButton = await screen.findByRole('button', { name: 'Approve' })
+    expect(approveButton).toBeDisabled()
+    await user.click(screen.getByRole('checkbox', { name: /Approve anyway, despite 1 new conflict/ }))
+    await user.type(screen.getByLabelText('Reason for approving anyway'), 'Merging travel rules next week')
+    expect(approveButton).toBeEnabled()
+
+    await user.click(approveButton)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/companies/1/change_proposals/3/approve',
+      expect.objectContaining({ body: JSON.stringify({ approve_anyway: true, reason: 'Merging travel rules next week' }) }),
+    )
+  })
+
+  it("lets an hr_admin open the trace of a proposal the agent made, and doesn't offer one for a person's", async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    const run: AgentRun = {
+      id: 5, conversation_id: 'c', person_id: 99, message: 'Raise the limit to €800', status: 'completed', final_text: 'Proposed.', total_tokens: 100,
+      error_message: null, cost_usd: null, feedback: null, feedback_reason: null, created_at: '2026-01-03T00:00:00Z',
+      steps: [{ id: 1, position: 1, kind: 'tool', tool_name: 'propose_rule_change', input: { policy_id: 1 }, output: { proposal_id: 3 }, latency_ms: 40, tokens: null }],
+    }
+    mockApi({
+      'GET /api/companies/1/change_proposals': { body: { success: true, message: '', data: [ruleProposal, cleanProposal] } },
+      'GET /api/companies/1/change_proposals/3/trace': { body: { success: true, message: '', data: run } },
+      ...peopleRoute,
+      ...departmentsRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/proposals')
+    await user.click(await screen.findByRole('button', { name: /Move Ngozi under Ada/ }))
+    expect(screen.queryByRole('button', { name: 'View trace' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Raise the limit to €800/ }))
+    await user.click(await screen.findByRole('button', { name: 'View trace' }))
+
+    const drawer = await screen.findByRole('dialog', { name: 'Agent trace' })
+    expect(within(drawer).getByText('propose_rule_change')).toBeInTheDocument()
+  })
+
+  it('shows the plain-English explanation of a proposal, once it has one', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    mockApi({
+      'GET /api/companies/1/change_proposals': {
+        body: { success: true, message: '', data: [{ ...cleanProposal, explanation: 'Ngozi’s requests would go to Ada instead of Tunde.' }, brokenProposal] },
+      },
+      ...peopleRoute,
+      ...departmentsRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/proposals')
+    await user.click(await screen.findByRole('button', { name: /Move Ngozi under Ada/ }))
+    expect(within(screen.getByRole('region', { name: 'In plain English' })).getByText(/requests would go to Ada instead of Tunde/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Remove Sales department head/ }))
+
+    expect(screen.getAllByRole('region', { name: 'In plain English' })).toHaveLength(1)
   })
 })

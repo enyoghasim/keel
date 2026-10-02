@@ -48,12 +48,13 @@ module Assemble
     # the schema-validated rules, saving nothing. Raises
     # Llm::StructuredAsk::ValidationError if the output is invalid twice.
     # Chunks need only respond to #page and #text, so evals can compile a
-    # passage that isn't a stored Chunk.
-    def self.compile(category:, chunks:, prompt_version: PromptVersion.active_for(PROMPT_KEY))
+    # passage that isn't a stored Chunk. A block receives what each model
+    # call cost (see Llm::StructuredAsk).
+    def self.compile(category:, chunks:, prompt_version: PromptVersion.active_for(PROMPT_KEY), &on_cost)
       template = prompt_version ? prompt_version : PromptVersion.new(template: DEFAULT_TEMPLATE)
       chat = RubyLLM.chat.with_schema(schema)
 
-      Llm::StructuredAsk.call(chat: chat, schema: schema, prompt: template.render(category: category, excerpt: excerpt(chunks))).fetch("rules")
+      Llm::StructuredAsk.call(chat: chat, schema: schema, prompt: template.render(category: category, excerpt: excerpt(chunks)), &on_cost).fetch("rules")
     end
 
     def self.relevant_chunks_for(company:, category:, limit: 8)

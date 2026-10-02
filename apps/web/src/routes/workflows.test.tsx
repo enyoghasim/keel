@@ -1,11 +1,24 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { Person, Workflow, WorkflowTestRunResult } from 'api-types'
-import { beforeEach, describe, expect, it } from 'vitest'
+import type { Person, Workflow, WorkflowChangeProposal, WorkflowEdit, WorkflowTestRunResult } from 'api-types'
+import { act } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setCurrentCompanyId } from '../lib/current-company'
 import { mockApi } from '../test/mock-api'
 import { renderApp } from '../test/render-app'
 import { chooseOption } from '../test/choose-option'
+
+// Same stable-spy setup as trust.test.tsx and insights.test.tsx.
+const { subscriptionsCreate } = vi.hoisted(() => ({
+  subscriptionsCreate: vi.fn((_channel: unknown, mixin: { received: (event: unknown) => void }) => {
+    void mixin
+    return { unsubscribe: vi.fn() }
+  }),
+}))
+vi.mock('@rails/actioncable', () => ({
+  createConsumer: vi.fn(() => ({ subscriptions: { create: subscriptionsCreate } })),
+}))
+const lastSubscription = () => subscriptionsCreate.mock.calls[subscriptionsCreate.mock.calls.length - 1]
 
 const expenseWorkflow: Workflow = {
   id: 5,
@@ -147,5 +160,88 @@ describe('/workflows', () => {
     expect(await screen.findByText('Needs approval')).toBeInTheDocument()
     expect(screen.getByText('Ngozi Doe')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  describe('describe a change', () => {
+    const pendingEdit: WorkflowEdit = {
+      id: 31, workflow_id: 5, instruction: 'IT sets up accounts after the manager approves', status: 'pending',
+      change_proposal_id: null, error_message: null, created_at: '2026-10-02T00:00:00Z',
+    }
+    const proposal: WorkflowChangeProposal = {
+      id: 8, company_id: 1, kind: 'workflow', title: 'Expense approval: Added an IT step', proposed_by: 'user', agent_run_id: null,
+      status: 'pending', decided_by_id: null, decided_at: null, explanation: null, created_at: '2026-10-02T00:00:00Z',
+      diff: {
+        workflow_id: 5, request_kind: 'expense', instruction: pendingEdit.instruction, before: expenseWorkflow.steps,
+        after: [...expenseWorkflow.steps, { key: 'it_setup', type: 'task', title: 'Set up accounts', assignee: 'role:it_admin' }],
+      },
+      impact: { steps: { added: ['it_setup'], removed: [], changed: [], moved: [] }, scenarios_run: 3, affected_count: 0, affected: [], broken: [], in_flight: 0 },
+    }
+    const routes = {
+      'GET /api/companies/1/workflows': { body: { success: true, message: '', data: [expenseWorkflow] } },
+      'GET /api/companies/1/workflows/5': { body: { success: true, message: '', data: expenseWorkflow } },
+      'POST /api/companies/1/workflows/5/edits': { status: 202, body: { success: true, message: '', data: pendingEdit } },
+      ...peopleRoute,
+      ...sessionRoute,
+    }
+
+    async function describeChange(user: ReturnType<typeof userEvent.setup>) {
+      await screen.findByText('Expense request submitted')
+      await user.type(screen.getByRole('textbox', { name: 'Describe a change' }), pendingEdit.instruction)
+      await user.click(screen.getByRole('button', { name: 'Propose change' }))
+    }
+
+    it('sends the instruction, then shows the proposed graph once the draft arrives, without changing anything', async () => {
+      const user = userEvent.setup()
+      setCurrentCompanyId('1')
+      const fetchMock = mockApi({
+        ...routes,
+        'GET /api/companies/1/change_proposals/8': { body: { success: true, message: '', data: proposal } },
+      })
+
+      await renderApp('/workflows')
+      await describeChange(user)
+
+      expect(await screen.findByRole('button', { name: 'Drafting…' })).toBeDisabled()
+      expect(fetchMock).toHaveBeenCalledWith('/api/companies/1/workflows/5/edits', expect.objectContaining({ body: JSON.stringify({ instruction: pendingEdit.instruction }) }))
+
+      expect(lastSubscription()[0]).toMatchObject({ channel: 'WorkflowEditChannel', workflow_edit_id: 31 })
+      act(() => lastSubscription()[1].received({ ...pendingEdit, status: 'proposed', change_proposal_id: 8 }))
+
+      expect(await screen.findByText('Expense approval: Added an IT step')).toBeInTheDocument()
+      expect(await screen.findAllByText('Set up accounts')).not.toHaveLength(0)
+      expect(screen.getByText('Added')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /review and approve it on proposals/i })).toHaveAttribute('href', '/proposals')
+      expect(screen.getByRole('button', { name: 'Propose change' })).toBeEnabled()
+    })
+
+    it("shows why a draft failed, and says when the instruction wouldn't change anything", async () => {
+      const user = userEvent.setup()
+      setCurrentCompanyId('1')
+      mockApi(routes)
+
+      await renderApp('/workflows')
+      await describeChange(user)
+      await screen.findByRole('button', { name: 'Drafting…' })
+
+      act(() => lastSubscription()[1].received({ ...pendingEdit, status: 'failed', error_message: "Keel couldn't turn that into a valid workflow." }))
+      expect(await screen.findByText("Keel couldn't turn that into a valid workflow.")).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Propose change' }))
+      act(() => lastSubscription()[1].received({ ...pendingEdit, status: 'unchanged' }))
+      expect(await screen.findByText(/wouldn't change this workflow/)).toBeInTheDocument()
+    })
+
+    it('is for hr_admins only', async () => {
+      setCurrentCompanyId('1')
+      mockApi({
+        ...routes,
+        'GET /api/companies/1/session': { body: { success: true, message: '', data: { ...currentPerson, roles: [] } } },
+      })
+
+      await renderApp('/workflows')
+
+      await screen.findByText('Expense request submitted')
+      expect(screen.queryByRole('textbox', { name: 'Describe a change' })).not.toBeInTheDocument()
+    })
   })
 })

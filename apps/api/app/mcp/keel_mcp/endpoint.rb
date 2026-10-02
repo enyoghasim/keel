@@ -13,7 +13,7 @@ module KeelMcp
       return unauthorized unless token
 
       transport = MCP::Server::Transports::StreamableHTTPTransport.new(
-        Server.build(token.person), stateless: true, dns_rebinding_protection: false
+        Server.build(token.person, token: token), stateless: true, dns_rebinding_protection: false
       )
       transport.call(env)
     end

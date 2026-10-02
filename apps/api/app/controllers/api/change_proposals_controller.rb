@@ -2,20 +2,18 @@ module Api
   # The other half of AGENTS.md rule 2: every org/rule/workflow change
   # becomes a ChangeProposal with a computed impact report, and only a
   # human decision via #approve or #reject makes it real (SPEC.md section
-  # 10). Only the "org" kind is wired up end to end for now — "rule" and
-  # "workflow" diffs need their own impact pipeline (Impact::Backtester for
-  # rules; workflows have no analyzer yet) and are deferred rather than
-  # guessed at.
+  # 10). All three kinds can be approved here; only "org" proposals can be
+  # created over HTTP — rule and workflow proposals come from the agent and
+  # from WorkflowEditJob, which compute their own impact.
   class ChangeProposalsController < ApplicationController
     include CompanyScoped
 
-    FIELDS = %i[id company_id kind title diff impact proposed_by agent_run_id status decided_by_id decided_at created_at].freeze
+    FIELDS = %i[id company_id kind title diff impact proposed_by agent_run_id status explanation decided_by_id decided_at created_at].freeze
     SUPPORTED_KINDS = %w[org].freeze
-    APPROVABLE_KINDS = %w[org rule].freeze
 
-    before_action :set_change_proposal, only: %i[show approve reject]
-    before_action :require_current_person!, only: %i[approve reject]
-    before_action :require_hr_admin!, only: %i[approve reject]
+    before_action :set_change_proposal, only: %i[show approve reject trace]
+    before_action :require_current_person!, only: %i[approve reject trace]
+    before_action :require_hr_admin!, only: %i[approve reject trace]
 
     def index
       scope = @company.change_proposals
@@ -25,6 +23,17 @@ module Api
 
     def show
       render_success(data: serialize(@change_proposal))
+    end
+
+    # The agent run behind a proposal the agent made (AGENTS.md rule 3). Runs
+    # are private to whoever asked, but a proposal's reviewers have to be
+    # able to see what produced it, so any hr_admin — the only people who
+    # may decide — can open this one.
+    def trace
+      agent_run = @change_proposal.agent_run
+      return render_error(message: "This proposal wasn't made by the agent.", status: :not_found) if agent_run.nil?
+
+      render_success(data: agent_run.as_payload)
     end
 
     def create
@@ -50,10 +59,8 @@ module Api
 
     def approve
       return render_error(message: "this proposal has already been decided") unless @change_proposal.status == "pending"
-      unless APPROVABLE_KINDS.include?(@change_proposal.kind)
-        return render_error(message: "approving a '#{@change_proposal.kind}' proposal is not implemented yet")
-      end
       return approve_rule_proposal if @change_proposal.kind == "rule"
+      return approve_workflow_proposal if @change_proposal.kind == "workflow"
 
       approve_anyway = ActiveModel::Type::Boolean.new.cast(params[:approve_anyway])
       reason = params[:reason]
@@ -63,14 +70,7 @@ module Api
       current_broken = impact["broken"].size
       original_broken = @change_proposal.impact["broken"]&.size || 0
 
-      if current_broken > original_broken && !approve_anyway
-        return render_error(
-          message: "impact has gotten worse since this proposal was made " \
-                    "(#{current_broken} broken now vs #{original_broken} then) — " \
-                    "pass approve_anyway: true with a reason to proceed anyway",
-          errors: impact
-        )
-      end
+      return render_worse_impact(impact, current_broken, original_broken) if current_broken > original_broken && !approve_anyway
 
       ActiveRecord::Base.transaction do
         @change_proposal.apply_org_diff!(@company)
@@ -98,7 +98,7 @@ module Api
     private
 
     # Only a human with the authority to change the org or its policies may
-    # decide a proposal (AGENTS.md rule 2: a human approves).
+    # decide a proposal or read the trace behind it (AGENTS.md rule 2: a human approves).
     def require_hr_admin!
       return if performed? || current_person.hr_admin?
 
@@ -119,19 +119,68 @@ module Api
 
     # Rule proposals are replayed against history, not the org graph: the
     # backtest is re-run so the stored impact is what was true at decision
-    # time, and the diff is refused if the policy moved underneath it.
+    # time, and the diff is refused if the policy moved underneath it. A
+    # rewrite that makes two rules conflict is the rule-side counterpart of a
+    # broken chain: it needs "approve anyway" with a reason.
     def approve_rule_proposal
       policy = @company.policies.find(@change_proposal.diff["policy_id"])
+      approve_anyway = ActiveModel::Type::Boolean.new.cast(params[:approve_anyway])
+      reason = params[:reason]
+      return render_error(message: "a reason is required to approve anyway") if approve_anyway && reason.blank?
 
       impact = Impact::RuleImpact.call(company: @company, policy: policy, after_rules: @change_proposal.after_rule_definitions)
+      conflicts = impact.dig("backtest", "new_conflicts").size
+      if conflicts.positive? && !approve_anyway
+        return render_error(
+          message: "this change creates #{conflicts} new conflict#{'s' unless conflicts == 1} between rules — " \
+                    "pass approve_anyway: true with a reason to proceed anyway",
+          errors: impact.dig("backtest", "new_conflicts")
+        )
+      end
+
       ActiveRecord::Base.transaction do
         @change_proposal.apply_rule_diff!(@company)
+        impact["override_reason"] = reason if approve_anyway && conflicts.positive?
         @change_proposal.update!(status: "approved", decided_by_id: current_person.id, decided_at: Time.current, impact: impact)
       end
 
       render_success(data: serialize(@change_proposal), message: "Change proposal approved.")
     rescue ChangeProposal::StaleDiff => e
       render_error(message: e.message)
+    end
+
+    # Workflow proposals are re-analysed against the current graph at decision
+    # time, like org ones, and refused if the workflow itself moved
+    # underneath the diff.
+    def approve_workflow_proposal
+      approve_anyway = ActiveModel::Type::Boolean.new.cast(params[:approve_anyway])
+      reason = params[:reason]
+      return render_error(message: "a reason is required to approve anyway") if approve_anyway && reason.blank?
+
+      workflow = @change_proposal.current_workflow!(@company)
+      impact = Impact::WorkflowImpact.call(company: @company, workflow: workflow, after_steps: @change_proposal.diff["after"])
+      current_broken = impact["broken"].size
+      original_broken = @change_proposal.impact["broken"]&.size || 0
+      return render_worse_impact(impact, current_broken, original_broken) if current_broken > original_broken && !approve_anyway
+
+      ActiveRecord::Base.transaction do
+        @change_proposal.apply_workflow_diff!(@company)
+        impact["override_reason"] = reason if approve_anyway
+        @change_proposal.update!(status: "approved", impact: impact, decided_by_id: current_person.id, decided_at: Time.current)
+      end
+
+      render_success(data: serialize(@change_proposal), message: "Change proposal approved.")
+    rescue ChangeProposal::StaleDiff => e
+      render_error(message: e.message)
+    end
+
+    def render_worse_impact(impact, current_broken, original_broken)
+      render_error(
+        message: "impact has gotten worse since this proposal was made " \
+                  "(#{current_broken} broken now vs #{original_broken} then) — " \
+                  "pass approve_anyway: true with a reason to proceed anyway",
+        errors: impact
+      )
     end
 
     def set_change_proposal

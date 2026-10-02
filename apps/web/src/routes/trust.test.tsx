@@ -273,6 +273,37 @@ describe('/trust', () => {
     )
   })
 
+  it('starts an agent run of a chosen agent_system prompt version, with no stability sampling', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    const pending = run(9, { suite: 'agent', status: 'pending', accuracy: null, cases_count: 0, passed_count: 0, model: null })
+    const versions = [
+      { id: 4, key: 'agent_system', version: 2, model: null, active: true, notes: null, created_at: '2026-10-02T00:00:00Z', latest_run: null, regressions: [] },
+      { id: 3, key: 'agent_system', version: 1, model: null, active: false, notes: null, created_at: '2026-10-01T00:00:00Z', latest_run: null, regressions: null },
+      { id: 1, key: 'policy_extractor', version: 1, model: null, active: true, notes: null, created_at: '2026-10-01T00:00:00Z', latest_run: null, regressions: [] },
+    ]
+    const fetchMock = mockApi({
+      ...sidePanels,
+      'GET /api/companies/1/prompt_versions': { body: { success: true, message: '', data: versions } },
+      'GET /api/companies/1/session': envelope(person(['hr_admin'])),
+      'GET /api/companies/1/eval_runs': envelope([], { active_cases: { agent: 5 }, runnable_suites: ['insights', 'policy_extraction', 'agent'] }),
+      'POST /api/companies/1/eval_runs': { status: 202, body: { success: true, message: '', data: pending } },
+      'GET /api/companies/1/eval_runs/9': envelope({ ...pending, results: [] }),
+    })
+
+    await renderApp('/trust')
+    await chooseOption(user, await screen.findByLabelText('Suite'), 'Agent')
+    expect(screen.queryByLabelText('Stability samples')).not.toBeInTheDocument()
+    await chooseOption(user, screen.getByLabelText('Prompt version'), 'v1')
+    await user.click(screen.getByRole('button', { name: 'Run agent suite' }))
+
+    await screen.findByRole('region', { name: 'Run #9' })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/companies/1/eval_runs',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ suite: 'agent', prompt_version_id: 3 }) }),
+    )
+  })
+
   it('compares two runs, listing the cases that flipped', async () => {
     const user = userEvent.setup()
     setCurrentCompanyId('1')

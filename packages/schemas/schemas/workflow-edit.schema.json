@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorkflowEdit",
+  "description": "A complete rewritten workflow, produced from a plain-language instruction (SPEC.md section 8, 'Describe a change'). Keel validates it, keeps the approval steps exactly as the policy rules define them, and turns the difference into a Change Proposal — the LLM never saves anything.",
+  "type": "object",
+  "required": [
+    "steps",
+    "summary"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "One sentence saying what changed, for the proposal title."
+    },
+    "steps": {
+      "type": "array",
+      "description": "Every step of the new workflow, in order, including the existing approval step(s) unchanged.",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "type",
+          "assignee"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "approval",
+              "task",
+              "notify"
+            ]
+          },
+          "assignee": {
+            "type": "string",
+            "description": "A role reference (role:it_admin) or org reference (manager_of(requester)) — never a person's name."
+          },
+          "title": {
+            "type": "string"
+          },
+          "when": {
+            "$ref": "#/$defs/condition"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "condition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "all"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "all": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/condition"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "any"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "any": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/condition"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "field",
+            "op",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string",
+              "enum": [
+                "requester.department",
+                "requester.location",
+                "requester.tenure_months",
+                "payload.amount_eur",
+                "payload.category",
+                "payload.days",
+                "payload.notice_days"
+              ]
+            },
+            "op": {
+              "type": "string",
+              "enum": [
+                "eq",
+                "neq",
+                "gt",
+                "gte",
+                "lt",
+                "lte",
+                "in",
+                "not_in",
+                "between"
+              ]
+            },
+            "value": {}
+          }
+        }
+      ]
+    }
+  }
+}

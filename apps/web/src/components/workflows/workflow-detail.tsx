@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import type { Envelope, Person, Workflow, WorkflowTestRunResult } from 'api-types'
 import { useState } from 'react'
 import { api } from '../../lib/api'
+import { useCurrentPerson } from '../../lib/auth'
 import { PagePlaceholder } from '../layout/page-placeholder'
+import { DescribeChangeBox } from './describe-change-box'
 import { FlowCanvas } from './flow-canvas'
 import { TestRunDialog } from './test-run-dialog'
 import { Button } from '@/components/ui/button'
@@ -22,6 +24,7 @@ const OUTCOME_TONE: Record<WorkflowTestRunResult['outcome'], string> = {
 }
 
 export function WorkflowDetail({ companyId, workflowId }: { companyId: string; workflowId: number }) {
+  const canPropose = useCurrentPerson(companyId).data?.data?.roles.includes('hr_admin') ?? false
   const [dialogOpen, setDialogOpen] = useState(false)
   const [testRun, setTestRun] = useState<WorkflowTestRunResult | null>(null)
 
@@ -67,6 +70,8 @@ export function WorkflowDetail({ companyId, workflowId }: { companyId: string; w
           ))}
         </div>
       )}
+
+      {canPropose && <DescribeChangeBox key={workflowId} companyId={companyId} workflowId={workflowId} people={people} />}
 
       <FlowCanvas workflow={workflow} people={people} testRun={testRun?.steps ?? null} />
 

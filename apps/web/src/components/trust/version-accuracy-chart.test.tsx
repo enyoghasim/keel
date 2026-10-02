@@ -44,6 +44,6 @@ describe('VersionAccuracyChart', () => {
   it('shows accuracy across prompt versions once there are two to compare', () => {
     render(<VersionAccuracyChart versions={[version(2, run(0.9)), version(1, run(0.5))]} promptKey="policy_extractor" />)
 
-    expect(screen.getByRole('figure', { name: 'Accuracy by prompt version' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: 'policy_extractor accuracy by prompt version' })).toBeInTheDocument()
   })
 })

@@ -10,6 +10,9 @@ export type {
   OrgChangeProposal,
   RuleChangeProposal,
   WorkflowChangeProposal,
+  WorkflowDiff,
+  WorkflowImpactReport,
+  WorkflowImpactStep,
   OrgDiffOp,
   RuleDiff,
   RuleSnapshot,
@@ -40,6 +43,8 @@ export type {
   WorkflowStepType,
   WorkflowTestRunResult,
   WorkflowTestRunStep,
+  WorkflowEdit,
+  WorkflowEditStatus,
 } from './hand-written/workflow'
 export type { Insight, InsightStatus, InsightUnit, InsightRow, InsightResult } from './hand-written/insight'
 export type { InsightQuery, InsightFilter } from './generated/insight-query'
@@ -66,4 +71,4 @@ export type {
   AgentFeedbackRating,
   AgentFeedbackReason,
 } from './hand-written/agent'
-export type { PersonalAccessToken, CreatedPersonalAccessToken } from './hand-written/personal-access-token'
+export type { PersonalAccessToken, CreatedPersonalAccessToken, McpCall } from './hand-written/personal-access-token'

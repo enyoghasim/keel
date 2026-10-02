@@ -34,12 +34,20 @@ RSpec.describe StaleWork::Reaper do
     expect(eval_run.finished_at).to be_within(5.seconds).of(Time.current)
   end
 
+  it "fails stuck workflow edits too" do
+    edit = stale(:workflow_edit, "pending", 3.minutes)
+
+    expect { described_class.call }.to have_broadcasted_to(edit).from_channel(WorkflowEditChannel)
+
+    expect(edit.reload).to have_attributes(status: "failed", error_message: described_class::MESSAGE)
+  end
+
   it "leaves recent work and finished work alone" do
     recent = stale(:agent_run, "running", 2.minutes)
     done = stale(:agent_run, "completed", 1.day, final_text: "Done.")
     long_eval = stale(:eval_run, "running", 10.minutes)
 
-    expect(described_class.call).to eq(agent_runs: 0, insight_queries: 0, eval_runs: 0)
+    expect(described_class.call).to eq(agent_runs: 0, insight_queries: 0, eval_runs: 0, workflow_edits: 0)
 
     expect(recent.reload.status).to eq("running")
     expect(done.reload.status).to eq("completed")
@@ -51,7 +59,7 @@ RSpec.describe StaleWork::Reaper do
     create(:insight_query)
 
     travel_to(1.hour.from_now) do
-      expect(described_class.call).to eq(agent_runs: 1, insight_queries: 1, eval_runs: 0)
+      expect(described_class.call).to eq(agent_runs: 1, insight_queries: 1, eval_runs: 0, workflow_edits: 0)
     end
   end
 end

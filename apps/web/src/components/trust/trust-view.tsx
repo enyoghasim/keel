@@ -8,7 +8,7 @@ import { AccuracyTrend } from './accuracy-trend'
 import { CandidateQueue } from './candidate-queue'
 import { evalRunsQueryKey, promptVersionsQueryKey } from './eval-query-keys'
 import { EvalRunWatcher } from './eval-run-watcher'
-import { SUITE_LABELS } from './format'
+import { SUITE_LABELS, SUITE_PROMPT_KEYS } from './format'
 import { PromptVersions } from './prompt-versions'
 import { RunCompare } from './run-compare'
 import { RunDetail } from './run-detail'
@@ -52,8 +52,8 @@ export function TrustView({ companyId }: { companyId: string }) {
     mutationFn: () =>
       api.post<Envelope<EvalRun>>(`/companies/${companyId}/eval_runs`, {
         suite,
-        // Only the policy extraction suite has prompt versions to pick and compiles to sample.
-        ...(suite === 'policy_extraction' && promptVersionId !== ACTIVE_VERSION ? { prompt_version_id: Number(promptVersionId) } : {}),
+        // Only suites with a prompt (policy extraction, agent) have versions to pick; only extraction compiles to sample.
+        ...(SUITE_PROMPT_KEYS[suite] && promptVersionId !== ACTIVE_VERSION ? { prompt_version_id: Number(promptVersionId) } : {}),
         ...(suite === 'policy_extraction' && stabilitySamples > 0 ? { stability_samples: stabilitySamples } : {}),
       }),
     onSuccess: (response) => {
@@ -75,7 +75,8 @@ export function TrustView({ companyId }: { companyId: string }) {
   const activeRuns = runs.filter((run) => run.status === 'pending' || run.status === 'running')
   const canRun = currentPerson?.roles.includes('hr_admin') ?? false
   const runnableSuites = meta.runnable_suites
-  const extractorVersions = (versionsQuery.data?.data ?? []).filter((version) => version.key === 'policy_extractor')
+  const promptKey = SUITE_PROMPT_KEYS[suite]
+  const suiteVersions = (versionsQuery.data?.data ?? []).filter((version) => version.key === promptKey)
   const shownRunId = selectedRunId ?? runs[0]?.id ?? null
 
   return (
@@ -92,7 +93,13 @@ export function TrustView({ companyId }: { companyId: string }) {
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-44 space-y-1">
               <Label htmlFor="eval-suite">Suite</Label>
-              <Select value={suite} onValueChange={(value) => setSuite(value as EvalSuite)}>
+              <Select
+                value={suite}
+                onValueChange={(value) => {
+                  setSuite(value as EvalSuite)
+                  setPromptVersionId(ACTIVE_VERSION)
+                }}
+              >
                 <SelectTrigger id="eval-suite">
                   <SelectValue />
                 </SelectTrigger>
@@ -105,39 +112,39 @@ export function TrustView({ companyId }: { companyId: string }) {
                 </SelectContent>
               </Select>
             </div>
+            {promptKey && (
+              <div className="w-40 space-y-1">
+                <Label htmlFor="eval-prompt-version">Prompt version</Label>
+                <Select value={promptVersionId} onValueChange={setPromptVersionId}>
+                  <SelectTrigger id="eval-prompt-version">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ACTIVE_VERSION}>Active version</SelectItem>
+                    {suiteVersions.map((version) => (
+                      <SelectItem key={version.id} value={String(version.id)}>
+                        v{version.version}
+                        {version.active ? ' (active)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {suite === 'policy_extraction' && (
-              <>
-                <div className="w-40 space-y-1">
-                  <Label htmlFor="eval-prompt-version">Prompt version</Label>
-                  <Select value={promptVersionId} onValueChange={setPromptVersionId}>
-                    <SelectTrigger id="eval-prompt-version">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ACTIVE_VERSION}>Active version</SelectItem>
-                      {extractorVersions.map((version) => (
-                        <SelectItem key={version.id} value={String(version.id)}>
-                          v{version.version}
-                          {version.active ? ' (active)' : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="w-40 space-y-1">
-                  <Label htmlFor="eval-stability">Stability samples</Label>
-                  <Select value={String(stabilitySamples)} onValueChange={(value) => setStabilitySamples(Number(value))}>
-                    <SelectTrigger id="eval-stability">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Off</SelectItem>
-                      <SelectItem value="3">3 compiles</SelectItem>
-                      <SelectItem value="5">5 compiles</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
+              <div className="w-40 space-y-1">
+                <Label htmlFor="eval-stability">Stability samples</Label>
+                <Select value={String(stabilitySamples)} onValueChange={(value) => setStabilitySamples(Number(value))}>
+                  <SelectTrigger id="eval-stability">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Off</SelectItem>
+                    <SelectItem value="3">3 compiles</SelectItem>
+                    <SelectItem value="5">5 compiles</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             )}
             <Button type="button" onClick={() => startRun.mutate()} disabled={startRun.isPending || activeRuns.length > 0} className="shrink-0">
               {activeRuns.length > 0 ? 'Run in progress…' : `Run ${SUITE_LABELS[suite].toLowerCase()} suite`}

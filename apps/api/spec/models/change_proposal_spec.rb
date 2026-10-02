@@ -5,6 +5,10 @@ RSpec.describe ChangeProposal, type: :model do
     expect(build(:change_proposal)).to be_valid
   end
 
+  it "queues a plain-English explanation of its impact when created, off the request thread" do
+    expect { create(:change_proposal) }.to have_enqueued_job(ProposalExplanationJob)
+  end
+
   it "requires a title" do
     change_proposal = build(:change_proposal, title: nil)
 

@@ -1,6 +1,6 @@
 import type { Workflow, WorkflowStep, WorkflowTestRunStep } from 'api-types'
 import { describe, expect, it } from 'vitest'
-import { buildFlowGraph } from './flow-graph'
+import { buildFlowGraph, mergeWorkflowSteps } from './flow-graph'
 
 function workflow(steps: WorkflowStep[]): Workflow {
   return {
@@ -99,5 +99,53 @@ describe('buildFlowGraph', () => {
     const { nodes } = buildFlowGraph(workflow(steps), testRun, personName)
 
     expect(nodes[1].data.subtitle).toBe('Person #7, Person #8')
+  })
+})
+
+describe('mergeWorkflowSteps', () => {
+  const approval: WorkflowStep = { key: 'approval', type: 'approval', assignee: 'manager_of(requester)' }
+  const notify: WorkflowStep = { key: 'hr_notify', type: 'notify', assignee: 'role:hr_admin' }
+  const itStep: WorkflowStep = { key: 'it_setup', type: 'task', assignee: 'role:it_admin' }
+
+  it('marks an added step and keeps the proposed order', () => {
+    const { steps, status } = mergeWorkflowSteps([approval, notify], [approval, itStep, notify])
+
+    expect(steps.map((s) => s.key)).toEqual(['approval', 'it_setup', 'hr_notify'])
+    expect(status).toEqual({ it_setup: 'added' })
+  })
+
+  it('keeps a removed step in the graph, where it used to be, marked removed', () => {
+    const { steps, status } = mergeWorkflowSteps([approval, itStep, notify], [approval, notify])
+
+    expect(steps.map((s) => s.key)).toEqual(['approval', 'it_setup', 'hr_notify'])
+    expect(status).toEqual({ it_setup: 'removed' })
+  })
+
+  it('puts a removed first step back at the front', () => {
+    const { steps } = mergeWorkflowSteps([itStep, approval], [approval])
+
+    expect(steps.map((s) => s.key)).toEqual(['it_setup', 'approval'])
+  })
+
+  it('marks a step whose definition changed, showing its new definition', () => {
+    const rerouted = { ...notify, assignee: 'role:finance_lead' }
+    const { steps, status } = mergeWorkflowSteps([approval, notify], [approval, rerouted])
+
+    expect(steps[1]).toEqual(rerouted)
+    expect(status).toEqual({ hr_notify: 'changed' })
+  })
+
+  it('reports no changes for identical workflows', () => {
+    expect(mergeWorkflowSteps([approval], [approval]).status).toEqual({})
+  })
+})
+
+describe('buildFlowGraph with a diff', () => {
+  it('carries each step\'s diff status onto its node', () => {
+    const steps: WorkflowStep[] = [{ key: 'approval', type: 'approval' }, { key: 'task_it', type: 'task', assignee: 'role:it_admin' }]
+    const { nodes } = buildFlowGraph(workflow(steps), null, personName, { task_it: 'added' })
+
+    expect(nodes.find((n) => n.id === 'task_it')?.data.diffStatus).toBe('added')
+    expect(nodes.find((n) => n.id === 'approval')?.data.diffStatus).toBeNull()
   })
 })

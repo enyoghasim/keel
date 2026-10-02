@@ -25,13 +25,13 @@ function JsonBlock({ label, value }: { label: string; value: unknown }) {
  * each model reply and tool call with its input and output as collapsible
  * JSON, latency and tokens, and a totals footer.
  */
-export function TraceDrawer({ run, onClose }: { run: AgentRun; onClose: () => void }) {
+export function TraceDrawer({ run, title = 'Agent trace', onClose }: { run: AgentRun; title?: string; onClose: () => void }) {
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent aria-label="Agent trace" showCloseButton={false} className="z-60 w-full gap-0 sm:max-w-md">
+      <SheetContent aria-label={title} showCloseButton={false} className="z-60 w-full gap-0 sm:max-w-md">
         <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
           <div className="min-w-0">
-            <SheetTitle className="text-[14px]">Agent trace</SheetTitle>
+            <SheetTitle className="text-[14px]">{title}</SheetTitle>
             <SheetDescription className="truncate text-[12px]">{run.message}</SheetDescription>
           </div>
           <SheetClose asChild>

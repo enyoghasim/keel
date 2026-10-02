@@ -3,6 +3,7 @@ class ChangeProposal < ApplicationRecord
   belongs_to :decided_by, class_name: "Person", optional: true
   # The trace this proposal came from, when the agent proposed it (AGENTS.md rule 3).
   belongs_to :agent_run, optional: true
+  has_many :workflow_edits, dependent: :nullify
 
   KINDS = %w[org rule workflow].freeze
   STATUSES = %w[pending approved rejected].freeze
@@ -13,6 +14,12 @@ class ChangeProposal < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
   validates :proposed_by, inclusion: { in: PROPOSED_BY_VALUES }
 
+  # Written off the request thread by the LLM, from the computed impact only.
+  after_create_commit { ProposalExplanationJob.perform_later(id) }
+
+  # What the Proposals page needs to refresh a proposal's explanation.
+  BROADCAST_FIELDS = %i[id explanation].freeze
+
   class StaleDiff < StandardError; end
 
   # The "after" rules of a rule proposal as engine input, keyed by rule key.
@@ -20,6 +27,23 @@ class ChangeProposal < ApplicationRecord
     diff.fetch("after").to_h do |rule|
       [ rule["key"], Rules::RuleDefinition.new(key: rule["key"], priority: rule["priority"], conditions: rule["conditions"], actions: rule["actions"]) ]
     end
+  end
+
+  # Applies a workflow proposal (SPEC.md section 10): replaces the
+  # workflow's steps and bumps its version. Refuses with StaleDiff if the
+  # steps it was computed against have since changed.
+  def apply_workflow_diff!(company)
+    workflow = current_workflow!(company)
+    workflow.update!(steps: diff.fetch("after"), version: workflow.version + 1)
+  end
+
+  # The workflow this proposal targets, if its steps still match what the
+  # proposal was computed against.
+  def current_workflow!(company)
+    workflow = company.workflows.find(diff.fetch("workflow_id"))
+    raise StaleDiff, "workflow #{workflow.name} has changed since this proposal was made" unless workflow.steps == diff.fetch("before")
+
+    workflow
   end
 
   # Applies a rule proposal (SPEC.md section 10): each rewritten rule's
