@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { router } from '../router'
 
 describe('/ route', () => {
-  it('renders the Keel heading', async () => {
+  it('redirects to /assemble', async () => {
     router.update({ history: createMemoryHistory({ initialEntries: ['/'] }) })
     await router.load()
 
@@ -15,6 +15,7 @@ describe('/ route', () => {
       </QueryClientProvider>,
     )
 
-    expect(await screen.findByRole('heading', { name: 'Keel' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Assemble' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/assemble')
   })
 })
