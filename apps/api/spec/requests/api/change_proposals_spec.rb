@@ -203,6 +203,56 @@ RSpec.describe "Api::ChangeProposals", type: :request do
     end
   end
 
+  describe "approving a rule proposal" do
+    let(:company) { create(:company) }
+    let(:hr) { create(:person, company: company, roles: [ "hr_admin" ]) }
+    let(:employee) { create(:person, company: company, manager: hr) }
+    let(:policy) { create(:policy, company: company, category: "expense", status: "active") }
+    let!(:rule) do
+      create(:rule, policy: policy, status: "active", key: "expense_small_auto", priority: 10,
+        conditions: { "field" => "payload.amount_eur", "op" => "lte", "value" => 500 }, actions: { "decision" => "auto_approve" })
+    end
+    let(:rule_json) { { "key" => rule.key, "priority" => 10, "source_quote" => rule.source_quote, "source_chunk_id" => rule.source_chunk_id } }
+    let(:diff) do
+      {
+        "policy_id" => policy.id, "instruction" => "Raise the limit to €800",
+        "before" => [ rule_json.merge("conditions" => rule.conditions, "actions" => rule.actions) ],
+        "after" => [ rule_json.merge("conditions" => { "field" => "payload.amount_eur", "op" => "lte", "value" => 800 }, "actions" => rule.actions) ]
+      }
+    end
+    let(:proposal) { create(:change_proposal, company: company, kind: "rule", diff: diff, impact: { "backtest" => { "total" => 0 } }) }
+
+    before do
+      create(:request, company: company, requester: employee, kind: "expense", payload: { "amount_eur" => 700 })
+      sign_in(hr)
+    end
+
+    it "supersedes the old rule with the new one, bumps the policy version and re-runs the backtest" do
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(proposal.reload).to have_attributes(status: "approved", decided_by_id: hr.id)
+      expect(proposal.impact["backtest"]).to include("total" => 1, "flipped_count" => 1)
+      expect(rule.reload.status).to eq("superseded")
+      current = policy.rules.find_by!(key: "expense_small_auto", status: "active")
+      expect(current.conditions["value"]).to eq(800)
+      expect(current).to have_attributes(source_quote: rule.source_quote, source_chunk_id: rule.source_chunk_id)
+      expect(policy.reload.version).to eq(2)
+    end
+
+    it "refuses when the policy's rules changed since the proposal was made" do
+      proposal # built against the 500 limit
+      rule.update!(conditions: { "field" => "payload.amount_eur", "op" => "lte", "value" => 400 })
+
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["message"]).to match(/changed since/)
+      expect(proposal.reload.status).to eq("pending")
+      expect(rule.reload.status).to eq("active")
+    end
+  end
+
   describe "POST /api/companies/:company_id/change_proposals/:id/reject" do
     it "records the decision without applying the diff" do
       company = create(:company)

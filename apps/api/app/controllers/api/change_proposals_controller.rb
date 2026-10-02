@@ -11,6 +11,7 @@ module Api
 
     FIELDS = %i[id company_id kind title diff impact proposed_by agent_run_id status decided_by_id decided_at created_at].freeze
     SUPPORTED_KINDS = %w[org].freeze
+    APPROVABLE_KINDS = %w[org rule].freeze
 
     before_action :set_change_proposal, only: %i[show approve reject]
     before_action :require_current_person!, only: %i[approve reject]
@@ -48,9 +49,10 @@ module Api
 
     def approve
       return render_error(message: "this proposal has already been decided") unless @change_proposal.status == "pending"
-      unless SUPPORTED_KINDS.include?(@change_proposal.kind)
+      unless APPROVABLE_KINDS.include?(@change_proposal.kind)
         return render_error(message: "approving a '#{@change_proposal.kind}' proposal is not implemented yet")
       end
+      return approve_rule_proposal if @change_proposal.kind == "rule"
 
       approve_anyway = ActiveModel::Type::Boolean.new.cast(params[:approve_anyway])
       reason = params[:reason]
@@ -90,6 +92,23 @@ module Api
     end
 
     private
+
+    # Rule proposals are replayed against history, not the org graph: the
+    # backtest is re-run so the stored impact is what was true at decision
+    # time, and the diff is refused if the policy moved underneath it.
+    def approve_rule_proposal
+      policy = @company.policies.find(@change_proposal.diff["policy_id"])
+
+      impact = Impact::RuleImpact.call(company: @company, policy: policy, after_rules: @change_proposal.after_rule_definitions)
+      ActiveRecord::Base.transaction do
+        @change_proposal.apply_rule_diff!(@company)
+        @change_proposal.update!(status: "approved", decided_by_id: current_person.id, decided_at: Time.current, impact: impact)
+      end
+
+      render_success(data: serialize(@change_proposal), message: "Change proposal approved.")
+    rescue ChangeProposal::StaleDiff => e
+      render_error(message: e.message)
+    end
 
     def set_change_proposal
       @change_proposal = @company.change_proposals.find(params[:id])
