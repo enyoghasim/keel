@@ -6,6 +6,7 @@ import { TraceDrawer } from './trace-drawer'
 
 const run: AgentRun = {
   id: 1,
+  conversation_id: 'c1',
   person_id: 1,
   message: 'Can I expense a €1,200 flight to RubyConf?',
   status: 'completed',

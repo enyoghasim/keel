@@ -10,6 +10,8 @@ module Agent
     class TooManyTurns < StandardError; end
 
     MAX_TURNS = 8
+    # How many earlier question-and-answer pairs of a conversation the model sees.
+    HISTORY_TURNS = 5
     TOOLS = [ Tools::SearchPeople, Tools::CheckPolicy, Tools::CreateRequest, Tools::RunInsight ].freeze
 
     def self.call(agent_run, &on_step) = new(agent_run, on_step).call
@@ -25,6 +27,7 @@ module Agent
       @agent_run.update!(status: "running")
       context = Context.new(company: @agent_run.company, person: @agent_run.person, agent_run: @agent_run)
       chat = RubyLLM.chat.with_instructions(instructions).with_tools(*TOOLS.map { _1.new(context) })
+      replay_history(chat)
       record_steps(chat)
 
       reply = chat.ask(@agent_run.message)
@@ -37,6 +40,16 @@ module Agent
     end
 
     private
+
+    # Earlier turns of the conversation go back in as plain questions and
+    # answers only — not their tool calls — so a follow-up like "and what
+    # about €2,000?" has its context while each run's trace stays its own.
+    def replay_history(chat)
+      @agent_run.previous_turns(HISTORY_TURNS).each do |turn|
+        chat.add_message(role: :user, content: turn.message)
+        chat.add_message(role: :assistant, content: turn.final_text)
+      end
+    end
 
     def record_steps(chat)
       chat.before_message { @started = now }
