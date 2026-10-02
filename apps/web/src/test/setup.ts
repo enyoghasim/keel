@@ -15,3 +15,13 @@ if (!window.matchMedia) {
     dispatchEvent: () => false,
   })
 }
+
+// jsdom doesn't implement ResizeObserver, which React Flow (OrgCanvas) uses
+// to measure its viewport — stub a no-op so it mounts instead of throwing.
+if (!window.ResizeObserver) {
+  window.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}

@@ -16,7 +16,9 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.104.0",
     "@tanstack/react-router": "^1.170.41",
+    "@xyflow/react": "^12.12.0",
     "api-types": "workspace:*",
+    "dagre": "^0.8.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwindcss": "^4.3.3"
@@ -25,6 +27,7 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
+    "@types/dagre": "^0.7.54",
     "@types/node": "^24.13.3",
     "@types/rails__actioncable": "^8.0.3",
     "@types/rails__activestorage": "^8.0.1",
