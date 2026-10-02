@@ -110,8 +110,8 @@ module Api
     # request kind" — a small/medium/large expense and a week-ish of leave —
     # evaluated against the company's actual active rules.
     def representative_scenarios
-      expense_rules = active_rules_for("expense")
-      leave_rules = active_rules_for("leave")
+      expense_rules = @company.active_rule_definitions("expense")
+      leave_rules = @company.active_rule_definitions("leave")
 
       [
         { payload: { "amount_eur" => 100 }, rules: expense_rules },
@@ -119,12 +119,6 @@ module Api
         { payload: { "amount_eur" => 3000 }, rules: expense_rules },
         { payload: { "days" => 5 }, rules: leave_rules }
       ]
-    end
-
-    def active_rules_for(category)
-      @company.policies.where(status: "active", category: category).flat_map do |policy|
-        policy.rules.where(status: "active").map(&:to_rule_definition)
-      end
     end
 
     def pending_step_runs

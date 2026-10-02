@@ -12,4 +12,12 @@ class Company < ApplicationRecord
   has_one_attached :roster_csv
 
   validates :name, presence: true
+
+  # The rules Rules::Engine evaluates for a request kind: active rules on
+  # this company's active policies of that category.
+  def active_rule_definitions(category)
+    policies.where(status: "active", category: category).flat_map do |policy|
+      policy.rules.where(status: "active").map(&:to_rule_definition)
+    end
+  end
 end

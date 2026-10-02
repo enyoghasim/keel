@@ -1,8 +1,8 @@
 module Api
   # Creating a request runs the full decide-then-route lifecycle from
-  # SPEC.md section 8: Rules::Engine decides, and Workflows::Runtime
-  # either short-circuits (auto_approve/reject/blocked) or starts the
-  # matching active workflow and resolves its first step.
+  # SPEC.md section 8 via Workflows::Submission: Rules::Engine decides, and
+  # Workflows::Runtime either short-circuits (auto_approve/reject/blocked)
+  # or starts the matching active workflow and resolves its first step.
   class RequestsController < ApplicationController
     include CompanyScoped
 
@@ -29,15 +29,9 @@ module Api
         return render_error(message: "you can only create requests for yourself", status: :forbidden)
       end
 
-      request_record = nil
-
-      ActiveRecord::Base.transaction do
-        request_record = @company.requests.create!(
-          requester: requester, kind: request_params[:kind], payload: request_params[:payload] || {}
-        )
-        snapshot = Org::GraphSnapshot.load(@company)
-        Workflows::Runtime.new(snapshot).start(request_record, rules: active_rules_for(request_record.kind))
-      end
+      request_record = Workflows::Submission.call(
+        company: @company, requester: requester, kind: request_params[:kind], payload: request_params[:payload]
+      )
 
       render_success(data: serialize(request_record.reload), message: "Request created.", status: :created)
     rescue ActiveRecord::RecordInvalid => e
@@ -48,12 +42,6 @@ module Api
 
     def set_request
       @request_record = @company.requests.find(params[:id])
-    end
-
-    def active_rules_for(kind)
-      @company.policies.where(status: "active", category: kind).flat_map do |policy|
-        policy.rules.where(status: "active").map(&:to_rule_definition)
-      end
     end
 
     def request_params

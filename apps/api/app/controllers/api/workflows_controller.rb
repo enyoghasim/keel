@@ -25,7 +25,7 @@ module Api
       snapshot = Org::GraphSnapshot.load(@company)
       result = Workflows::Runtime.new(snapshot).dry_run(
         @workflow, requester_id: requester_id.to_i, payload: (params[:payload] || {}).to_unsafe_h,
-        rules: active_rules_for(@workflow.trigger["request_kind"])
+        rules: @company.active_rule_definitions(@workflow.trigger["request_kind"])
       )
 
       render_success(data: {
@@ -40,12 +40,6 @@ module Api
 
     def set_workflow
       @workflow = @company.workflows.find(params[:id])
-    end
-
-    def active_rules_for(kind)
-      @company.policies.where(status: "active", category: kind).flat_map do |policy|
-        policy.rules.where(status: "active").map(&:to_rule_definition)
-      end
     end
 
     def serialize(workflow) = workflow.as_json(only: FIELDS)
