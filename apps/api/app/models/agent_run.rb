@@ -22,5 +22,5 @@ class AgentRun < ApplicationRecord
   FIELDS = %i[id conversation_id person_id message status final_text total_tokens error_message feedback feedback_reason created_at].freeze
 
   # Shared by Api::AgentRunsController and AgentChannel.
-  def as_payload = as_json(only: FIELDS).merge("steps" => agent_steps.map(&:as_payload))
+  def as_payload = as_json(only: FIELDS).merge("cost_usd" => cost_usd&.to_f, "steps" => agent_steps.map(&:as_payload))
 end

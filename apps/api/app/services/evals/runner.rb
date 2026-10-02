@@ -27,7 +27,8 @@ module Evals
       passed = eval_run.eval_results.where(passed: true).count
       eval_run.update!(status: "completed", finished_at: Time.current, passed_count: passed,
         accuracy: cases.empty? ? nil : passed.fdiv(cases.size), stability: average_metric(eval_run, "stability"),
-        judge_score: average_metric(eval_run, "judge", "mean"), judge_agreement: average_metric(eval_run, "judge_agreement"))
+        judge_score: average_metric(eval_run, "judge", "mean"), judge_agreement: average_metric(eval_run, "judge_agreement"),
+        cost_usd: sum_metric(eval_run, "cost_usd"))
       eval_run
     end
 
@@ -36,6 +37,12 @@ module Evals
       values.empty? ? nil : values.sum / values.size
     end
     private_class_method :average_metric
+
+    def self.sum_metric(eval_run, name)
+      values = eval_run.eval_results.map { _1.metrics[name] }.compact
+      values.empty? ? nil : values.sum
+    end
+    private_class_method :sum_metric
 
     # Compiles the case's passage with the run's prompt version — several
     # times when the run measures stability, scoring the first output — and
@@ -97,7 +104,7 @@ module Evals
 
       score = AgentScorer.call(expected: eval_case.expected, tool_calls: observed[:tool_calls])
       judged = Judge.call(message: eval_case.input.fetch("message"), tool_calls: observed[:tool_calls], answer: observed[:final_text])
-      metrics = { "judge" => judged.scores.merge("mean" => judged.mean), "judge_rationale" => judged.rationale }
+      metrics = { "judge" => judged.scores.merge("mean" => judged.mean), "judge_rationale" => judged.rationale, "cost_usd" => observed[:cost_usd] }.compact
       if (label = eval_case.expected["judge_label"])
         metrics["judge_agreement"] = Judge.agreement(judged.scores, label)
       end
@@ -128,7 +135,7 @@ module Evals
       agent_run.reload
 
       {
-        status: agent_run.status, error: agent_run.error_message, final_text: agent_run.final_text,
+        status: agent_run.status, error: agent_run.error_message, final_text: agent_run.final_text, cost_usd: agent_run.cost_usd&.to_f,
         tool_calls: agent_run.agent_steps.select { _1.kind == "tool" }.map { { "name" => _1.tool_name, "input" => _1.input, "output" => _1.output } }
       }
     end

@@ -188,6 +188,18 @@ RSpec.describe "Api::AgentRuns", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
     end
 
+    it "includes what the run cost, as a number, or null when unknown" do
+      sign_in(person)
+      agent_run.update!(cost_usd: BigDecimal("0.006123"))
+
+      get "/api/companies/#{company.id}/agent_runs/#{agent_run.id}"
+      expect(response.parsed_body["data"]["cost_usd"]).to eq(0.006123)
+
+      agent_run.update!(cost_usd: nil)
+      get "/api/companies/#{company.id}/agent_runs/#{agent_run.id}"
+      expect(response.parsed_body["data"]["cost_usd"]).to be_nil
+    end
+
     it "includes the feedback in the run payload so the command bar can show it" do
       sign_in(person)
       agent_run.update!(feedback: "up")

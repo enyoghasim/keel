@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_174000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_175000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -57,6 +57,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_174000) do
     t.string "feedback"
     t.string "feedback_reason"
     t.text "feedback_note"
+    t.decimal "cost_usd", precision: 10, scale: 6
     t.index ["company_id"], name: "index_agent_runs_on_company_id"
     t.index ["person_id", "conversation_id"], name: "index_agent_runs_on_person_id_and_conversation_id"
     t.index ["person_id"], name: "index_agent_runs_on_person_id"

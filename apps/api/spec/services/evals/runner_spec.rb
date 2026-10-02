@@ -199,6 +199,16 @@ RSpec.describe Evals::Runner do
       expect(eval_run.judge_score.to_f).to eq(4.75)
     end
 
+    it "adds up what the agent runs cost onto the eval run" do
+      add_agent_case
+      script(check.merge(tokens: [ 1_000_000, 0 ], model: "gpt-5.1"), { content: "Yes.", tokens: [ 0, 100_000 ], model: "gpt-5.1" })
+
+      described_class.call(eval_run)
+
+      expect(eval_run.eval_results.sole.metrics["cost_usd"]).to eq(2.25)
+      expect(eval_run.reload.cost_usd).to eq(BigDecimal("2.25"))
+    end
+
     it "fails a case where the agent used a forbidden tool, and leaves no request or run behind" do
       add_agent_case
       script(

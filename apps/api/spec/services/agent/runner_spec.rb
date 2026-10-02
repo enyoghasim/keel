@@ -42,6 +42,25 @@ RSpec.describe Agent::Runner do
     expect(steps.map(&:latency_ms)).to all(be >= 0)
   end
 
+  it "records what the run cost, from ruby_llm's per-message pricing" do
+    script(
+      { tool_calls: [ { name: "check_policy", arguments: { "request_kind" => "expense", "payload" => { "amount_eur" => 1200 } } } ], tokens: [ 1_000_000, 0 ], model: "gpt-5.1" },
+      { content: "Yes.", tokens: [ 0, 100_000 ], model: "gpt-5.1" }
+    )
+
+    described_class.call(agent_run)
+
+    expect(agent_run.reload.cost_usd).to eq(BigDecimal("2.25")) # $1.25 for 1M input + $1.00 for 100k output
+  end
+
+  it "leaves the cost unknown when the model has no pricing" do
+    script({ content: "Hi!" })
+
+    described_class.call(agent_run)
+
+    expect(agent_run.reload.cost_usd).to be_nil
+  end
+
   it "tells the model who it's acting for, the date, the company, and the rules of behaviour" do
     chat = script({ content: "Hi!" })
 

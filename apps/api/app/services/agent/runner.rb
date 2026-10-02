@@ -27,6 +27,7 @@ module Agent
       @on_step = on_step
       @position = 0
       @turns = 0
+      @cost = nil
     end
 
     def call
@@ -37,7 +38,7 @@ module Agent
       record_steps(chat)
 
       reply = chat.ask(@agent_run.message)
-      @agent_run.update!(status: "completed", final_text: reply.content, total_tokens: @agent_run.agent_steps.sum(:tokens))
+      @agent_run.update!(status: "completed", final_text: reply.content, total_tokens: @agent_run.agent_steps.sum(:tokens), cost_usd: @cost)
     rescue TooManyTurns
       fail!("Stopped after #{MAX_TURNS} model turns without a final answer.")
     rescue StandardError => e
@@ -64,6 +65,7 @@ module Agent
       chat.after_message do |message|
         next unless message.role == :assistant
 
+        add_cost(message)
         record!(kind: "llm", tokens: message.input_tokens.to_i + message.output_tokens.to_i,
           output: { "content" => message.content.to_s, "tool_calls" => tool_calls_of(message) }.compact)
         @turns += 1 if message.tool_call?
@@ -78,13 +80,21 @@ module Agent
       end
     end
 
+    # ruby_llm prices each message from its token counts and the model's
+    # published rates; a model it has no pricing for contributes nothing, and
+    # a run with no priced message has no cost rather than a false $0.
+    def add_cost(message)
+      total = message.cost.total
+      @cost = (@cost || 0) + total if total
+    end
+
     def record!(**attrs)
       step = @agent_run.agent_steps.create!(position: @position += 1, latency_ms: ((now - @started) * 1000).round, **attrs)
       @on_step&.call(step)
     end
 
     def fail!(message)
-      @agent_run.update!(status: "failed", error_message: message, total_tokens: @agent_run.agent_steps.sum(:tokens))
+      @agent_run.update!(status: "failed", error_message: message, total_tokens: @agent_run.agent_steps.sum(:tokens), cost_usd: @cost)
     end
 
     def tool_calls_of(message)
