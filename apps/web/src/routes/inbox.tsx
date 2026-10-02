@@ -1,6 +1,8 @@
 import { createRoute } from '@tanstack/react-router'
 import { PageHeader } from '../components/layout/page-header'
 import { PagePlaceholder } from '../components/layout/page-placeholder'
+import { InboxView } from '../components/inbox/inbox-view'
+import { getCurrentCompanyId } from '../lib/current-company'
 import { Route as rootRoute } from './__root'
 
 export const Route = createRoute({
@@ -10,10 +12,16 @@ export const Route = createRoute({
 })
 
 function InboxPage() {
+  const companyId = getCurrentCompanyId()
+
   return (
     <>
       <PageHeader title="Inbox" subtitle="Approvals and tasks waiting on the acting person." />
-      <PagePlaceholder note="The step-run list lands once Workflows::Runtime.act and step_runs exist." />
+      {companyId ? (
+        <InboxView companyId={companyId} />
+      ) : (
+        <PagePlaceholder note="No company yet — assemble one on the Assemble page first." />
+      )}
     </>
   )
 }

@@ -9,11 +9,6 @@ const pages = [
     note: /Workflows::Runtime and the workflow steps endpoint/,
   },
   {
-    path: '/inbox',
-    heading: 'Inbox',
-    note: /Workflows::Runtime\.act and step_runs/,
-  },
-  {
     path: '/insights',
     heading: 'Insights',
     note: /Insights::Interpreter and QueryBuilder/,
