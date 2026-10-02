@@ -15,6 +15,7 @@ module Api
 
     before_action :set_change_proposal, only: %i[show approve reject]
     before_action :require_current_person!, only: %i[approve reject]
+    before_action :require_hr_admin!, only: %i[approve reject]
 
     def index
       scope = @company.change_proposals
@@ -95,6 +96,14 @@ module Api
     end
 
     private
+
+    # Only a human with the authority to change the org or its policies may
+    # decide a proposal (AGENTS.md rule 2: a human approves).
+    def require_hr_admin!
+      return if performed? || current_person.hr_admin?
+
+      render_error(message: "Only an hr_admin can approve or reject a proposal.", status: :forbidden)
+    end
 
     # SPEC.md section 10: a rejection with a reason on something the agent
     # proposed becomes a candidate case for the agent suite.

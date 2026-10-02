@@ -88,7 +88,7 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       old_manager = create(:person, company: company)
       new_manager = create(:person, company: company)
       person = create(:person, company: company, manager: old_manager)
-      hr = create(:person, company: company)
+      hr = create(:person, :hr_admin, company: company)
       change_proposal = create(:change_proposal, company: company, status: "pending",
         diff: [ { "op" => "change_manager", "person_id" => person.id, "to" => new_manager.id } ],
         impact: { "rerouted" => [], "broken" => [], "self_approval" => [], "approval_load_changes" => [], "rerouted_in_flight" => [] })
@@ -109,7 +109,7 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       old_manager = create(:person, company: company)
       new_manager = create(:person, company: company)
       person = create(:person, company: company, manager: old_manager)
-      hr = create(:person, company: company)
+      hr = create(:person, :hr_admin, company: company)
       impersonated = create(:person, company: company)
       change_proposal = create(:change_proposal, company: company, status: "pending",
         diff: [ { "op" => "change_manager", "person_id" => person.id, "to" => new_manager.id } ],
@@ -128,7 +128,7 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       # candidate case for the agent suite — the agent proposed something a
       # human didn't want.
       let(:company) { create(:company) }
-      let(:hr) { create(:person, company: company) }
+      let(:hr) { create(:person, :hr_admin, company: company) }
       let(:agent_run) { create(:agent_run, company: company, person: hr, status: "completed", message: "Make Ada head of Sales", final_text: "Proposed it.") }
       let(:proposal) { create(:change_proposal, company: company, proposed_by: "agent", agent_run: agent_run, title: "Ada heads Sales") }
 
@@ -185,7 +185,7 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       change_proposal = create(:change_proposal, company: company, status: "pending",
         diff: [ { "op" => "set_department_head", "department_id" => sales.id, "to" => nil } ],
         impact: { "rerouted" => [], "broken" => [], "self_approval" => [], "approval_load_changes" => [], "rerouted_in_flight" => [] })
-      sign_in(create(:person, company: company))
+      sign_in(create(:person, :hr_admin, company: company))
 
       post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve", as: :json
 
@@ -208,7 +208,7 @@ RSpec.describe "Api::ChangeProposals", type: :request do
       change_proposal = create(:change_proposal, company: company, status: "pending",
         diff: [ { "op" => "set_department_head", "department_id" => sales.id, "to" => nil } ],
         impact: { "rerouted" => [], "broken" => [], "self_approval" => [], "approval_load_changes" => [], "rerouted_in_flight" => [] })
-      sign_in(create(:person, company: company))
+      sign_in(create(:person, :hr_admin, company: company))
 
       post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve",
         params: { approve_anyway: true, reason: "Sales is being folded into Ops next week anyway" }, as: :json
@@ -222,7 +222,7 @@ RSpec.describe "Api::ChangeProposals", type: :request do
     it "requires a reason when approving anyway" do
       company = create(:company)
       change_proposal = create(:change_proposal, company: company, status: "pending")
-      sign_in(create(:person, company: company))
+      sign_in(create(:person, :hr_admin, company: company))
 
       post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve",
         params: { approve_anyway: true }, as: :json
@@ -234,7 +234,7 @@ RSpec.describe "Api::ChangeProposals", type: :request do
     it "refuses to re-decide a proposal that's already been decided" do
       company = create(:company)
       change_proposal = create(:change_proposal, company: company, status: "approved")
-      sign_in(create(:person, company: company))
+      sign_in(create(:person, :hr_admin, company: company))
 
       post "/api/companies/#{company.id}/change_proposals/#{change_proposal.id}/approve", as: :json
 
@@ -292,13 +292,28 @@ RSpec.describe "Api::ChangeProposals", type: :request do
     end
   end
 
+  describe "who may decide" do
+    it "forbids anyone but an hr_admin from approving or rejecting, leaving the proposal pending" do
+      company = create(:company)
+      proposal = create(:change_proposal, company: company, status: "pending")
+      sign_in(create(:person, company: company))
+
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/approve", as: :json
+      expect(response).to have_http_status(:forbidden)
+
+      post "/api/companies/#{company.id}/change_proposals/#{proposal.id}/reject", as: :json
+      expect(response).to have_http_status(:forbidden)
+      expect(proposal.reload.status).to eq("pending")
+    end
+  end
+
   describe "POST /api/companies/:company_id/change_proposals/:id/reject" do
     it "records the decision without applying the diff" do
       company = create(:company)
       old_manager = create(:person, company: company)
       new_manager = create(:person, company: company)
       person = create(:person, company: company, manager: old_manager)
-      hr = create(:person, company: company)
+      hr = create(:person, :hr_admin, company: company)
       change_proposal = create(:change_proposal, company: company, status: "pending",
         diff: [ { "op" => "change_manager", "person_id" => person.id, "to" => new_manager.id } ])
       sign_in(hr)
