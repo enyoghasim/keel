@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_123839) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_150157) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -98,6 +98,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_123839) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_import_issues_on_company_id"
+  end
+
+  create_table "insight_queries", force: :cascade do |t|
+    t.bigint "company_id", null: false
+    t.bigint "person_id", null: false
+    t.text "question", null: false
+    t.string "status", default: "pending", null: false
+    t.jsonb "query"
+    t.text "clarification"
+    t.jsonb "result"
+    t.text "error_message"
+    t.string "model"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_insight_queries_on_company_id"
+    t.index ["person_id"], name: "index_insight_queries_on_person_id"
   end
 
   create_table "people", force: :cascade do |t|
@@ -226,6 +242,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_123839) do
   add_foreign_key "departments", "companies"
   add_foreign_key "departments", "people", column: "head_id"
   add_foreign_key "import_issues", "companies"
+  add_foreign_key "insight_queries", "companies"
+  add_foreign_key "insight_queries", "people"
   add_foreign_key "people", "companies"
   add_foreign_key "people", "departments"
   add_foreign_key "people", "people", column: "manager_id"
