@@ -11,6 +11,7 @@ module Org
       when "skip_manager_of(requester)"     then [ @g.manager_of(@g.manager_of(requester_id)) ]
       when "head_of(requester.department)"  then [ @g.head_of_dept(@g.people.dig(requester_id, "department_id")) ]
       when /\Arole:(\w+)\z/                 then @g.holders_of($1)
+      when /\Aperson:(\d+)\z/               then [ $1.to_i ]
       else return Result.new([], "unknown reference #{reference}")
       end.compact
 

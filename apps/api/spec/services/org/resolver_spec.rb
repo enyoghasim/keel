@@ -133,6 +133,18 @@ RSpec.describe Org::Resolver do
       expect(result.error).to be_nil
     end
 
+    it "resolves 'person:X' to that specific person, with no further lookup" do
+      company = create(:company)
+      requester = create(:person, company: company)
+      approver = create(:person, company: company)
+      resolver = described_class.new(snapshot_for(company))
+
+      result = resolver.resolve("person:#{approver.id}", requester_id: requester.id)
+
+      expect(result.person_ids).to eq([ approver.id ])
+      expect(result.error).to be_nil
+    end
+
     it "returns an error for an unknown reference" do
       company = create(:company)
       requester = create(:person, company: company)
