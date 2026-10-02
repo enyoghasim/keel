@@ -16,13 +16,36 @@ RSpec.describe "Api::EvalRuns", type: :request do
       expect(response.parsed_body["data"]).to include("suite" => "insights", "status" => "pending", "person_id" => hr_admin.id)
     end
 
+    it "starts a policy_extraction run of a chosen prompt version, sampling each case for stability" do
+      sign_in(hr_admin)
+      version = create(:prompt_version, version: 1)
+
+      post "/api/companies/#{company.id}/eval_runs",
+        params: { suite: "policy_extraction", prompt_version_id: version.id, stability_samples: 5 }, as: :json
+
+      expect(response).to have_http_status(:accepted)
+      expect(response.parsed_body["data"]).to include("prompt_version_id" => version.id, "stability_samples" => 5)
+    end
+
+    it "caps stability samples, and won't use another prompt key's version for the suite" do
+      sign_in(hr_admin)
+      other_key = create(:prompt_version, key: "agent_system", version: 1)
+
+      post "/api/companies/#{company.id}/eval_runs", params: { suite: "policy_extraction", stability_samples: 50 }, as: :json
+      expect(response).to have_http_status(:unprocessable_content)
+
+      post "/api/companies/#{company.id}/eval_runs", params: { suite: "policy_extraction", prompt_version_id: other_key.id }, as: :json
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["message"]).to match(/prompt version/i)
+    end
+
     it "refuses a suite that has no runner yet" do
       sign_in(hr_admin)
 
       post "/api/companies/#{company.id}/eval_runs", params: { suite: "nonsense" }, as: :json
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.parsed_body["message"]).to eq("The nonsense suite can't be run yet. Runnable suites: insights, policy_extraction.")
+      expect(response.parsed_body["message"]).to eq("The nonsense suite can't be run yet. Runnable suites: insights, policy_extraction, agent.")
       expect(EvalRun.count).to eq(0)
     end
 
@@ -55,7 +78,7 @@ RSpec.describe "Api::EvalRuns", type: :request do
       body = response.parsed_body
       expect(body["data"].map { _1["id"] }).to eq([ newer.id, older.id ])
       expect(body["data"].last["accuracy"]).to eq(0.8)
-      expect(body["meta"]).to eq({ "active_cases" => { "insights" => 2 }, "runnable_suites" => %w[insights policy_extraction] })
+      expect(body["meta"]).to eq({ "active_cases" => { "insights" => 2 }, "runnable_suites" => %w[insights policy_extraction agent] })
     end
   end
 

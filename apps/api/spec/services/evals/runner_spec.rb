@@ -152,4 +152,106 @@ RSpec.describe Evals::Runner do
       expect(eval_run.eval_results.sole).to have_attributes(passed: false, error_message: "Output failed schema validation: rules: required")
     end
   end
+
+  describe "the agent suite" do
+    # Replays each case's message through the real Agent::Runner as the
+    # named person, scores tool selection and outcome deterministically, and
+    # has Evals::Judge grade the wording. Everything the agent writes is
+    # rolled back: an eval must never file a real request.
+    let(:eval_run) { create(:eval_run, company: company, suite: "agent") }
+    let!(:manager) { create(:person, company: company, name: "Tunde Bakare") }
+    let!(:asker) { create(:person, company: company, name: "Ngozi Okafor", email: "ngozi@nubo.test", manager: manager) }
+    let(:judgement) { Evals::Judge::Result.new({ "correctness" => 5, "citation" => 4, "clarity" => 5, "no_false_claims" => 5 }, 4.75, "Fine.") }
+    let(:check) { { tool_calls: [ { name: "check_policy", arguments: { "request_kind" => "expense", "payload" => { "amount_eur" => 1200 } } } ] } }
+
+    before do
+      policy = create(:policy, company: company, category: "expense", status: "active")
+      create(:rule, policy: policy, status: "active", key: "large_expense",
+        conditions: { "field" => "payload.amount_eur", "op" => "gt", "value" => 500 },
+        actions: { "decision" => "require_approval", "approvers" => [ "manager_of(requester)" ] })
+      create(:workflow, company: company, status: "active", trigger: { "request_kind" => "expense" },
+        steps: [ { "key" => "approval", "type" => "approval" } ])
+      allow(Evals::Judge).to receive(:call).and_return(judgement)
+    end
+
+    def script(*turns) = FakeChat.new(turns).tap { |chat| allow(RubyLLM).to receive(:chat).and_return(chat) }
+
+    def add_agent_case(key: "ask_flight", input: {}, expected: {})
+      create(:eval_case, suite: "agent", key: key,
+        input: { "message" => "Can I expense a €1,200 flight?", "person_email" => "ngozi@nubo.test" }.merge(input),
+        expected: { "tools" => [ "check_policy" ], "forbidden_tools" => [ "create_request" ],
+                    "outputs" => { "check_policy" => { "decision" => "require_approval" } } }.merge(expected))
+    end
+
+    it "runs the agent as the named person and scores tool selection, outcome and the judge's grades" do
+      add_agent_case
+      script(check, { content: "Yes, Tunde Bakare has to approve it." })
+
+      described_class.call(eval_run)
+
+      result = eval_run.eval_results.sole
+      expect(result).to have_attributes(passed: true, diff: [])
+      expect(result.actual["final_text"]).to eq("Yes, Tunde Bakare has to approve it.")
+      expect(result.actual["tool_calls"].first).to include("name" => "check_policy")
+      expect(result.metrics["judge"]).to eq({ "correctness" => 5, "citation" => 4, "clarity" => 5, "no_false_claims" => 5, "mean" => 4.75 })
+      expect(Evals::Judge).to have_received(:call).with(message: "Can I expense a €1,200 flight?", tool_calls: [ a_hash_including("name" => "check_policy") ], answer: "Yes, Tunde Bakare has to approve it.")
+      expect(eval_run.reload).to have_attributes(passed_count: 1, status: "completed")
+      expect(eval_run.judge_score.to_f).to eq(4.75)
+    end
+
+    it "fails a case where the agent used a forbidden tool, and leaves no request or run behind" do
+      add_agent_case
+      script(
+        { tool_calls: [ { name: "create_request", arguments: { "request_kind" => "expense", "payload" => { "amount_eur" => 1200 } } } ] },
+        { content: "Done, I filed it." }
+      )
+
+      described_class.call(eval_run)
+
+      expect(eval_run.eval_results.sole.passed).to be(false)
+      expect(eval_run.eval_results.sole.diff).to include(a_hash_including("field" => "forbidden_tools"))
+      expect(Request.count).to eq(0)
+      expect(AgentRun.count).to eq(0)
+    end
+
+    it "replays earlier turns of the conversation before the message" do
+      add_agent_case(input: { "history" => [ { "message" => "Hi", "final_text" => "Hello Ngozi!" } ] })
+      chat = script(check, { content: "Yes." })
+
+      described_class.call(eval_run)
+
+      expect(chat.history).to eq([ [ :user, "Hi" ], [ :assistant, "Hello Ngozi!" ] ])
+    end
+
+    it "measures how closely the judge agrees with hand-labelled cases" do
+      label = { "correctness" => 5, "citation" => 2, "clarity" => 5, "no_false_claims" => 5 }
+      add_agent_case(expected: { "judge_label" => label })
+      script(check, { content: "Yes." })
+
+      described_class.call(eval_run)
+
+      expect(eval_run.eval_results.sole.metrics["judge_agreement"]).to eq(0.75)
+      expect(eval_run.reload.judge_agreement.to_f).to eq(0.75)
+    end
+
+    it "records a case whose acting person doesn't exist as a failure with the reason" do
+      add_agent_case(input: { "person_email" => "nobody@nubo.test" })
+
+      described_class.call(eval_run)
+
+      expect(eval_run.eval_results.sole).to have_attributes(passed: false, error_message: "Nobody with the email nobody@nubo.test in this company")
+    end
+
+    it "records a run that failed (e.g. the model never answered) as a failure" do
+      add_agent_case
+      loop_turn = { tool_calls: [ { name: "search_people", arguments: { "query" => "x" } } ] }
+      script(*Array.new(10, loop_turn), { content: "never" })
+
+      described_class.call(eval_run)
+
+      expect(eval_run.eval_results.sole).to have_attributes(passed: false)
+      expect(eval_run.eval_results.sole.error_message).to match(/Stopped after 8 model turns/)
+      expect(Evals::Judge).not_to have_received(:call)
+    end
+  end
 end

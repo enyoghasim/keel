@@ -6,6 +6,8 @@ module Api
     include CompanyScoped
 
     RECENT_LIMIT = 20
+    # Each sample is a model call per case, so stability sampling is capped.
+    MAX_STABILITY_SAMPLES = 5
 
     before_action :require_current_person!
     before_action :require_company_member!
@@ -33,7 +35,15 @@ module Api
         return render_error(message: "The #{suite} suite can't be run yet. Runnable suites: #{Evals::Runner::SUITES.keys.join(', ')}.")
       end
 
-      eval_run = @company.eval_runs.create!(suite: suite, person: current_person)
+      samples = params[:stability_samples].to_i
+      return render_error(message: "stability_samples must be between 0 and #{MAX_STABILITY_SAMPLES}.") unless samples.between?(0, MAX_STABILITY_SAMPLES)
+
+      prompt_version = PromptVersion.find_by(id: params[:prompt_version_id]) if params[:prompt_version_id].present?
+      if params[:prompt_version_id].present? && prompt_version&.key != Evals::Runner::PROMPT_KEYS[suite]
+        return render_error(message: "That prompt version isn't one the #{suite} suite uses.")
+      end
+
+      eval_run = @company.eval_runs.create!(suite: suite, person: current_person, prompt_version: prompt_version, stability_samples: samples)
       EvalRunJob.perform_later(eval_run.id)
       render_success(data: eval_run.as_payload, message: "Eval run started.", status: :accepted)
     end

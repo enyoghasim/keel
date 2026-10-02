@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_173000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_174000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -173,6 +173,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_173000) do
     t.decimal "stability", precision: 5, scale: 4
     t.decimal "judge_score", precision: 4, scale: 2
     t.decimal "cost_usd", precision: 10, scale: 6
+    t.decimal "judge_agreement", precision: 5, scale: 4
     t.index ["company_id"], name: "index_eval_runs_on_company_id"
     t.index ["person_id"], name: "index_eval_runs_on_person_id"
     t.index ["prompt_version_id"], name: "index_eval_runs_on_prompt_version_id"

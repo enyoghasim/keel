@@ -18,7 +18,7 @@ class EvalRun < ApplicationRecord
   # Shared by Api::EvalRunsController and EvalChannel.
   def as_payload
     as_json(only: FIELDS).merge(
-      "accuracy" => accuracy&.to_f, "stability" => stability&.to_f, "judge_score" => judge_score&.to_f, "cost_usd" => cost_usd&.to_f
+      "accuracy" => accuracy&.to_f, "stability" => stability&.to_f, "judge_score" => judge_score&.to_f, "judge_agreement" => judge_agreement&.to_f, "cost_usd" => cost_usd&.to_f
     )
   end
 end
