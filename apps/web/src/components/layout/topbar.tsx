@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { AgentTrace } from '../agent/agent-trace'
+import { CommandBar } from '../agent/command-bar'
 import { useCurrentPerson, useSignOut } from '../../lib/auth'
 import { getCurrentCompanyId } from '../../lib/current-company'
 import { effectiveTheme, initTheme, toggleTheme, type Theme } from '../../lib/theme'
@@ -40,16 +42,32 @@ function PersonChip({ companyId }: { companyId: string }) {
 
 export function Topbar() {
   const [theme, setTheme] = useState<Theme>(() => effectiveTheme())
+  const [commandOpen, setCommandOpen] = useState(false)
+  const [runId, setRunId] = useState<number | null>(null)
+  const [traceOpen, setTraceOpen] = useState(false)
   const companyId = getCurrentCompanyId()
 
   useEffect(() => {
     initTheme()
   }, [])
 
+  // ⌘K / Ctrl+K opens the command bar from anywhere.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setCommandOpen((open) => !open)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-3.5 border-b border-border bg-sidebar px-5">
       <button
         type="button"
+        onClick={() => setCommandOpen(true)}
         className="flex max-w-105 flex-1 items-center gap-2 rounded border border-border bg-secondary px-2.5 py-1.5 text-[13px] text-muted-foreground"
       >
         <SearchIcon className="h-3.75 w-3.75 shrink-0" />
@@ -63,7 +81,9 @@ export function Topbar() {
         <button
           type="button"
           title="Agent trace"
-          className="grid h-8.5 w-8.5 place-items-center rounded border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+          disabled={runId === null}
+          onClick={() => setTraceOpen(true)}
+          className="grid h-8.5 w-8.5 place-items-center rounded border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40"
         >
           <BellTraceIcon className="h-4 w-4" />
         </button>
@@ -77,6 +97,22 @@ export function Topbar() {
         </button>
         {companyId && <PersonChip companyId={companyId} />}
       </div>
+
+      <CommandBar
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+        companyId={companyId}
+        runId={runId}
+        onRunStarted={setRunId}
+        onShowTrace={() => {
+          // The command bar is modal, so the drawer opens once it's closed.
+          setCommandOpen(false)
+          setTraceOpen(true)
+        }}
+      />
+      {traceOpen && companyId && runId !== null && (
+        <AgentTrace companyId={companyId} runId={runId} onClose={() => setTraceOpen(false)} />
+      )}
     </header>
   )
 }
