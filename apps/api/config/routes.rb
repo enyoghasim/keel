@@ -13,6 +13,7 @@ Rails.application.routes.draw do
         resources :rules, only: [ :index, :show ]
         post :test, on: :member
       end
+      resources :requests, only: [ :index, :create, :show ]
     end
   end
 end
