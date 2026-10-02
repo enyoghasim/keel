@@ -220,7 +220,7 @@ module Insights
       return "Overall: #{format_value(rows.first.value)}." if group_by.nil?
 
       top = rows.max_by(&:value)
-      "#{top.label} is highest with #{format_value(top.value)}, out of #{total_groups} #{group_by.pluralize(total_groups)}."
+      "#{top.label} is highest with #{format_value(top.value)}, out of #{total_groups} #{group_by.pluralize(total_groups)}.".upcase_first
     end
 
     def format_value(value)

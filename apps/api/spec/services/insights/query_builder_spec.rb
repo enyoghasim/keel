@@ -200,6 +200,14 @@ RSpec.describe Insights::QueryBuilder do
     expect(result.summary).to eq("Sales is highest with 5 days, out of 2 departments.")
   end
 
+  it "starts the summary with a capital even when the top group is a lowercase category" do
+    submit(person("Ngozi", sales), kind: "expense", payload: { "amount_eur" => 90, "category" => "travel" })
+
+    result = run({ "metric" => "expense_total", "group_by" => "category", "chart" => "pie" })
+
+    expect(result.summary).to eq("Travel is highest with €90, out of 1 category.")
+  end
+
   it "says so when nothing matches" do
     result = run({ "metric" => "leave_days", "group_by" => "department", "chart" => "bar" })
 
