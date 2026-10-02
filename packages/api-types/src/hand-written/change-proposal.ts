@@ -1,3 +1,5 @@
+import type { Action, Condition } from '../generated/policy-rules'
+
 // Mirrors Api::ChangeProposalsController::FIELDS, #serialize_impact's
 // replacement Impact::OrgImpact and Impact::RuleImpact (apps/api/app/services/impact/).
 // "org" and "rule" proposals are implemented end to end (SPEC.md section 10);
@@ -54,8 +56,8 @@ export interface ImpactReport {
 export interface RuleSnapshot {
   key: string
   priority: number
-  conditions: Record<string, unknown>
-  actions: Record<string, unknown>
+  conditions: Condition
+  actions: Action
   source_quote: string
   source_chunk_id: number
 }
