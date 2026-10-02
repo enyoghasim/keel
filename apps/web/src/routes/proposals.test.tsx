@@ -475,7 +475,7 @@ describe('/proposals', () => {
     setCurrentCompanyId('1')
     const run: AgentRun = {
       id: 5, conversation_id: 'c', person_id: 99, message: 'Raise the limit to €800', status: 'completed', final_text: 'Proposed.', total_tokens: 100,
-      error_message: null, cost_usd: null, feedback: null, feedback_reason: null, created_at: '2026-01-03T00:00:00Z',
+      error_message: null, cost_usd: null, feedback: null, feedback_reason: null, proposal_ids: [3], created_at: '2026-01-03T00:00:00Z',
       steps: [{ id: 1, position: 1, kind: 'tool', tool_name: 'propose_rule_change', input: { policy_id: 1 }, output: { proposal_id: 3 }, latency_ms: 40, tokens: null }],
     }
     mockApi({
