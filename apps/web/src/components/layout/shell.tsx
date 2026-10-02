@@ -1,17 +1,18 @@
 import type { ReactNode } from 'react'
-import { Sidebar } from './sidebar'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { AppSidebar } from './sidebar'
 import { Topbar } from './topbar'
 
 export function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
         <Topbar />
-        <main className="flex-1 px-8 py-7">
+        <main className="flex-1 px-4 py-5 md:px-8 md:py-7">
           <div className="mx-auto max-w-295">{children}</div>
         </main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
