@@ -1,0 +1,65 @@
+# Insights eval suite (SPEC.md section 12): a question, the date it is
+# asked on, and the interpretation Insights::Interpreter should produce.
+# Scored by Evals::InsightsScorer on metric, group_by, filters and
+# time_range only — chart is listed for readability, never scored.
+# Department names match the Nubo seed company (SPEC.md section 16).
+# Load with `bin/rails evals:load`.
+- key: leave_by_department_last_quarter
+  input: { question: "Leave days by department last quarter", today: "2026-10-02" }
+  expected:
+    query: { metric: leave_days, group_by: department, chart: bar, time_range: { from: "2026-07-01", to: "2026-09-30" } }
+
+- key: approvals_overloaded_this_month
+  input: { question: "Who is overloaded with approvals this month?", today: "2026-10-02" }
+  expected:
+    query: { metric: approval_load, group_by: approver, chart: bar, time_range: { from: "2026-10-01", to: "2026-10-31" } }
+
+- key: expense_override_rate
+  input: { question: "How often do managers override the expense policy?", today: "2026-10-02" }
+  expected:
+    query: { metric: override_rate, chart: table, filters: [{ field: request.kind, op: eq, value: expense }] }
+
+- key: median_expense_approval_time_by_department
+  input: { question: "Median time to approve an expense by department", today: "2026-10-02" }
+  expected:
+    query: { metric: time_to_decision, group_by: department, chart: bar, filters: [{ field: request.kind, op: eq, value: expense }] }
+
+- key: expense_spend_by_category_q3
+  input: { question: "How much did we spend on expenses in each category in Q3?", today: "2026-10-02" }
+  expected:
+    query: { metric: expense_total, group_by: category, chart: bar, time_range: { from: "2026-07-01", to: "2026-09-30" } }
+
+- key: requests_per_month_july_to_september
+  input: { question: "Number of requests per month from July to September", today: "2026-10-02" }
+  expected:
+    query: { metric: request_count, group_by: month, chart: line, time_range: { from: "2026-07-01", to: "2026-09-30" } }
+
+- key: auto_approval_rate_by_policy
+  input: { question: "What share of requests get auto-approved under each policy?", today: "2026-10-02" }
+  expected:
+    query: { metric: auto_approval_rate, group_by: policy, chart: bar }
+
+- key: sales_leave_by_person_august
+  input: { question: "Leave days per person in Sales in August", today: "2026-10-02" }
+  expected:
+    query:
+      metric: leave_days
+      group_by: person
+      chart: bar
+      time_range: { from: "2026-08-01", to: "2026-08-31" }
+      filters: [{ field: requester.department, op: eq, value: Sales }]
+
+- key: travel_spend_by_department
+  input: { question: "Travel expense spend by department", today: "2026-10-02" }
+  expected:
+    query: { metric: expense_total, group_by: department, chart: bar, filters: [{ field: payload.category, op: eq, value: travel }] }
+
+- key: rejected_requests_by_kind
+  input: { question: "How many requests were rejected, broken down by type?", today: "2026-10-02" }
+  expected:
+    query: { metric: request_count, group_by: kind, chart: bar, filters: [{ field: request.status, op: eq, value: rejected }] }
+
+- key: ambiguous_fiscal_quarter
+  input: { question: "Leave days last fiscal quarter", today: "2026-10-02" }
+  expected: { clarification: true }
+  notes: Nubo's fiscal year isn't known to Keel, so the model should ask rather than assume calendar quarters.
