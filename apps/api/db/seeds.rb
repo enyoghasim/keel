@@ -1,9 +1,11 @@
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
+# Seeds the Nubo Logistics demo company (SPEC.md section 16): the company
+# graph, the handbook with its rules and workflows, and three months of
+# request history run through the real engine. Idempotent — once the
+# company exists, running it again does nothing.
 #
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+#   bin/rails db:seed
+require_relative "seeds/nubo"
+require_relative "seeds/nubo_handbook"
+require_relative "seeds/nubo_history"
+
+Seeds::Nubo.call
