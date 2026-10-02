@@ -35,6 +35,12 @@ function envelope<T>(data: T, meta?: unknown) {
   return { body: { success: true, message: '', data, meta } }
 }
 
+// The prompt versions panel and the candidate queue load on every Trust page.
+const sidePanels = {
+  'GET /api/companies/1/prompt_versions': { body: { success: true, message: '', data: [] } },
+  'GET /api/companies/1/eval_cases?status=candidate': { body: { success: true, message: '', data: [] } },
+}
+
 const meta = { active_cases: { insights: 11 }, runnable_suites: ['insights'] }
 
 function run(id: number, overrides: Partial<EvalRun> = {}): EvalRun {
@@ -107,6 +113,7 @@ describe('/trust', () => {
       ],
     }
     mockApi({
+      ...sidePanels,
       'GET /api/companies/1/session': envelope(person(['hr_admin'])),
       'GET /api/companies/1/eval_runs': envelope([run(2, { accuracy: 0.5, passed_count: 1, cases_count: 2 }), run(1)], meta),
       'GET /api/companies/1/eval_runs/2': envelope(latest),
@@ -141,6 +148,7 @@ describe('/trust', () => {
     })
     const agent = run(4, { suite: 'agent', judge_score: 4.5, judge_agreement: 0.75 })
     mockApi({
+      ...sidePanels,
       'GET /api/companies/1/session': envelope(person(['hr_admin'])),
       'GET /api/companies/1/eval_runs': envelope([extraction, agent], { active_cases: { policy_extraction: 1, agent: 1 }, runnable_suites: ['policy_extraction', 'agent'] }),
       'GET /api/companies/1/eval_runs/5': envelope({
@@ -185,6 +193,7 @@ describe('/trust', () => {
     setCurrentCompanyId('1')
     const pending = run(3, { status: 'pending', accuracy: null, cases_count: 0, passed_count: 0, model: null })
     const fetchMock = mockApi({
+      ...sidePanels,
       'GET /api/companies/1/session': envelope(person(['hr_admin'])),
       'GET /api/companies/1/eval_runs': envelope([], meta),
       'POST /api/companies/1/eval_runs': { status: 202, body: { success: true, message: '', data: pending } },
@@ -229,10 +238,41 @@ describe('/trust', () => {
     expect(await within(detail).findByText('50% · 1 of 2 passed')).toBeInTheDocument()
   })
 
+  it('starts a policy extraction run of a chosen prompt version with stability sampling', async () => {
+    const user = userEvent.setup()
+    setCurrentCompanyId('1')
+    const pending = run(8, { suite: 'policy_extraction', status: 'pending', accuracy: null, cases_count: 0, passed_count: 0, model: null })
+    const versions = [
+      { id: 2, key: 'policy_extractor', version: 2, model: null, active: true, notes: null, created_at: '2026-10-02T00:00:00Z', latest_run: null, regressions: [] },
+      { id: 1, key: 'policy_extractor', version: 1, model: null, active: false, notes: null, created_at: '2026-10-01T00:00:00Z', latest_run: null, regressions: null },
+    ]
+    const fetchMock = mockApi({
+      ...sidePanels,
+      'GET /api/companies/1/prompt_versions': { body: { success: true, message: '', data: versions } },
+      'GET /api/companies/1/session': envelope(person(['hr_admin'])),
+      'GET /api/companies/1/eval_runs': envelope([], { active_cases: { policy_extraction: 12 }, runnable_suites: ['insights', 'policy_extraction'] }),
+      'POST /api/companies/1/eval_runs': { status: 202, body: { success: true, message: '', data: pending } },
+      'GET /api/companies/1/eval_runs/8': envelope({ ...pending, results: [] }),
+    })
+
+    await renderApp('/trust')
+    await user.selectOptions(await screen.findByLabelText('Suite'), 'policy_extraction')
+    await user.selectOptions(screen.getByLabelText('Prompt version'), '1')
+    await user.selectOptions(screen.getByLabelText('Stability samples'), '5')
+    await user.click(screen.getByRole('button', { name: 'Run policy extraction suite' }))
+
+    await screen.findByRole('region', { name: 'Run #8' })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/companies/1/eval_runs',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ suite: 'policy_extraction', prompt_version_id: 1, stability_samples: 5 }) }),
+    )
+  })
+
   it('compares two runs, listing the cases that flipped', async () => {
     const user = userEvent.setup()
     setCurrentCompanyId('1')
     mockApi({
+      ...sidePanels,
       'GET /api/companies/1/session': envelope(person(['hr_admin'])),
       'GET /api/companies/1/eval_runs': envelope([run(2, { accuracy: 0.5 }), run(1, { accuracy: 0.5 })], meta),
       'GET /api/companies/1/eval_runs/1': envelope({
@@ -257,6 +297,7 @@ describe('/trust', () => {
   it("hides the run button from someone who isn't an hr_admin", async () => {
     setCurrentCompanyId('1')
     mockApi({
+      ...sidePanels,
       'GET /api/companies/1/session': envelope(person([])),
       'GET /api/companies/1/eval_runs': envelope([], meta),
     })
