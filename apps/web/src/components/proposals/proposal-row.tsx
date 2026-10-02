@@ -83,7 +83,7 @@ export function ProposalRow({
         type="button"
         onClick={() => setExpanded((value) => !value)}
         aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left"
+        className="flex w-full flex-col gap-1.5 px-4 py-3 text-left sm:flex-row sm:items-center sm:justify-between sm:gap-4"
       >
         <div>
           <div className="text-[14px] font-semibold">{proposal.title}</div>
@@ -92,7 +92,7 @@ export function ProposalRow({
             {STATUS_LABEL[proposal.status]}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3 text-[12px] tabular-nums">
+        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] tabular-nums">
           {proposal.kind === 'org' && (
             <>
               <Count label="rerouted" value={proposal.impact.rerouted.length} />
