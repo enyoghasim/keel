@@ -261,6 +261,24 @@ describe('/trust', () => {
     )
   })
 
+  it('says what the chosen suite scores while there are no runs, not always analytics', async () => {
+    const user = userEvent.setup()
+    mockApi({
+      ...sidePanels,
+      'GET /api/companies/1/prompt_versions': { body: { success: true, message: '', data: [] } },
+      'GET /api/companies/1/session': envelope(person(['hr_admin'])),
+      'GET /api/companies/1/eval_runs': envelope([], { active_cases: { agent: 4 }, runnable_suites: ['insights', 'agent'] }),
+    })
+
+    await renderApp('/trust')
+    expect(await screen.findByText(/score how well Keel understands analytics questions/)).toBeInTheDocument()
+
+    await chooseOption(user, screen.getByLabelText('Suite'), 'Agent')
+
+    expect(screen.getByText(/score how well the agent picks tools and answers/)).toBeInTheDocument()
+    expect(screen.queryByText(/analytics questions/)).not.toBeInTheDocument()
+  })
+
   it('starts an agent run of a chosen agent_system prompt version, with no stability sampling', async () => {
     const user = userEvent.setup()
     const pending = run(9, { suite: 'agent', status: 'pending', accuracy: null, cases_count: 0, passed_count: 0, model: null })
