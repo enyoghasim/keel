@@ -3,16 +3,18 @@ import type { ChangeProposal, Department, Envelope, Person } from 'api-types'
 import { useCallback } from 'react'
 import { api } from '../../lib/api'
 import { useCurrentPerson } from '../../lib/auth'
-import { useChannel } from '../../lib/cable'
+import { CABLE_POLL_INTERVAL_MS, useCableHealthy, useChannel } from '../../lib/cable'
 import { PagePlaceholder } from '../layout/page-placeholder'
 import { ProposalRow } from './proposal-row'
 
 export function ProposalsView({ companyId }: { companyId: string }) {
   const queryClient = useQueryClient()
   const canDecide = useCurrentPerson(companyId).data?.data?.roles.includes('hr_admin') ?? false
+  const cableHealthy = useCableHealthy()
   const proposalsQuery = useQuery({
     queryKey: ['change_proposals', companyId],
     queryFn: () => api.get<Envelope<ChangeProposal[]>>(`/companies/${companyId}/change_proposals`),
+    refetchInterval: cableHealthy ? false : CABLE_POLL_INTERVAL_MS,
   })
   const peopleQuery = useQuery({
     queryKey: ['people', companyId],

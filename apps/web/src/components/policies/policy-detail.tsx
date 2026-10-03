@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Envelope, PolicyTestResult, PolicyWithRules, RuleResolution } from 'api-types'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../lib/api'
-import { useChannel } from '../../lib/cable'
+import { CABLE_POLL_INTERVAL_MS, useCableHealthy, useChannel } from '../../lib/cable'
 import { PagePlaceholder } from '../layout/page-placeholder'
 import { ConflictList } from './conflict-list'
 import { HandbookPane } from './handbook-pane'
@@ -13,14 +13,31 @@ import { RuleUpdate } from './rule-update'
 
 // Follows one answer while the model rewrites the rule. The channel sends the
 // current state on subscribe, so a job that already finished isn't missed.
+// While the socket looks unreachable, polls the same resource instead.
 function ResolutionWatcher({
+  companyId,
+  policyId,
   resolutionId,
   onEvent,
 }: {
+  companyId: string
+  policyId: number
   resolutionId: number
   onEvent: (resolution: RuleResolution) => void
 }) {
+  const cableHealthy = useCableHealthy()
   useChannel<RuleResolution>('RuleResolutionChannel', { rule_resolution_id: resolutionId }, onEvent)
+
+  const poll = useQuery({
+    queryKey: ['rule_resolution', companyId, policyId, resolutionId],
+    queryFn: () => api.get<Envelope<RuleResolution>>(`/companies/${companyId}/policies/${policyId}/rule_resolutions/${resolutionId}`),
+    enabled: !cableHealthy,
+    refetchInterval: cableHealthy ? false : CABLE_POLL_INTERVAL_MS,
+  })
+  useEffect(() => {
+    if (poll.data?.data) onEvent(poll.data.data)
+  }, [poll.data, onEvent])
+
   return null
 }
 
@@ -82,7 +99,7 @@ export function PolicyDetail({ companyId, policyId }: { companyId: string; polic
     <div className="space-y-4">
       <PublishBar companyId={companyId} policy={policy} />
       {resolution?.status === 'pending' && (
-        <ResolutionWatcher key={resolution.id} resolutionId={resolution.id} onEvent={onResolution} />
+        <ResolutionWatcher key={resolution.id} companyId={companyId} policyId={policyId} resolutionId={resolution.id} onEvent={onResolution} />
       )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div>

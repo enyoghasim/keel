@@ -178,7 +178,7 @@ export function WorkflowEditor({ companyId, workflow, people }: { companyId: str
       {saveDraft.isError && <p className="text-[12px] text-destructive">{(saveDraft.error as Error).message}</p>}
       {proposeActive.isError && <p className="text-[12px] text-destructive">{(proposeActive.error as Error).message}</p>}
 
-      {edit?.status === 'pending' && <EditWatcher key={edit.id} editId={edit.id} onEvent={onEditEvent} />}
+      {edit?.status === 'pending' && <EditWatcher key={edit.id} companyId={companyId} workflowId={workflow.id} editId={edit.id} onEvent={onEditEvent} />}
       {edit?.status === 'unchanged' && <p className="text-[13px] text-muted-foreground">That wouldn't change this workflow.</p>}
       {edit?.status === 'failed' && <p className="text-[13px] text-destructive">{edit.error_message}</p>}
       {edit?.status === 'proposed' && edit.change_proposal_id !== null && (

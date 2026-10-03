@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Envelope, Insight } from 'api-types'
 import { useCallback } from 'react'
 import { api } from '../../lib/api'
-import { useChannel } from '../../lib/cable'
+import { CABLE_POLL_INTERVAL_MS, useCableHealthy, useChannel } from '../../lib/cable'
 import { InsightChart } from './insight-chart'
 import { insightQueryKey } from './insight-query-key'
 import { QueryChips } from './query-chips'
@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/card'
 export function InsightAnswer({ companyId, insightId }: { companyId: string; insightId: number }) {
   const queryClient = useQueryClient()
   const queryKey = insightQueryKey(companyId, insightId)
+  const cableHealthy = useCableHealthy()
 
   const insightQuery = useQuery({
     queryKey,
@@ -23,7 +24,11 @@ export function InsightAnswer({ companyId, insightId }: { companyId: string; ins
     // InsightChannel sends the current state on subscribe, so a cached
     // answer never needs refetching — and a refetch racing the channel
     // could land late and put an answered question back to "pending".
+    // Poll instead while the socket looks unreachable (e.g. a tunnel that
+    // only proxies plain HTTP) — a poll replaces the same way an event
+    // does, so it's never wrong, just slower than the channel would be.
     staleTime: Infinity,
+    refetchInterval: cableHealthy ? false : CABLE_POLL_INTERVAL_MS,
   })
 
   const onEvent = useCallback(

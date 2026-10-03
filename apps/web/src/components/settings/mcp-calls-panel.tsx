@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AgentRun, Envelope, McpCall } from 'api-types'
 import { useCallback, useState } from 'react'
 import { api } from '../../lib/api'
-import { useChannel } from '../../lib/cable'
+import { CABLE_POLL_INTERVAL_MS, useCableHealthy, useChannel } from '../../lib/cable'
 import { TraceDrawer } from '../agent/trace-drawer'
 import { formatRunDate } from '../trust/format'
 import { Badge } from '@/components/ui/badge'
@@ -39,10 +39,12 @@ function asTrace(call: McpCall): AgentRun {
 export function McpCallsPanel({ companyId, personId }: { companyId: string; personId: number }) {
   const queryClient = useQueryClient()
   const [openId, setOpenId] = useState<number | null>(null)
+  const cableHealthy = useCableHealthy()
 
   const query = useQuery({
     queryKey: callsKey(companyId),
     queryFn: () => api.get<Envelope<McpCall[]>>(`/companies/${companyId}/mcp_calls`),
+    refetchInterval: cableHealthy ? false : CABLE_POLL_INTERVAL_MS,
   })
 
   const onArrived = useCallback(() => queryClient.invalidateQueries({ queryKey: callsKey(companyId) }), [queryClient, companyId])

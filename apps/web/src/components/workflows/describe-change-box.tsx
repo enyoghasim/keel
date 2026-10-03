@@ -1,9 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ChangeProposal, Envelope, Person, WorkflowChangeProposal, WorkflowEdit } from 'api-types'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../../lib/api'
-import { useChannel } from '../../lib/cable'
+import { CABLE_POLL_INTERVAL_MS, useCableHealthy, useChannel } from '../../lib/cable'
 import { WorkflowProposalDetails } from '../proposals/workflow-proposal-details'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,9 +34,33 @@ export function ProposedChange({ companyId, proposalId, people }: { companyId: s
   )
 }
 
-// Follows one drafting edit over Action Cable until it settles.
-export function EditWatcher({ editId, onEvent }: { editId: number; onEvent: (event: WorkflowEdit) => void }) {
+// Follows one drafting edit over Action Cable until it settles. While the
+// socket looks unreachable, polls the same resource instead — same shape
+// as the channel's own payload, so it feeds the same onEvent either way.
+export function EditWatcher({
+  companyId,
+  workflowId,
+  editId,
+  onEvent,
+}: {
+  companyId: string
+  workflowId: number
+  editId: number
+  onEvent: (event: WorkflowEdit) => void
+}) {
+  const cableHealthy = useCableHealthy()
   useChannel<WorkflowEdit>('WorkflowEditChannel', { workflow_edit_id: editId }, onEvent)
+
+  const poll = useQuery({
+    queryKey: ['workflow_edit', companyId, workflowId, editId],
+    queryFn: () => api.get<Envelope<WorkflowEdit>>(`/companies/${companyId}/workflows/${workflowId}/edits/${editId}`),
+    enabled: !cableHealthy,
+    refetchInterval: cableHealthy ? false : CABLE_POLL_INTERVAL_MS,
+  })
+  useEffect(() => {
+    if (poll.data?.data) onEvent(poll.data.data)
+  }, [poll.data, onEvent])
+
   return null
 }
 
@@ -83,7 +107,7 @@ export function DescribeChangeBox({ companyId, workflowId, people }: { companyId
         </Button>
       </form>
 
-      {edit?.status === 'pending' && <EditWatcher key={edit.id} editId={edit.id} onEvent={onEvent} />}
+      {edit?.status === 'pending' && <EditWatcher key={edit.id} companyId={companyId} workflowId={workflowId} editId={edit.id} onEvent={onEvent} />}
       {submit.isError && <p className="text-[13px] text-destructive">{(submit.error as Error).message}</p>}
       {edit?.status === 'failed' && <p className="text-[13px] text-destructive">{edit.error_message}</p>}
       {edit?.status === 'unchanged' && <p className="text-[13px] text-muted-foreground">That wouldn't change this workflow.</p>}

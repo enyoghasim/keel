@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import type { Envelope } from 'api-types'
 import { useCallback, useMemo, useState } from 'react'
 import { api } from '../../lib/api'
-import { useChannel } from '../../lib/cable'
+import { CABLE_POLL_INTERVAL_MS, useCableHealthy, useChannel } from '../../lib/cable'
 import { type AssembleEvent, mergeEvents } from './assemble-event'
 import { failure, furthestProgress, importIssues, isComplete, lowConfidenceMappings, STAGES, stageStatus, summarize } from './stage-progress'
 import { describeAssembleEvent } from './describe-assemble-event'
@@ -16,14 +16,20 @@ const STATUS_DOT: Record<string, string> = {
 
 export function AssembleProgress({ companyId }: { companyId: string }) {
   const [live, setLive] = useState<AssembleEvent[]>([])
+  const cableHealthy = useCableHealthy()
 
   // What the job did before this page subscribed (or before a reload): the
-  // API keeps every numbered event, and the page merges it with the live ones.
+  // API keeps every numbered event, and the page merges it with the live
+  // ones. While the socket looks unreachable, re-fetch this on an interval
+  // instead — it's the same full, growing event log AssembleChannel's own
+  // backfill-on-connect reads from, so a poll merges in exactly the same
+  // way, just on a delay instead of as each event happens.
   const log = useQuery({
     queryKey: ['assemble-events', companyId],
     queryFn: () => api.get<Envelope<AssembleEvent[]>>(`/companies/${companyId}/assemble_events`),
     staleTime: Infinity,
     retry: false,
+    refetchInterval: cableHealthy ? false : CABLE_POLL_INTERVAL_MS,
   })
   const events = useMemo(() => mergeEvents(log.data?.data ?? [], live), [log.data, live])
 

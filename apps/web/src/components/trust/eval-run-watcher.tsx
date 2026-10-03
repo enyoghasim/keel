@@ -1,7 +1,8 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { EvalChannelEvent, EvalRun, EvalRunWithResults, Envelope } from 'api-types'
-import { useCallback } from 'react'
-import { useChannel } from '../../lib/cable'
+import { useCallback, useEffect } from 'react'
+import { api } from '../../lib/api'
+import { CABLE_POLL_INTERVAL_MS, useCableHealthy, useChannel } from '../../lib/cable'
 import { evalRunQueryKey, evalRunsQueryKey, promptVersionsQueryKey } from './eval-query-keys'
 
 /**
@@ -11,6 +12,7 @@ import { evalRunQueryKey, evalRunsQueryKey, promptVersionsQueryKey } from './eva
  */
 export function EvalRunWatcher({ companyId, runId }: { companyId: string; runId: number }) {
   const queryClient = useQueryClient()
+  const cableHealthy = useCableHealthy()
 
   const onEvent = useCallback(
     (event: EvalChannelEvent) => {
@@ -44,5 +46,28 @@ export function EvalRunWatcher({ companyId, runId }: { companyId: string; runId:
   )
 
   useChannel<EvalChannelEvent>('EvalChannel', { eval_run_id: runId }, onEvent)
+
+  // While the socket looks unreachable, poll the run's full detail instead
+  // of trying to replay EvalChannel's incremental run/result events — a
+  // poll already has the complete picture (every result so far), so it
+  // replaces the cached detail wholesale rather than merging piecemeal.
+  const poll = useQuery({
+    queryKey: ['eval_run_poll', companyId, runId],
+    queryFn: () => api.get<Envelope<EvalRunWithResults>>(`/companies/${companyId}/eval_runs/${runId}`),
+    enabled: !cableHealthy,
+    refetchInterval: cableHealthy ? false : CABLE_POLL_INTERVAL_MS,
+  })
+  useEffect(() => {
+    const polled = poll.data
+    if (!polled?.data) return
+    queryClient.setQueryData<Envelope<EvalRunWithResults>>(evalRunQueryKey(companyId, runId), polled)
+    queryClient.setQueryData<Envelope<EvalRun[]>>(evalRunsQueryKey(companyId), (list) =>
+      list && { ...list, data: list.data?.map((run) => (run.id === runId ? { ...run, ...polled.data } : run)) },
+    )
+    if (polled.data.status === 'completed' || polled.data.status === 'failed') {
+      queryClient.invalidateQueries({ queryKey: promptVersionsQueryKey(companyId) })
+    }
+  }, [poll.data, queryClient, companyId, runId])
+
   return null
 }

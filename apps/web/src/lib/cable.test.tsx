@@ -1,8 +1,8 @@
 import { createConsumer } from '@rails/actioncable'
-import { render, waitFor } from '@testing-library/react'
+import { act, render, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { useChannel as UseChannel } from './cable'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { useCableHealthy as UseCableHealthy, useChannel as UseChannel } from './cable'
 
 vi.mock('@rails/actioncable', () => ({
   createConsumer: vi.fn(() => ({
@@ -18,6 +18,12 @@ vi.mock('@rails/actioncable', () => ({
 async function importFreshUseChannel(): Promise<typeof UseChannel> {
   vi.resetModules()
   return (await import('./cable')).useChannel
+}
+
+async function importFreshCable(): Promise<{ useChannel: typeof UseChannel; useCableHealthy: typeof UseCableHealthy }> {
+  vi.resetModules()
+  const mod = await import('./cable')
+  return { useChannel: mod.useChannel, useCableHealthy: mod.useCableHealthy }
 }
 
 function Harness({ useChannel, onEvent }: { useChannel: typeof UseChannel; onEvent: (event: unknown) => void }) {
@@ -137,5 +143,74 @@ describe('useChannel', () => {
     const late = vi.fn()
     render(<Connected onConnected={late} />)
     expect(late).toHaveBeenCalledTimes(1)
+  })
+})
+
+// Every live page falls back to polling its REST endpoint off this signal
+// once the socket looks unreachable — a tunnel that only proxies plain
+// HTTP, for instance, where ActionCable's own reconnect loop retries
+// forever without a subscription ever confirming "connected".
+describe('useCableHealthy', () => {
+  beforeEach(() => {
+    vi.mocked(createConsumer).mockClear()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function HealthHarness({ useCableHealthy }: { useCableHealthy: typeof UseCableHealthy }) {
+    const healthy = useCableHealthy()
+    return <div data-testid="healthy">{String(healthy)}</div>
+  }
+
+  it('starts healthy, optimistically', async () => {
+    const { useCableHealthy } = await importFreshCable()
+    const { getByTestId } = render(<HealthHarness useCableHealthy={useCableHealthy} />)
+
+    expect(getByTestId('healthy').textContent).toBe('true')
+  })
+
+  it('goes unhealthy if nothing connects within the grace period', async () => {
+    const { useCableHealthy } = await importFreshCable()
+    const { getByTestId } = render(<HealthHarness useCableHealthy={useCableHealthy} />)
+
+    await act(() => vi.advanceTimersByTimeAsync(5000))
+
+    expect(getByTestId('healthy').textContent).toBe('false')
+  })
+
+  it('stays healthy once a subscription connects before the grace period elapses', async () => {
+    const { useChannel, useCableHealthy } = await importFreshCable()
+    function Harness() {
+      useChannel('AssembleChannel', { company_id: '1' }, vi.fn())
+      return <HealthHarness useCableHealthy={useCableHealthy} />
+    }
+    const { getByTestId } = render(<Harness />)
+    const mixin = vi.mocked(createConsumer).mock.results[0]!.value.subscriptions.create.mock.calls[0][1]
+
+    act(() => mixin.connected())
+    await act(() => vi.advanceTimersByTimeAsync(5000))
+
+    expect(getByTestId('healthy').textContent).toBe('true')
+  })
+
+  it('goes unhealthy again after a connected subscription drops and nothing reconnects', async () => {
+    const { useChannel, useCableHealthy } = await importFreshCable()
+    function Harness() {
+      useChannel('AssembleChannel', { company_id: '1' }, vi.fn())
+      return <HealthHarness useCableHealthy={useCableHealthy} />
+    }
+    const { getByTestId } = render(<Harness />)
+    const mixin = vi.mocked(createConsumer).mock.results[0]!.value.subscriptions.create.mock.calls[0][1]
+
+    act(() => mixin.connected())
+    expect(getByTestId('healthy').textContent).toBe('true')
+
+    act(() => mixin.disconnected())
+    await act(() => vi.advanceTimersByTimeAsync(5000))
+
+    expect(getByTestId('healthy').textContent).toBe('false')
   })
 })
