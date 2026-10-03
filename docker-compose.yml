@@ -85,8 +85,11 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      # nginx:alpine has no curl; busybox's wget is built in.
-      test: ['CMD-SHELL', 'wget -qO- http://localhost/up || exit 1']
+      # nginx:alpine has no curl; busybox's wget is built in. 127.0.0.1, not
+      # localhost — nginx only binds the IPv4 socket, and this image
+      # resolves "localhost" to ::1 first, so wget would get a refused
+      # connection on the (unbound) IPv6 one.
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1/up || exit 1']
       interval: 10s
       timeout: 5s
       retries: 10
