@@ -43,7 +43,7 @@ export function UploadForm({ onAssembled }: { onAssembled: (companyId: string) =
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nubo"
+          placeholder="Factorial"
           className="mt-1 block w-full rounded border border-border bg-background px-2.5 py-1.5 text-[13px]"
         />
       </div>
