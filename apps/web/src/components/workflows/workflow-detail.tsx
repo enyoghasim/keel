@@ -7,6 +7,8 @@ import { PagePlaceholder } from '../layout/page-placeholder'
 import { DescribeChangeBox } from './describe-change-box'
 import { FlowCanvas } from './flow-canvas'
 import { TestRunDialog } from './test-run-dialog'
+import { WorkflowEditor } from './workflow-editor'
+import { WorkflowPublishBar } from './workflow-publish-bar'
 import { Button } from '@/components/ui/button'
 
 const OUTCOME_LABEL: Record<WorkflowTestRunResult['outcome'], string> = {
@@ -71,7 +73,16 @@ export function WorkflowDetail({ companyId, workflowId }: { companyId: string; w
         </div>
       )}
 
-      {canPropose && <DescribeChangeBox key={workflowId} companyId={companyId} workflowId={workflowId} people={people} />}
+      {canPropose && workflow.status === 'draft' && <WorkflowPublishBar companyId={companyId} workflow={workflow} />}
+
+      {canPropose && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+          <div className="flex-1">
+            <DescribeChangeBox key={workflowId} companyId={companyId} workflowId={workflowId} people={people} />
+          </div>
+          <WorkflowEditor key={`${workflowId}-${workflow.version}`} companyId={companyId} workflow={workflow} people={people} />
+        </div>
+      )}
 
       <FlowCanvas workflow={workflow} people={people} testRun={testRun?.steps ?? null} />
 

@@ -8,7 +8,7 @@ import { WorkflowProposalDetails } from '../proposals/workflow-proposal-details'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-function ProposedChange({ companyId, proposalId, people }: { companyId: string; proposalId: number; people: Person[] }) {
+export function ProposedChange({ companyId, proposalId, people }: { companyId: string; proposalId: number; people: Person[] }) {
   const proposalQuery = useQuery({
     queryKey: ['change_proposal', companyId, proposalId],
     queryFn: () => api.get<Envelope<ChangeProposal>>(`/companies/${companyId}/change_proposals/${proposalId}`),
@@ -35,7 +35,7 @@ function ProposedChange({ companyId, proposalId, people }: { companyId: string; 
 }
 
 // Follows one drafting edit over Action Cable until it settles.
-function EditWatcher({ editId, onEvent }: { editId: number; onEvent: (event: WorkflowEdit) => void }) {
+export function EditWatcher({ editId, onEvent }: { editId: number; onEvent: (event: WorkflowEdit) => void }) {
   useChannel<WorkflowEdit>('WorkflowEditChannel', { workflow_edit_id: editId }, onEvent)
   return null
 }

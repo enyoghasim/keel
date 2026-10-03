@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Person, Workflow, WorkflowChangeProposal, WorkflowEdit, WorkflowTestRunResult } from 'api-types'
 import { act } from '@testing-library/react'
@@ -23,6 +23,7 @@ const expenseWorkflow: Workflow = {
   id: 5,
   name: 'Expense approval',
   status: 'active',
+  version: 1,
   trigger: { request_kind: 'expense' },
   steps: [
     { key: 'approval', type: 'approval' },
@@ -41,6 +42,7 @@ const leaveWorkflow: Workflow = {
   id: 6,
   name: 'Leave approval',
   status: 'draft',
+  version: 1,
   trigger: { request_kind: 'leave' },
   steps: [{ key: 'approval', type: 'approval' }],
   created_at: '2026-01-02T00:00:00Z',
@@ -49,7 +51,7 @@ const leaveWorkflow: Workflow = {
 const requester: Person = {
   id: 2,
   name: 'Ngozi Doe',
-  email: 'ngozi@nubo.test',
+  email: 'ngozi@factorial.test',
   title: 'Sales Rep',
   department_id: null,
   manager_id: null,
@@ -62,7 +64,7 @@ const peopleRoute = { 'GET /api/companies/1/people': { body: { success: true, me
 const currentPerson: Person = {
   id: 1,
   name: 'Ada Nwosu',
-  email: 'ada@nubo.test',
+  email: 'ada@factorial.test',
   title: 'HR Admin',
   department_id: null,
   manager_id: null,
@@ -118,6 +120,63 @@ describe('/workflows', () => {
     expect(await screen.findByText('Leave request submitted')).toBeInTheDocument()
   })
 
+  it('shows the draft warning and a Publish button only for a draft workflow, and only to an hr_admin', async () => {
+    const user = userEvent.setup()
+    mockApi({
+      'GET /api/companies/1/workflows': { body: { success: true, message: '', data: [expenseWorkflow, leaveWorkflow] } },
+      'GET /api/companies/1/workflows/5': { body: { success: true, message: '', data: expenseWorkflow } },
+      'GET /api/companies/1/workflows/6': { body: { success: true, message: '', data: leaveWorkflow } },
+      ...peopleRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/workflows')
+    await screen.findByText('Expense request submitted')
+    expect(screen.queryByText(/not yet enforced/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: /Leave approval/ }))
+
+    expect(await screen.findByText(/not yet enforced/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Publish' })).toBeInTheDocument()
+  })
+
+  it('hides the draft warning from a non-hr_admin', async () => {
+    mockApi({
+      'GET /api/companies/1/workflows': { body: { success: true, message: '', data: [leaveWorkflow] } },
+      'GET /api/companies/1/workflows/6': { body: { success: true, message: '', data: leaveWorkflow } },
+      ...peopleRoute,
+      'GET /api/companies/1/session': { body: { success: true, message: '', data: { ...currentPerson, roles: [] } } },
+    })
+
+    await renderApp('/workflows')
+
+    await screen.findByText('Leave request submitted')
+    expect(screen.queryByText(/not yet enforced/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
+  })
+
+  it('publishes a draft workflow and clears the warning once it refetches as active', async () => {
+    const user = userEvent.setup()
+    const published = { ...leaveWorkflow, status: 'active' as const, version: 2 }
+    mockApi({
+      'GET /api/companies/1/workflows': { body: { success: true, message: '', data: [leaveWorkflow] } },
+      'GET /api/companies/1/workflows/6': [
+        { body: { success: true, message: '', data: leaveWorkflow } },
+        { body: { success: true, message: '', data: published } },
+      ],
+      'POST /api/companies/1/workflows/6/publish': { body: { success: true, message: '', data: published } },
+      ...peopleRoute,
+      ...sessionRoute,
+    })
+
+    await renderApp('/workflows')
+    await screen.findByText(/not yet enforced/)
+
+    await user.click(screen.getByRole('button', { name: 'Publish' }))
+
+    await waitFor(() => expect(screen.queryByText(/not yet enforced/)).not.toBeInTheDocument())
+  })
+
   it('runs a test run and lights up the matched steps with the resolved person', async () => {
     const user = userEvent.setup()
     const testRunResult: WorkflowTestRunResult = {
@@ -152,7 +211,7 @@ describe('/workflows', () => {
 
   describe('describe a change', () => {
     const pendingEdit: WorkflowEdit = {
-      id: 31, workflow_id: 5, instruction: 'IT sets up accounts after the manager approves', status: 'pending',
+      id: 31, workflow_id: 5, instruction: 'IT sets up accounts after the manager approves', source: 'instruction', status: 'pending',
       change_proposal_id: null, error_message: null, created_at: '2026-10-02T00:00:00Z',
     }
     const proposal: WorkflowChangeProposal = {
@@ -174,7 +233,7 @@ describe('/workflows', () => {
 
     async function describeChange(user: ReturnType<typeof userEvent.setup>) {
       await screen.findByText('Expense request submitted')
-      await user.type(screen.getByRole('textbox', { name: 'Describe a change' }), pendingEdit.instruction)
+      await user.type(screen.getByRole('textbox', { name: 'Describe a change' }), pendingEdit.instruction!)
       await user.click(screen.getByRole('button', { name: 'Propose change' }))
     }
 
@@ -227,6 +286,52 @@ describe('/workflows', () => {
 
       await screen.findByText('Expense request submitted')
       expect(screen.queryByRole('textbox', { name: 'Describe a change' })).not.toBeInTheDocument()
+    })
+  })
+
+  // The editor's active-path ("Propose change") feeds steps instead of an
+  // instruction into the same workflow_edits → Change Proposal pipeline,
+  // and lands on the exact same review UI "describe a change" does above.
+  describe('edit steps directly', () => {
+    const editedEdit: WorkflowEdit = {
+      id: 32, workflow_id: 5, instruction: null, source: 'steps', status: 'pending',
+      change_proposal_id: null, error_message: null, created_at: '2026-10-02T00:00:00Z',
+    }
+    const editedProposal: WorkflowChangeProposal = {
+      id: 9, company_id: 1, kind: 'workflow', title: 'Expense approval: edited directly', proposed_by: 'user', agent_run_id: null,
+      status: 'pending', decided_by_id: null, decided_at: null, explanation: null, created_at: '2026-10-02T00:00:00Z',
+      diff: { workflow_id: 5, request_kind: 'expense', instruction: null, before: expenseWorkflow.steps, after: [ expenseWorkflow.steps[0] ] },
+      impact: { steps: { added: [], removed: [ 'notify_finance' ], changed: [], moved: [] }, scenarios_run: 3, affected_count: 0, affected: [], broken: [], in_flight: 0 },
+    }
+
+    it('proposes a step deletion and shows the same proposal review UI as describe a change', async () => {
+      const user = userEvent.setup()
+      const fetchMock = mockApi({
+        'GET /api/companies/1/workflows': { body: { success: true, message: '', data: [ expenseWorkflow ] } },
+        'GET /api/companies/1/workflows/5': { body: { success: true, message: '', data: expenseWorkflow } },
+        'GET /api/companies/1/integrations': { body: { success: true, message: '', data: [] } },
+        'POST /api/companies/1/workflows/5/edits': { status: 202, body: { success: true, message: '', data: editedEdit } },
+        'GET /api/companies/1/change_proposals/9': { body: { success: true, message: '', data: editedProposal } },
+        ...peopleRoute,
+        ...sessionRoute,
+      })
+
+      await renderApp('/workflows')
+      await screen.findByText('Expense request submitted')
+
+      await user.click(screen.getByRole('button', { name: 'Edit steps' }))
+      await user.click(screen.getByRole('button', { name: 'Edit' }))
+      await user.click(screen.getByRole('button', { name: 'Delete step' }))
+      await user.click(screen.getByRole('button', { name: 'Propose these steps' }))
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/companies/1/workflows/5/edits',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ steps: [ expenseWorkflow.steps[0] ] }) }),
+      )
+      act(() => lastSubscription()[1].received({ ...editedEdit, status: 'proposed', change_proposal_id: 9 }))
+
+      expect(await screen.findByText('Expense approval: edited directly')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /review and approve it on proposals/i })).toHaveAttribute('href', '/proposals')
     })
   })
 })
