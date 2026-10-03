@@ -7,7 +7,10 @@ module Assemble
   # excludes that type entirely). Saved as a draft workflow.
   class WorkflowGenerator
     def self.call(company:, request_kind:, rules:)
-      chat = RubyLLM.chat.with_schema(schema)
+      # strict: false — a step's title/when are ordinary optional properties,
+      # but OpenAI's strict structured-output mode requires every property
+      # to be listed in "required" and 400s otherwise.
+      chat = RubyLLM.chat.with_schema(schema.merge("strict" => false))
       data = Llm::StructuredAsk.call(chat: chat, schema: schema, prompt: prompt(request_kind, rules))
 
       Workflow.create!(
