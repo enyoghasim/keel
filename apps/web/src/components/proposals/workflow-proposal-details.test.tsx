@@ -41,7 +41,7 @@ const proposal: WorkflowChangeProposal = {
 }
 
 const person = (id: number, name: string): Person => ({
-  id, name, email: `${id}@nubo.test`, title: null, department_id: null, manager_id: null, location: null, start_date: null, roles: [],
+  id, name, email: `${id}@factorial.test`, title: null, department_id: null, manager_id: null, location: null, start_date: null, roles: [],
 })
 const people = new Map([person(3, 'Ngozi Doe'), person(4, 'Femi IT')].map((p) => [p.id, p]))
 

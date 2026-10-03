@@ -37,7 +37,7 @@ RSpec.describe "Api::Companies", type: :request do
     end
 
     it "refuses a second company: a deployment serves one" do
-      create(:company, name: "Nubo Logistics")
+      create(:company, name: "Factorial Logistics")
 
       expect {
         post "/api/companies", params: { company: { name: "Acme", roster_csv: roster_csv_signed_id } }

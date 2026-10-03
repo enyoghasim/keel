@@ -12,12 +12,12 @@ RSpec.describe "Api::Workspace", type: :request do
     end
 
     it "names the company the deployment serves, without needing a sign-in" do
-      company = create(:company, name: "Nubo Logistics")
+      company = create(:company, name: "Factorial Logistics")
       create(:company, name: "Later Co")
 
       get "/api/workspace"
 
-      expect(response.parsed_body["data"]["company"]).to include("id" => company.id, "name" => "Nubo Logistics", "assembling" => false)
+      expect(response.parsed_body["data"]["company"]).to include("id" => company.id, "name" => "Factorial Logistics", "assembling" => false)
     end
 
     it "says whether this deployment lets a signed-in admin reset the demo" do

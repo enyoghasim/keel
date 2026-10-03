@@ -8,7 +8,7 @@ import { renderApp } from '../../test/render-app'
 const ada: Person = {
   id: 1,
   name: 'Ada Nwosu',
-  email: 'ada@nubo.test',
+  email: 'ada@factorial.test',
   title: 'HR Admin',
   department_id: null,
   manager_id: null,
@@ -45,7 +45,7 @@ describe('AuthGate', () => {
     await renderApp('/graph')
     await screen.findByRole('heading', { name: 'Sign in to Keel' })
 
-    await user.type(screen.getByLabelText('Email'), 'ada@nubo.test')
+    await user.type(screen.getByLabelText('Email'), 'ada@factorial.test')
     await user.type(screen.getByLabelText('Password'), 'password')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
 
@@ -62,7 +62,7 @@ describe('AuthGate', () => {
     await renderApp('/graph')
     await screen.findByRole('heading', { name: 'Sign in to Keel' })
 
-    await user.type(screen.getByLabelText('Email'), 'ada@nubo.test')
+    await user.type(screen.getByLabelText('Email'), 'ada@factorial.test')
     await user.type(screen.getByLabelText('Password'), 'wrong')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
 
@@ -71,7 +71,7 @@ describe('AuthGate', () => {
 
   it('lets /assemble through without a sign-in only while the company is still assembling', async () => {
     mockApi({
-      'GET /api/workspace': { body: { success: true, message: '', data: { company: { id: 1, name: 'Nubo', assembling: true } } } },
+      'GET /api/workspace': { body: { success: true, message: '', data: { company: { id: 1, name: 'Factorial', assembling: true } } } },
     })
 
     await renderApp('/assemble')

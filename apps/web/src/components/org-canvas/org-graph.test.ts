@@ -4,7 +4,7 @@ import { buildOrgGraph, departmentColorClass, NODE_HEIGHT, NODE_WIDTH } from './
 
 function person(overrides: Partial<Person> & Pick<Person, 'id' | 'name'>): Person {
   return {
-    email: `${overrides.name.toLowerCase().replace(/\s+/g, '.')}@nubo.test`,
+    email: `${overrides.name.toLowerCase().replace(/\s+/g, '.')}@factorial.test`,
     title: null,
     department_id: null,
     manager_id: null,
@@ -99,9 +99,9 @@ describe('departmentColorClass', () => {
 })
 
 describe('buildOrgGraph compact layout', () => {
-  // Roughly Nubo's shape: a CEO over eight department heads, each with up to a dozen individual contributors,
+  // Roughly Factorial's shape: a CEO over eight department heads, each with up to a dozen individual contributors,
   // two of whom lead small teams of their own.
-  function nubo(): Person[] {
+  function factorial(): Person[] {
     const people: Person[] = [person({ id: 1, name: 'CEO' })]
     let id = 2
     for (let head = 0; head < 8; head += 1) {
@@ -154,8 +154,8 @@ describe('buildOrgGraph compact layout', () => {
     expect(edges.find((e) => e.target === '4')!.type).toBe('spine')
   })
 
-  it('never overlaps two people, in a company the size of Nubo', () => {
-    const placed = boxes(buildOrgGraph(nubo(), []).nodes)
+  it('never overlaps two people, in a company the size of Factorial', () => {
+    const placed = boxes(buildOrgGraph(factorial(), []).nodes)
 
     for (const [i, a] of placed.entries()) {
       for (const b of placed.slice(i + 1)) {
@@ -165,8 +165,8 @@ describe('buildOrgGraph compact layout', () => {
     }
   })
 
-  it('is closer to a page than to one very wide row, in a company the size of Nubo', () => {
-    const placed = boxes(buildOrgGraph(nubo(), []).nodes)
+  it('is closer to a page than to one very wide row, in a company the size of Factorial', () => {
+    const placed = boxes(buildOrgGraph(factorial(), []).nodes)
     const width = Math.max(...placed.map((b) => b.right)) - Math.min(...placed.map((b) => b.left))
     const height = Math.max(...placed.map((b) => b.bottom)) - Math.min(...placed.map((b) => b.top))
 

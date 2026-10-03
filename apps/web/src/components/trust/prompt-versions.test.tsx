@@ -48,7 +48,7 @@ const v1: PromptVersion = {
   notes: 'First draft.',
   created_at: '2026-10-01T00:00:00Z',
   latest_run: completedRun(0.5),
-  regressions: ['nubo_leave', 'meals_daily_cap'],
+  regressions: ['factorial_leave', 'meals_daily_cap'],
 }
 
 function renderPanel(canPromote = true) {
@@ -84,7 +84,7 @@ describe('PromptVersions', () => {
 
     mockApi(list([v2, v1]))
     renderPanel()
-    expect((await screen.findAllByText(/Would regress 2 cases: nubo_leave, meals_daily_cap/))[0]).toBeInTheDocument()
+    expect((await screen.findAllByText(/Would regress 2 cases: factorial_leave, meals_daily_cap/))[0]).toBeInTheDocument()
   })
 
   it('promotes a challenger, then refreshes the list', async () => {
@@ -109,14 +109,14 @@ describe('PromptVersions', () => {
     const fetchMock = mockApi({
       'GET /api/companies/1/prompt_versions': { body: { success: true, message: '', data: [{ ...v2, active: false, regressions: [] }, { ...v1, active: true, regressions: [] }] } },
       'POST /api/companies/1/prompt_versions/2/promote': [
-        { status: 422, body: { success: false, message: 'This version regresses 1 case the active version passes: nubo_leave.', errors: ['nubo_leave'] } },
+        { status: 422, body: { success: false, message: 'This version regresses 1 case the active version passes: factorial_leave.', errors: ['factorial_leave'] } },
         { body: { success: true, message: 'ok', data: v2 } },
       ],
     })
     renderPanel()
 
     await user.click(await screen.findByRole('button', { name: 'Promote v2' }))
-    expect(await screen.findByText(/regresses 1 case the active version passes: nubo_leave/)).toBeInTheDocument()
+    expect(await screen.findByText(/regresses 1 case the active version passes: factorial_leave/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Promote anyway' }))
 

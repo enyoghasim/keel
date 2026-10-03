@@ -12,7 +12,7 @@ const people: Person[] = [
   {
     id: 1,
     name: 'Ngozi Doe',
-    email: 'ngozi@nubo.test',
+    email: 'ngozi@factorial.test',
     title: 'Engineer',
     department_id: 10,
     manager_id: null,

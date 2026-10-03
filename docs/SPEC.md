@@ -144,7 +144,7 @@ keel/
   packages/
     schemas/                 rule, workflow, insight-query, csv-mapping, change-proposal .schema.json
     api-types/               types generated from schemas + hand-written response types
-  fixtures/                  nubo_people.csv, nubo_handbook.pdf, evals/*.yml
+  fixtures/                  factorial_people.csv, factorial_handbook.pdf, evals/*.yml
 ```
 
 Rails loads every schema from `packages/schemas` at boot through `Llm::SchemaRegistry` and validates with `json_schemer`; `pnpm gen:types` regenerates the TypeScript types from the same files. Change a schema once and both sides follow, and a CI step fails if the generated types are stale. This shared-contract package is the main reason the monorepo is worth it, and a good point for the README.
@@ -781,7 +781,7 @@ Five flows cover everything the demo shows. Each is written as what the user doe
 
 ### Flow A: Assemble a company from scratch
 
-1. Ifeoma (HR admin) opens `/assemble` and drops `nubo_people.csv` and `nubo_handbook.pdf`.
+1. Beatriz (HR admin) opens `/assemble` and drops `factorial_people.csv` and `factorial_handbook.pdf`.
 2. `AssembleJob` starts; the page subscribes to `AssembleChannel`.
 3. The CSV mapper returns a column mapping; `Grp` is flagged at 0.55 confidence. The import issues panel shows it.
 4. People appear on the org canvas one by one. Two manager names fail exact matching; one is fixed by fuzzy matching, one becomes an issue.
@@ -824,26 +824,26 @@ Five flows cover everything the demo shows. Each is written as what the user doe
 
 ## 16. Seed data
 
-The demo runs on a fictional company, Nubo Logistics, prepared on Friday so the rest of the weekend is spent on features. Good seed data makes every flow believable, so it is worth the two hours.
+The demo runs on a fictional company, Demo Factorial, prepared on Friday so the rest of the weekend is spent on features. Good seed data makes every flow believable, so it is worth the two hours.
 
-### Nubo Logistics
+### Demo Factorial
 
-A 78-person logistics company with offices in Lagos, Abuja and Barcelona. Nine departments: Leadership, Operations, Sales, Engineering, Finance, People (HR), IT, Customer Support, Warehouse. The CEO has no manager, which gives the resolver a real edge case.
+A 28-person software company with offices in Barcelona, Madrid and Lisbon. Nine departments: Leadership, Engineering, Product, Sales, Customer Success, Marketing, Finance, People (HR), IT. The CEO has no manager, which gives the resolver a real edge case.
 
-Set up the people so the demo flows work: Ifeoma is the HR admin, Ngozi is in Sales under Tunde, Tunde reports to the COO, Ada is an Operations lead with 6 approval chains, Amaka is the finance lead, Chioma is in Finance and eligible to take the Sales finance contact role, and Emeka is the IT admin.
+Set up the people so the demo flows work: Beatriz is the HR admin (signed in as `demo.hr@factorial.co`), Catarina is in Sales under Carlos, Carlos reports to the COO, Sofia is a Customer Success lead with 6 approval chains, Nuria is the finance lead, Alvaro is in Finance and eligible to take the Sales finance contact role, and Tiago is the IT admin.
 
-### The messy CSV (`nubo_people.csv`)
+### The messy CSV (`factorial_people.csv`)
 
 Make it messy on purpose, in the ways real exports are:
 
 - Headers: `Full Name, E-mail, Job Title, Grp, Line Mgr, Office, Joined`
-- Managers listed by name, not ID, with one typo ("Tunde Bakre") and one name that matches two people
+- Managers listed by name, not ID, with one typo ("Carlos Martinz") and one name that matches two people
 - Mixed date formats (`2023-04-01`, `01/04/2023`, `April 2023`)
 - One duplicate row and one row missing an email
 
 This gives the CSV mapper and import issues panel real work to show.
 
-### The handbook (`nubo_handbook.pdf`)
+### The handbook (`factorial_handbook.pdf`)
 
 About 6 pages with sections on leave, remote work, expenses, travel, equipment and onboarding. Draft it with an LLM, then edit it by hand to plant specific situations:
 
@@ -856,7 +856,7 @@ Save a Spanish version too if you have time; Factorial's customers write handboo
 
 ### History (`db/seeds/history.rb`)
 
-Generate three months (July to September 2026) of past requests so Insights and backtesting have data: about 400 expense requests with amounts drawn from a long-tailed distribution (most €50–€400, some €1,000+), about 150 leave requests, and about 30 equipment requests. Run them through the real engine and runtime with randomised approval times, and mark roughly 5% as overridden with plausible reasons. This makes the override-rate chart and the candidate queue look real.
+Generate three months (July to September 2026) of past requests so Insights and backtesting have data: about 140 expense requests with amounts drawn from a long-tailed distribution (most €50–€400, some €1,000+), about 55 leave requests, and about 12 equipment requests. Run them through the real engine and runtime with randomised approval times, and mark roughly 5% as overridden with plausible reasons. This makes the override-rate chart and the candidate queue look real.
 
 ### Eval fixtures (`spec/fixtures/evals/*.yml`)
 
@@ -887,7 +887,7 @@ The build takes about 30 focused hours from Friday evening to Sunday night, orde
 - [ ] Generate all 16 models and migrations from section 4
 - [ ] Write `Org::GraphSnapshot` and `Org::Resolver` with specs (including self-approval and no-manager cases)
 - [ ] Write `Rules::Condition`, `Rules::Context`, `Rules::Engine`, `Rules::Explainer` with all 8 specs from section 5
-- [ ] Seed script for Nubo Logistics people (direct, not via CSV) so the graph is usable immediately
+- [ ] Seed script for Demo Factorial people (direct, not via CSV) so the graph is usable immediately
 
 **Milestone:** `bundle exec rspec` is green and `rails runner` can evaluate a hand-written rule against a seeded person.
 
@@ -943,7 +943,7 @@ The build takes about 30 focused hours from Friday evening to Sunday night, orde
 ### Sunday evening (7 pm – midnight, \~5 h): ship
 
 - [ ] Deploy the API (Rails 8 Dockerfile) and the web app (static Vite build) to Coolify/Dokploy, with Postgres + pgvector and \`/api\` and \`/cable\` routed to the API
-- [ ] Production seed and a "Reset demo" button that reloads Nubo
+- [ ] Production seed and a "Reset demo" button that reloads Demo Factorial
 - [ ] README and ADRs (section 18)
 - [ ] Run all five flows on production; fix what breaks
 - [ ] Record and edit the 3-minute video
@@ -958,7 +958,7 @@ The recruiter will judge Keel in this order: the video, the live link, the READM
 
 Deploy the Rails 8 Dockerfile to your Coolify or Dokploy server with a Postgres 16 service that has the pgvector extension (the `pgvector/pgvector:pg16` image works). Run Solid Queue in the same container with `bin/jobs` or as a second service. Set `RUBY_LLM` provider keys as environment variables and put a monthly spending cap on the provider account.
 
-Add a **demo guard**: rate-limit agent and assemble calls per IP (Rails 8 has `rate_limit` built in), and a "Reset demo" button that reloads Nubo Logistics. Visitors will try things; the demo should survive them.
+Add a **demo guard**: rate-limit agent and assemble calls per IP (Rails 8 has `rate_limit` built in), and a "Reset demo" button that reloads Demo Factorial. Visitors will try things; the demo should survive them.
 
 ### README structure
 

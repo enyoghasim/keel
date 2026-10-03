@@ -28,12 +28,12 @@ import { uploadFile } from '../lib/direct-upload'
 // What GET /api/workspace says before the upload, then once the company exists and is assembling.
 const workspaceThenAssembling = [
   workspaceWithoutCompany,
-  { body: { success: true, message: '', data: { company: { id: 7, name: 'Nubo', assembling: true } } } },
+  { body: { success: true, message: '', data: { company: { id: 7, name: 'Factorial', assembling: true } } } },
 ]
 
 const company: Company = {
   id: 7,
-  name: 'Nubo',
+  name: 'Factorial',
   locale: 'en',
   assemble_completed_stages: [],
   created_at: '2026-01-01T00:00:00Z',
@@ -66,7 +66,7 @@ describe('/assemble', () => {
 
     await renderApp('/assemble')
 
-    await user.type(screen.getByLabelText('Company name'), 'Nubo')
+    await user.type(screen.getByLabelText('Company name'), 'Factorial')
     await user.upload(
       screen.getByLabelText('Roster CSV'),
       new File(['name,email'], 'roster.csv', { type: 'text/csv' }),
@@ -96,7 +96,7 @@ describe('/assemble', () => {
 
     await renderApp('/assemble')
 
-    await user.type(screen.getByLabelText('Company name'), 'Nubo')
+    await user.type(screen.getByLabelText('Company name'), 'Factorial')
     await user.upload(
       screen.getByLabelText('Roster CSV'),
       new File(['name,email'], 'roster.csv', { type: 'text/csv' }),
@@ -116,7 +116,7 @@ describe('/assemble', () => {
     })
 
     await renderApp('/assemble')
-    await user.type(screen.getByLabelText('Company name'), 'Nubo')
+    await user.type(screen.getByLabelText('Company name'), 'Factorial')
     await user.upload(
       screen.getByLabelText('Roster CSV'),
       new File(['name,email'], 'roster.csv', { type: 'text/csv' }),
@@ -140,7 +140,7 @@ describe('/assemble', () => {
 
   it('shows what the job already did, from the API, when the page subscribes after it started', async () => {
     mockApi({
-      'GET /api/workspace': { body: { success: true, message: '', data: { company: { id: 7, name: 'Nubo', assembling: true } } } },
+      'GET /api/workspace': { body: { success: true, message: '', data: { company: { id: 7, name: 'Factorial', assembling: true } } } },
       'GET /api/companies/7/assemble_events': {
         body: {
           success: true,
@@ -165,7 +165,7 @@ describe('/assemble', () => {
     mockApi({ 'GET /api/companies/1/session': { body: { success: true, message: '', data: { id: 1, name: 'Ifeoma', roles: ['hr_admin'] } } } })
     await renderApp('/assemble')
 
-    expect(await screen.findByText(/Nubo is already set up/)).toBeInTheDocument()
+    expect(await screen.findByText(/Factorial is already set up/)).toBeInTheDocument()
     expect(screen.queryByLabelText('Roster CSV')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open the company graph' })).toBeInTheDocument()
   })

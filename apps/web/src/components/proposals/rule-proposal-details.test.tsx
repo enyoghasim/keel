@@ -56,7 +56,7 @@ const proposal: RuleChangeProposal = {
 }
 
 const people = new Map<number, Person>([
-  [3, { id: 3, name: 'Ngozi Doe', email: 'n@nubo.test', title: 'Rep', department_id: 10, manager_id: 1, location: null, start_date: null, roles: [] }],
+  [3, { id: 3, name: 'Ngozi Doe', email: 'n@factorial.test', title: 'Rep', department_id: 10, manager_id: 1, location: null, start_date: null, roles: [] }],
 ])
 
 describe('RuleProposalDetails', () => {

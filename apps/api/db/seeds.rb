@@ -1,15 +1,15 @@
-# Seeds the Nubo Logistics demo company (SPEC.md section 16): the company
+# Seeds the Demo Factorial demo company (SPEC.md section 16): the company
 # graph, the handbook with its rules and workflows, and three months of
 # request history run through the real engine. Idempotent — once the
 # company exists, running it again does nothing.
 #
 #   bin/rails db:seed
-require_relative "seeds/nubo"
-require_relative "seeds/nubo_handbook"
-require_relative "seeds/nubo_history"
+require_relative "seeds/factorial"
+require_relative "seeds/factorial_handbook"
+require_relative "seeds/factorial_history"
 require_relative "seeds/prompts"
 
-Seeds::Nubo.call
+Seeds::Factorial.call
 Seeds::Prompts.call
 
 # Seeding itself never needs a model key; with one, the handbook chunks get

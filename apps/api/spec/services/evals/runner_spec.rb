@@ -183,7 +183,7 @@ RSpec.describe Evals::Runner do
     # rolled back: an eval must never file a real request.
     let(:eval_run) { create(:eval_run, company: company, suite: "agent") }
     let!(:manager) { create(:person, company: company, name: "Tunde Bakare") }
-    let!(:asker) { create(:person, company: company, name: "Ngozi Okafor", email: "ngozi@nubo.test", manager: manager) }
+    let!(:asker) { create(:person, company: company, name: "Ngozi Okafor", email: "ngozi@factorial.test", manager: manager) }
     let(:judgement) { Evals::Judge::Result.new({ "correctness" => 5, "citation" => 4, "clarity" => 5, "no_false_claims" => 5 }, 4.75, "Fine.") }
     let(:check) { { tool_calls: [ { name: "check_policy", arguments: { "request_kind" => "expense", "payload" => { "amount_eur" => 1200 } } } ] } }
 
@@ -201,7 +201,7 @@ RSpec.describe Evals::Runner do
 
     def add_agent_case(key: "ask_flight", input: {}, expected: {})
       create(:eval_case, suite: "agent", key: key,
-        input: { "message" => "Can I expense a €1,200 flight?", "person_email" => "ngozi@nubo.test" }.merge(input),
+        input: { "message" => "Can I expense a €1,200 flight?", "person_email" => "ngozi@factorial.test" }.merge(input),
         expected: { "tools" => [ "check_policy" ], "forbidden_tools" => [ "create_request" ],
                     "outputs" => { "check_policy" => { "decision" => "require_approval" } } }.merge(expected))
     end
@@ -298,11 +298,11 @@ RSpec.describe Evals::Runner do
     end
 
     it "records a case whose acting person doesn't exist as a failure with the reason" do
-      add_agent_case(input: { "person_email" => "nobody@nubo.test" })
+      add_agent_case(input: { "person_email" => "nobody@factorial.test" })
 
       described_class.call(eval_run)
 
-      expect(eval_run.eval_results.sole).to have_attributes(passed: false, error_message: "Nobody with the email nobody@nubo.test in this company")
+      expect(eval_run.eval_results.sole).to have_attributes(passed: false, error_message: "Nobody with the email nobody@factorial.test in this company")
     end
 
     it "records a run that failed (e.g. the model never answered) as a failure" do

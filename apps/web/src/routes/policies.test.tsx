@@ -68,7 +68,7 @@ const peopleRoute = { 'GET /api/companies/1/people': { body: { success: true, me
 const currentPerson: Person = {
   id: 1,
   name: 'Ada Nwosu',
-  email: 'ada@nubo.test',
+  email: 'ada@factorial.test',
   title: 'HR Admin',
   department_id: null,
   manager_id: null,

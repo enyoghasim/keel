@@ -32,7 +32,7 @@ const proposal: OrgChangeProposal = {
   explanation: null,
   created_at: '2026-01-01T00:00:00Z',
 }
-const me = { id: 99, name: 'Chiamaka Eze', email: 'c@nubo.test', title: 'HR Admin', department_id: null, manager_id: null, location: null, start_date: null, roles: ['hr_admin'] }
+const me = { id: 99, name: 'Chiamaka Eze', email: 'c@factorial.test', title: 'HR Admin', department_id: null, manager_id: null, location: null, start_date: null, roles: ['hr_admin'] }
 const ok = (data: unknown) => ({ body: { success: true, message: '', data } })
 
 describe('/proposals live updates', () => {

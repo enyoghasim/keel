@@ -21,16 +21,16 @@ RSpec.describe Person, type: :model do
 
   it "requires email to be unique within a company" do
     company = create(:company)
-    create(:person, company: company, email: "ada@nubo.example")
-    duplicate = build(:person, company: company, email: "ada@nubo.example")
+    create(:person, company: company, email: "ada@factorial.example")
+    duplicate = build(:person, company: company, email: "ada@factorial.example")
 
     expect(duplicate).not_to be_valid
     expect(duplicate.errors[:email]).to be_present
   end
 
   it "allows the same email across different companies" do
-    create(:person, email: "ada@nubo.example")
-    other_company_person = build(:person, email: "ada@nubo.example")
+    create(:person, email: "ada@factorial.example")
+    other_company_person = build(:person, email: "ada@factorial.example")
 
     expect(other_company_person).to be_valid
   end

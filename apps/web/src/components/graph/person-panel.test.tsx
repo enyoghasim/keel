@@ -6,7 +6,7 @@ import { PersonPanel } from './person-panel'
 const manager: Person = {
   id: 1,
   name: 'Tunde Bakare',
-  email: 'tunde@nubo.test',
+  email: 'tunde@factorial.test',
   title: 'Sales Manager',
   department_id: 10,
   manager_id: null,
@@ -18,7 +18,7 @@ const manager: Person = {
 const report: Person = {
   id: 2,
   name: 'Ngozi Doe',
-  email: 'ngozi@nubo.test',
+  email: 'ngozi@factorial.test',
   title: 'Sales Rep',
   department_id: 10,
   manager_id: 1,

@@ -2,9 +2,13 @@
 
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
-  ./bin/rails db:prepare
+  # db:create is a no-op once the database exists; db:migrate only ever
+  # applies pending migrations. Deliberately not db:prepare: that task
+  # seeds on its own the first time it creates a database, which would
+  # ignore SEED_DEMO=false below.
+  ./bin/rails db:create db:migrate
 
-  # Fill a blank database with the Nubo Logistics demo company so there is
+  # Fill a blank database with the Demo Factorial demo company so there is
   # something to sign in to (idempotent: it does nothing once a company
   # exists). Set SEED_DEMO=false to start blank and assemble your own.
   if [ "${SEED_DEMO:-true}" != "false" ]; then

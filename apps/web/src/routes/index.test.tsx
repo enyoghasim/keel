@@ -15,7 +15,7 @@ describe('/ route', () => {
 
   it('sends a fresh browser to sign-in, then the graph, once the backend has a company', async () => {
     const user = userEvent.setup()
-    const ada = { id: 1, name: 'Ada Nwosu', email: 'ada@nubo.test', roles: ['hr_admin'] }
+    const ada = { id: 1, name: 'Ada Nwosu', email: 'ada@factorial.test', roles: ['hr_admin'] }
     mockApi({
       'GET /api/companies/1/session': { status: 401, body: { success: false, message: 'Not signed in.' } },
       'POST /api/companies/1/session': { body: { success: true, message: 'Signed in.', data: ada } },
@@ -24,7 +24,7 @@ describe('/ route', () => {
     })
     const { router } = await renderApp('/')
 
-    await user.type(await screen.findByLabelText('Email'), 'ada@nubo.test')
+    await user.type(await screen.findByLabelText('Email'), 'ada@factorial.test')
     await user.type(screen.getByLabelText('Password'), 'password')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
 

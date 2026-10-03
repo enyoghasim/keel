@@ -2,7 +2,7 @@
 # asked on, and the interpretation Insights::Interpreter should produce.
 # Scored by Evals::InsightsScorer on metric, group_by, filters and
 # time_range only — chart is listed for readability, never scored.
-# Department names match the Nubo seed company (SPEC.md section 16).
+# Department names match the Demo Factorial seed company (SPEC.md section 16).
 # Load with `bin/rails evals:load`.
 - key: leave_by_department_last_quarter
   input: { question: "Leave days by department last quarter", today: "2026-10-02" }
@@ -62,4 +62,4 @@
 - key: ambiguous_fiscal_quarter
   input: { question: "Leave days last fiscal quarter", today: "2026-10-02" }
   expected: { clarification: true }
-  notes: Nubo's fiscal year isn't known to Keel, so the model should ask rather than assume calendar quarters.
+  notes: Demo Factorial's fiscal year isn't known to Keel, so the model should ask rather than assume calendar quarters.

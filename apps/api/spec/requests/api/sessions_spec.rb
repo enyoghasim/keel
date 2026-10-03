@@ -4,10 +4,10 @@ RSpec.describe "Api::Sessions", type: :request do
   describe "POST /api/companies/:company_id/session" do
     it "signs a person in with the demo password and sets the session cookie" do
       company = create(:company)
-      ada = create(:person, company: company, email: "ada@nubo.example")
+      ada = create(:person, company: company, email: "ada@factorial.example")
 
       post "/api/companies/#{company.id}/session",
-        params: { email: "ada@nubo.example", password: Person::DEMO_PASSWORD }, as: :json
+        params: { email: "ada@factorial.example", password: Person::DEMO_PASSWORD }, as: :json
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body["data"]["id"]).to eq(ada.id)
@@ -17,10 +17,10 @@ RSpec.describe "Api::Sessions", type: :request do
 
     it "rejects a wrong password" do
       company = create(:company)
-      create(:person, company: company, email: "ada@nubo.example")
+      create(:person, company: company, email: "ada@factorial.example")
 
       post "/api/companies/#{company.id}/session",
-        params: { email: "ada@nubo.example", password: "wrong" }, as: :json
+        params: { email: "ada@factorial.example", password: "wrong" }, as: :json
 
       expect(response).to have_http_status(:unauthorized)
       expect(response.parsed_body["success"]).to eq(false)
@@ -30,17 +30,17 @@ RSpec.describe "Api::Sessions", type: :request do
       company = create(:company)
 
       post "/api/companies/#{company.id}/session",
-        params: { email: "nobody@nubo.example", password: Person::DEMO_PASSWORD }, as: :json
+        params: { email: "nobody@factorial.example", password: Person::DEMO_PASSWORD }, as: :json
 
       expect(response).to have_http_status(:unauthorized)
     end
 
     it "scopes the email lookup to the given company" do
-      other_company_person = create(:person, email: "ada@nubo.example")
+      other_company_person = create(:person, email: "ada@factorial.example")
       company = create(:company)
 
       post "/api/companies/#{company.id}/session",
-        params: { email: "ada@nubo.example", password: Person::DEMO_PASSWORD }, as: :json
+        params: { email: "ada@factorial.example", password: Person::DEMO_PASSWORD }, as: :json
 
       expect(response).to have_http_status(:unauthorized)
       expect(other_company_person).to be_persisted
@@ -50,9 +50,9 @@ RSpec.describe "Api::Sessions", type: :request do
   describe "GET /api/companies/:company_id/session" do
     it "returns the signed-in person" do
       company = create(:company)
-      ada = create(:person, company: company, email: "ada@nubo.example")
+      ada = create(:person, company: company, email: "ada@factorial.example")
       post "/api/companies/#{company.id}/session",
-        params: { email: "ada@nubo.example", password: Person::DEMO_PASSWORD }, as: :json
+        params: { email: "ada@factorial.example", password: Person::DEMO_PASSWORD }, as: :json
 
       get "/api/companies/#{company.id}/session"
 
@@ -72,9 +72,9 @@ RSpec.describe "Api::Sessions", type: :request do
   describe "DELETE /api/companies/:company_id/session" do
     it "signs the person out" do
       company = create(:company)
-      create(:person, company: company, email: "ada@nubo.example")
+      create(:person, company: company, email: "ada@factorial.example")
       post "/api/companies/#{company.id}/session",
-        params: { email: "ada@nubo.example", password: Person::DEMO_PASSWORD }, as: :json
+        params: { email: "ada@factorial.example", password: Person::DEMO_PASSWORD }, as: :json
 
       delete "/api/companies/#{company.id}/session"
       get "/api/companies/#{company.id}/session"

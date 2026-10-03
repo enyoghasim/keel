@@ -21,7 +21,7 @@ function person(roles: string[]): Person {
   return {
     id: 1,
     name: 'Ada Nwosu',
-    email: 'ada@nubo.test',
+    email: 'ada@factorial.test',
     title: 'HR Admin',
     department_id: null,
     manager_id: null,

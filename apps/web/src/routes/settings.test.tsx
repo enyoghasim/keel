@@ -8,7 +8,7 @@ vi.mock('@rails/actioncable', () => ({
   createConsumer: vi.fn(() => ({ subscriptions: { create: vi.fn(() => ({ unsubscribe: vi.fn() })) } })),
 }))
 
-const me = { id: 1, name: 'Ifeoma Adeyemi', email: 'i@nubo.test', title: 'Head of People', department_id: null, manager_id: null, location: null, start_date: null, roles: [] }
+const me = { id: 1, name: 'Ifeoma Adeyemi', email: 'i@factorial.test', title: 'Head of People', department_id: null, manager_id: null, location: null, start_date: null, roles: [] }
 
 describe('/settings', () => {
   beforeEach(() => localStorage.clear())
@@ -37,7 +37,7 @@ describe('/settings', () => {
       'GET /api/companies/1/personal_access_tokens': { body: { success: true, message: '', data: [] } },
       'GET /api/companies/1/mcp_calls': { body: { success: true, message: '', data: [] } },
     }
-    const resettable = { body: { success: true, message: '', data: { company: { id: 1, name: 'Nubo', assembling: false }, demo_reset: true } } }
+    const resettable = { body: { success: true, message: '', data: { company: { id: 1, name: 'Factorial', assembling: false }, demo_reset: true } } }
     const hr = { body: { success: true, message: '', data: { ...me, roles: ['hr_admin'] } } }
 
     it('is offered to an hr_admin on a deployment that turned it on', async () => {

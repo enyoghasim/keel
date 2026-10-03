@@ -17,12 +17,12 @@ RSpec.describe Assemble::GraphBuilder do
 
   it "creates a department and a person for each row" do
     company = create(:company)
-    rows = [ [ "Ada Nwosu", "ada@nubo.example", "Engineering", "" ] ]
+    rows = [ [ "Ada Nwosu", "ada@factorial.example", "Engineering", "" ] ]
 
     people = described_class.call(company: company, headers: headers, rows: rows, mappings: mappings)
 
     expect(people.size).to eq(1)
-    expect(people.first).to have_attributes(name: "Ada Nwosu", email: "ada@nubo.example")
+    expect(people.first).to have_attributes(name: "Ada Nwosu", email: "ada@factorial.example")
     expect(people.first.department.name).to eq("Engineering")
     expect(company.import_issues).to be_empty
   end
@@ -30,7 +30,7 @@ RSpec.describe Assemble::GraphBuilder do
   it "gives a person the roles their job title implies, so role references have a holder" do
     company = create(:company)
     titled = Assemble::CsvMapper::Mapping.new("Job Title", "title", 1.0)
-    rows = [ [ "Amaka Obi", "amaka@nubo.example", "Finance", "", "Finance Lead" ], [ "Ada Nwosu", "ada@nubo.example", "Finance", "", "Accountant" ] ]
+    rows = [ [ "Amaka Obi", "amaka@factorial.example", "Finance", "", "Finance Lead" ], [ "Ada Nwosu", "ada@factorial.example", "Finance", "", "Accountant" ] ]
 
     people = described_class.call(company: company, headers: headers + [ "Job Title" ], rows: rows, mappings: mappings + [ titled ])
 
@@ -40,8 +40,8 @@ RSpec.describe Assemble::GraphBuilder do
   it "reuses an existing department for people in the same department" do
     company = create(:company)
     rows = [
-      [ "Ada Nwosu", "ada@nubo.example", "Engineering", "" ],
-      [ "Ngozi Eze", "ngozi@nubo.example", "Engineering", "" ]
+      [ "Ada Nwosu", "ada@factorial.example", "Engineering", "" ],
+      [ "Ngozi Eze", "ngozi@factorial.example", "Engineering", "" ]
     ]
 
     people = described_class.call(company: company, headers: headers, rows: rows, mappings: mappings)
@@ -53,7 +53,7 @@ RSpec.describe Assemble::GraphBuilder do
     company = create(:company)
     headers_with_badge = headers + [ "Badge #" ]
     mappings_with_badge = mappings + [ mapping(source_column: "Badge #", field: "ignore") ]
-    rows = [ [ "Ada Nwosu", "ada@nubo.example", "Engineering", "", "117" ] ]
+    rows = [ [ "Ada Nwosu", "ada@factorial.example", "Engineering", "", "117" ] ]
 
     people = described_class.call(company: company, headers: headers_with_badge, rows: rows, mappings: mappings_with_badge)
 
@@ -63,8 +63,8 @@ RSpec.describe Assemble::GraphBuilder do
   it "matches a manager by email" do
     company = create(:company)
     rows = [
-      [ "Tunde Bakare", "tunde@nubo.example", "Engineering", "" ],
-      [ "Ngozi Eze", "ngozi@nubo.example", "Engineering", "tunde@nubo.example" ]
+      [ "Tunde Bakare", "tunde@factorial.example", "Engineering", "" ],
+      [ "Ngozi Eze", "ngozi@factorial.example", "Engineering", "tunde@factorial.example" ]
     ]
 
     people = described_class.call(company: company, headers: headers, rows: rows, mappings: mappings)
@@ -78,8 +78,8 @@ RSpec.describe Assemble::GraphBuilder do
   it "matches a manager by exact name when no email is given" do
     company = create(:company)
     rows = [
-      [ "Tunde Bakare", "tunde@nubo.example", "Engineering", "" ],
-      [ "Ngozi Eze", "ngozi@nubo.example", "Engineering", "Tunde Bakare" ]
+      [ "Tunde Bakare", "tunde@factorial.example", "Engineering", "" ],
+      [ "Ngozi Eze", "ngozi@factorial.example", "Engineering", "Tunde Bakare" ]
     ]
 
     people = described_class.call(company: company, headers: headers, rows: rows, mappings: mappings)
@@ -92,8 +92,8 @@ RSpec.describe Assemble::GraphBuilder do
   it "matches a manager despite a typo, within Levenshtein distance 2" do
     company = create(:company)
     rows = [
-      [ "Tunde Bakare", "tunde@nubo.example", "Engineering", "" ],
-      [ "Ngozi Eze", "ngozi@nubo.example", "Engineering", "Tunde Bakre" ]
+      [ "Tunde Bakare", "tunde@factorial.example", "Engineering", "" ],
+      [ "Ngozi Eze", "ngozi@factorial.example", "Engineering", "Tunde Bakre" ]
     ]
 
     people = described_class.call(company: company, headers: headers, rows: rows, mappings: mappings)
@@ -105,7 +105,7 @@ RSpec.describe Assemble::GraphBuilder do
 
   it "records an import issue when a manager reference matches nobody" do
     company = create(:company)
-    rows = [ [ "Ngozi Eze", "ngozi@nubo.example", "Engineering", "Nobody Here" ] ]
+    rows = [ [ "Ngozi Eze", "ngozi@factorial.example", "Engineering", "Nobody Here" ] ]
 
     people = described_class.call(company: company, headers: headers, rows: rows, mappings: mappings)
 
@@ -117,9 +117,9 @@ RSpec.describe Assemble::GraphBuilder do
   it "records an import issue when a manager reference matches more than one person" do
     company = create(:company)
     rows = [
-      [ "Tunde Bakare", "tunde.o@nubo.example", "Engineering", "" ],
-      [ "Tunde Bakare", "tunde.b@nubo.example", "Engineering", "" ],
-      [ "Ngozi Eze", "ngozi@nubo.example", "Engineering", "Tunde Bakare" ]
+      [ "Tunde Bakare", "tunde.o@factorial.example", "Engineering", "" ],
+      [ "Tunde Bakare", "tunde.b@factorial.example", "Engineering", "" ],
+      [ "Ngozi Eze", "ngozi@factorial.example", "Engineering", "Tunde Bakare" ]
     ]
 
     people = described_class.call(company: company, headers: headers, rows: rows, mappings: mappings)

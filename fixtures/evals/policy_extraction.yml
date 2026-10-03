@@ -3,9 +3,9 @@
 # requests (Evals::PolicyExtractionScorer), not by comparing JSON, so key
 # names and rule structure here are free — only what the rules DO counts.
 # `ambiguities` lists vague phrases a good extraction must flag rather than
-# guess. Passages for the first six come from the Nubo handbook seed
-# (db/seeds/nubo_handbook.rb). Load with `bin/rails evals:load`.
-- key: nubo_leave
+# guess. Passages for the first six come from the Demo Factorial handbook seed
+# (db/seeds/factorial_handbook.rb). Load with `bin/rails evals:load`.
+- key: factorial_leave
   input:
     category: leave
     passage: "Leave. Every employee has 20 days of paid annual leave. Leave of 3 days or fewer is approved automatically. Leave of more than 3 days needs your manager's approval, and must be requested with 14 days' notice for more than 3 days; requests with less notice are declined."
@@ -18,7 +18,7 @@
         conditions: { all: [{ field: payload.days, op: gt, value: 3 }, { field: payload.notice_days, op: lt, value: 14 }] }
         actions: { decision: reject, reason: "Needs 14 days' notice" }
 
-- key: nubo_expense_thresholds
+- key: factorial_expense_thresholds
   input:
     category: expense
     passage: "Expenses. Expenses of €500 or less are approved automatically. Expenses over €500 need your manager's approval. Expenses over €2,000 also need the finance lead's approval."
@@ -28,7 +28,7 @@
       - { key: medium, priority: 1, conditions: { field: payload.amount_eur, op: gt, value: 500 }, actions: { decision: require_approval, approvers: ["manager_of(requester)"] } }
       - { key: large, priority: 2, conditions: { field: payload.amount_eur, op: gt, value: 2000 }, actions: { decision: require_approval, approvers: ["manager_of(requester)", "role:finance_lead"] } }
 
-- key: nubo_conference_engineers
+- key: factorial_conference_engineers
   input:
     category: expense
     passage: "Engineers attending conferences are automatically approved up to €1,000."
@@ -40,7 +40,7 @@
         actions: { decision: auto_approve }
     ambiguities: ["attending conferences"]
 
-- key: nubo_travel_under_800
+- key: factorial_travel_under_800
   input:
     category: expense
     passage: "Travel. Business travel under €800 is approved automatically when booked through the company travel portal. Book at least a week ahead where you can."
@@ -51,7 +51,7 @@
         conditions: { all: [{ field: payload.category, op: eq, value: travel }, { field: payload.amount_eur, op: lt, value: 800 }] }
         actions: { decision: auto_approve }
 
-- key: nubo_equipment
+- key: factorial_equipment
   input:
     category: equipment
     passage: "Equipment. Equipment up to €1,500 needs your manager's approval and is ordered by IT. Equipment over €1,500 also needs the finance lead's approval."
@@ -60,7 +60,7 @@
       - { key: standard, priority: 1, conditions: { field: payload.amount_eur, op: lte, value: 1500 }, actions: { decision: require_approval, approvers: ["manager_of(requester)"] } }
       - { key: large, priority: 2, conditions: { field: payload.amount_eur, op: gt, value: 1500 }, actions: { decision: require_approval, approvers: ["manager_of(requester)", "role:finance_lead"] } }
 
-- key: nubo_remote_two_days
+- key: factorial_remote_two_days
   input:
     category: remote
     passage: "Remote work. Remote work is generally allowed two days a week. Teams agree their office days together, and warehouse roles are always on site."

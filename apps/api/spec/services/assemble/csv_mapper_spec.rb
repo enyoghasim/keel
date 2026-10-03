@@ -24,7 +24,7 @@ RSpec.describe Assemble::CsvMapper do
     }
     allow(chat).to receive(:ask).and_return(message_with(valid_response))
 
-    mappings = described_class.call(headers: [ "Full Name", "E-mail", "Badge #" ], sample_rows: [ [ "Ada Nwosu", "ada@nubo.example", "117" ] ])
+    mappings = described_class.call(headers: [ "Full Name", "E-mail", "Badge #" ], sample_rows: [ [ "Ada Nwosu", "ada@factorial.example", "117" ] ])
 
     expect(mappings).to contain_exactly(
       Assemble::CsvMapper::Mapping.new("Full Name", "name", 0.98),

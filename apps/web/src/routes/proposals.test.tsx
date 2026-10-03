@@ -14,7 +14,7 @@ const people: Person[] = [
   {
     id: 1,
     name: 'Tunde Bakare',
-    email: 'tunde@nubo.test',
+    email: 'tunde@factorial.test',
     title: 'Sales Manager',
     department_id: 10,
     manager_id: null,
@@ -25,7 +25,7 @@ const people: Person[] = [
   {
     id: 2,
     name: 'Ada Nwosu',
-    email: 'ada@nubo.test',
+    email: 'ada@factorial.test',
     title: 'Head of Operations',
     department_id: 20,
     manager_id: null,
@@ -36,7 +36,7 @@ const people: Person[] = [
   {
     id: 3,
     name: 'Ngozi Doe',
-    email: 'ngozi@nubo.test',
+    email: 'ngozi@factorial.test',
     title: 'Sales Rep',
     department_id: 10,
     manager_id: 1,
@@ -197,7 +197,7 @@ const departmentsRoute = {
 const currentPerson: Person = {
   id: 99,
   name: 'Chiamaka Eze',
-  email: 'chiamaka@nubo.test',
+  email: 'chiamaka@factorial.test',
   title: 'HR Admin',
   department_id: null,
   manager_id: null,
