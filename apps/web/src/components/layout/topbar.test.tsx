@@ -8,7 +8,7 @@ import { renderApp } from '../../test/render-app'
 const ada: Person = {
   id: 1,
   name: 'Ada Nwosu',
-  email: 'ada@nubo.test',
+  email: 'ada@factorial.test',
   title: 'HR Admin',
   department_id: null,
   manager_id: null,
@@ -39,7 +39,7 @@ describe('Topbar', () => {
     mockApi({ 'GET /api/workspace': workspaceWithoutCompany })
     await renderApp('/assemble')
 
-    expect(screen.queryByTitle('Sign out')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('person-chip')).not.toBeInTheDocument()
   })
 
   it('shows the signed-in person once a session is active', async () => {
@@ -51,7 +51,7 @@ describe('Topbar', () => {
     expect(screen.getByText('AN')).toBeInTheDocument()
   })
 
-  it('signs the person out when the chip is clicked', async () => {
+  it('signs the person out from the chip menu, not a click on the chip itself', async () => {
     const user = userEvent.setup()
     mockApi({
       'GET /api/companies/1/session': [
@@ -62,11 +62,15 @@ describe('Topbar', () => {
     })
 
     await renderApp('/assemble')
-    await screen.findByTitle('Sign out')
+    await screen.findByTestId('person-chip')
 
-    await user.click(screen.getByTitle('Sign out'))
+    // Clicking the chip itself only opens the menu — it must not sign out by itself.
+    await user.click(screen.getByTestId('person-chip'))
+    expect(screen.getByTestId('person-chip')).toBeInTheDocument()
 
-    await waitFor(() => expect(screen.queryByTitle('Sign out')).not.toBeInTheDocument())
+    await user.click(await screen.findByRole('menuitem', { name: 'Sign out' }))
+
+    await waitFor(() => expect(screen.queryByTestId('person-chip')).not.toBeInTheDocument())
   })
 
   it('toggles the theme class on the root element when clicked', async () => {

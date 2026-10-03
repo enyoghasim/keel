@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { AgentTrace } from '../agent/agent-trace'
 import { CommandBar } from '../agent/command-bar'
@@ -24,21 +25,28 @@ function PersonChip({ companyId }: { companyId: string }) {
   if (!person) return null
 
   return (
-    <button
-      type="button"
-      title="Sign out"
-      onClick={() => signOut.mutate()}
-      className="flex items-center gap-2 rounded border border-border bg-card py-1 pl-1.5 pr-2.5"
-    >
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#52525b] text-[10.5px] font-bold text-white">
-        {initials(person.name)}
-      </span>
-      <span className="hidden flex-col items-start leading-tight sm:flex">
-        <span className="text-[12.5px] font-semibold">{person.name}</span>
-        <span className="text-[11px] text-muted-foreground">{person.title ?? person.roles[0] ?? 'Member'}</span>
-      </span>
-      <ChevronDownIcon className="hidden h-3.25 w-3.25 text-muted-foreground sm:block" />
-    </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          title={person.name}
+          data-testid="person-chip"
+          className="flex items-center gap-2 rounded border border-border bg-card py-1 pl-1.5 pr-2.5"
+        >
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#52525b] text-[10.5px] font-bold text-white">
+            {initials(person.name)}
+          </span>
+          <span className="hidden flex-col items-start leading-tight sm:flex">
+            <span className="text-[12.5px] font-semibold">{person.name}</span>
+            <span className="text-[11px] text-muted-foreground">{person.title ?? person.roles[0] ?? 'Member'}</span>
+          </span>
+          <ChevronDownIcon className="hidden h-3.25 w-3.25 text-muted-foreground sm:block" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => signOut.mutate()}>Sign out</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -107,11 +115,7 @@ export function Topbar() {
         onOpenChange={setCommandOpen}
         companyId={companyId}
         conversation={conversation}
-        onShowTrace={(runId) => {
-          // The command bar is modal, so the drawer opens once it's closed.
-          setCommandOpen(false)
-          setTraceRunId(runId)
-        }}
+        onShowTrace={(runId) => setTraceRunId(runId)}
       />
       {companyId && traceRunId !== null && (
         <AgentTrace companyId={companyId} runId={traceRunId} onClose={() => setTraceRunId(null)} />
