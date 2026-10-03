@@ -7,6 +7,7 @@ import { Route as indexRoute } from './routes/index'
 import { Route as insightsRoute } from './routes/insights'
 import { Route as policiesRoute } from './routes/policies'
 import { Route as proposalsRoute } from './routes/proposals'
+import { Route as requestsRoute } from './routes/requests'
 import { Route as settingsRoute } from './routes/settings'
 import { Route as trustRoute } from './routes/trust'
 import { Route as workflowsRoute } from './routes/workflows'
@@ -19,6 +20,7 @@ export const routeTree = rootRoute.addChildren([
   workflowsRoute,
   proposalsRoute,
   inboxRoute,
+  requestsRoute,
   insightsRoute,
   trustRoute,
   settingsRoute,

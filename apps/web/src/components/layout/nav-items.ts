@@ -5,6 +5,7 @@ import {
   InsightsIcon,
   PoliciesIcon,
   ProposalsIcon,
+  RequestsIcon,
   TrustIcon,
   WorkflowsIcon,
 } from '../icons/nav-icons'
@@ -19,6 +20,7 @@ export const navGroups = [
       { to: '/workflows', label: 'Workflows', icon: WorkflowsIcon },
       { to: '/proposals', label: 'Proposals', icon: ProposalsIcon },
       { to: '/inbox', label: 'Inbox', icon: InboxIcon },
+      { to: '/requests', label: 'My Requests', icon: RequestsIcon },
     ],
   },
   {

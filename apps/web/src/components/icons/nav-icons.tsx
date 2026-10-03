@@ -73,6 +73,15 @@ export function InboxIcon(props: IconProps) {
   )
 }
 
+export function RequestsIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M8 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
+    </svg>
+  )
+}
+
 export function InsightsIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>
