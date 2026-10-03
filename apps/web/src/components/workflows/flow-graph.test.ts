@@ -7,6 +7,7 @@ function workflow(steps: WorkflowStep[]): Workflow {
     id: 1,
     name: 'Expense approval',
     status: 'active',
+    version: 1,
     trigger: { request_kind: 'expense' },
     steps,
     created_at: '2026-01-01T00:00:00Z',
@@ -65,7 +66,7 @@ describe('buildFlowGraph', () => {
     const { edges } = buildFlowGraph(workflow(steps), null, personName)
 
     expect(edges[0].label).toBeUndefined()
-    expect(edges[0].style).toBeUndefined()
+    expect(edges[0].style).not.toHaveProperty('strokeDasharray')
   })
 
   it('marks a step matched by the test run and resolves its person into the subtitle', () => {

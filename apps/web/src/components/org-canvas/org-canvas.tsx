@@ -49,7 +49,7 @@ export function OrgCanvas({
   }, [])
 
   return (
-    <div ref={container} className="h-150 rounded-lg border border-border bg-card">
+    <div ref={container} className="h-150 overflow-hidden rounded-lg border border-border bg-card">
       <ReactFlow
         nodes={styledNodes}
         edges={edges}
@@ -60,7 +60,8 @@ export function OrgCanvas({
         nodesConnectable={false}
         fitView
         fitViewOptions={{ padding: 0.05 }}
-        minZoom={0.05}
+        minZoom={0.1}
+        maxZoom={1.5}
         onInit={(instance) => {
           flow.current = instance
         }}

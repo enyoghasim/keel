@@ -12,6 +12,7 @@ const workflow: Workflow = {
   id: 1,
   name: 'Expense approval',
   status: 'active',
+  version: 1,
   trigger: { request_kind: 'expense' },
   steps: [
     { key: 'approval', type: 'approval' },
@@ -36,7 +37,7 @@ describe('FlowCanvas', () => {
     render(
       <FlowCanvas
         workflow={workflow}
-        people={[{ id: 1, name: 'Tunde Bakare', email: 't@nubo.test', title: null, department_id: null, manager_id: null, location: null, start_date: null, roles: [] }]}
+        people={[{ id: 1, name: 'Tunde Bakare', email: 't@factorial.test', title: null, department_id: null, manager_id: null, location: null, start_date: null, roles: [] }]}
         testRun={testRun}
       />,
     )

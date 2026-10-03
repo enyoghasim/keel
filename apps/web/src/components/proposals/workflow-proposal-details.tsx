@@ -35,6 +35,7 @@ export function WorkflowProposalDetails({ proposal, people }: { proposal: Workfl
       id: diff.workflow_id,
       name: proposal.title,
       status: 'active' as const,
+      version: 0,
       trigger: { request_kind: diff.request_kind },
       steps: merged.steps,
       created_at: proposal.created_at,

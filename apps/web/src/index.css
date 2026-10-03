@@ -87,6 +87,19 @@
 
   --font-sans: 'Geist', 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /*
+   * @xyflow/react's own dark palette only activates via a literal ".dark"
+   * class on the .react-flow element itself, which OrgCanvas/FlowCanvas
+   * never set. Overriding its (non "-default") variables directly ties its
+   * chrome — currently just the zoom Controls — to our own tokens instead,
+   * so it already follows our light/dark class on <html>.
+   */
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--accent);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-button-border-color: var(--border);
 }
 
 .dark {
@@ -159,6 +172,12 @@
 
   --shadow-btn: inset 0 1px 0 0 #00000029, 0 1px 2px 0 #0000005c, 0 2px 5px -1px #00000047;
   --shadow-btn-hover: inset 0 1px 0 0 #00000033, 0 2px 4px 0 #00000070, 0 4px 10px -2px #00000052;
+
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--accent);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-button-border-color: var(--border);
 }
 
 @theme inline {
