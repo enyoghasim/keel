@@ -5,7 +5,7 @@ RSpec.describe Agent::Runner do
 
   # SPEC.md section 9's agent loop. The model is a FakeChat replaying a
   # script; the tools are real and run against the database.
-  let(:company) { create(:company, name: "Nubo") }
+  let(:company) { create(:company, name: "Factorial") }
   let(:sales) { create(:department, company: company, name: "Sales") }
   let(:manager) { create(:person, company: company, name: "Tunde Bakare") }
   let(:asker) { create(:person, company: company, name: "Ngozi Okafor", title: "Account Executive", department: sales, manager: manager, roles: [ "sales_lead" ]) }
@@ -66,8 +66,9 @@ RSpec.describe Agent::Runner do
 
     travel_to(Date.new(2026, 10, 2)) { described_class.call(agent_run) }
 
-    expect(chat.instructions).to include("Nubo", "Ngozi Okafor", "Account Executive", "Sales", "Tunde Bakare", "sales_lead", "2026-10-02")
+    expect(chat.instructions).to include("Factorial", "Ngozi Okafor", "Account Executive", "Sales", "Tunde Bakare", "sales_lead", "2026-10-02")
     expect(chat.instructions).to include("Never state a policy outcome without calling check_policy")
+    expect(chat.instructions).to include("Only answer questions about Factorial")
     expect(chat.tools.keys).to contain_exactly("search_people", "check_policy", "create_request", "run_insight", "org_lookup", "who_approves", "list_my_requests", "search_handbook")
     expect(chat.asked).to eq("Can I expense a €1,200 flight to RubyConf?")
   end
@@ -81,7 +82,7 @@ RSpec.describe Agent::Runner do
 
       travel_to(Date.new(2026, 10, 2)) { described_class.call(agent_run) }
 
-      expect(chat.instructions).to eq("You work for Nubo, helping Ngozi Okafor (Account Executive, Sales; manager: Tunde Bakare; roles: sales_lead) on 2026-10-02.")
+      expect(chat.instructions).to eq("You work for Factorial, helping Ngozi Okafor (Account Executive, Sales; manager: Tunde Bakare; roles: sales_lead) on 2026-10-02.")
     end
 
     it "uses the version it is given instead of the active one, so an eval can compare prompts" do
@@ -115,6 +116,19 @@ RSpec.describe Agent::Runner do
     described_class.call(agent_run) { |step| seen << [ step.kind, step.tool_name ] }
 
     expect(seen).to eq([ [ "llm", nil ], [ "tool", "search_people" ], [ "llm", nil ] ])
+  end
+
+  it "streams the final answer's text as the model produces it, not just once it's complete" do
+    script(
+      { tool_calls: [ { name: "search_people", arguments: { "query" => "Tunde" } } ] },
+      { content: "Tunde is in no department.", chunks: [ "Tunde is ", "in no department." ] }
+    )
+
+    deltas = []
+    described_class.call(agent_run, on_delta: ->(text) { deltas << text })
+
+    expect(deltas).to eq([ "Tunde is ", "Tunde is in no department." ])
+    expect(agent_run.reload.final_text).to eq("Tunde is in no department.")
   end
 
   it "tells a person the deployment has no model key, not RubyLLM::ConfigurationError" do

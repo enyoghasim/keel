@@ -25,7 +25,10 @@ class FakeChat
     define_method(name) { |&block| tap { @callbacks[name] << block } }
   end
 
-  def ask(message)
+  # A turn with plain content may also carry chunks: ["Ye", "s, but ..."] to
+  # script how the streaming block receives it piece by piece; without it,
+  # the whole content is yielded as a single chunk.
+  def ask(message, &block)
     @asked = message
     @turns.each_with_index do |turn, i|
       run(:before_message)
@@ -46,7 +49,9 @@ class FakeChat
           run(:after_message, RubyLLM::Message.new(role: :tool, content: result, tool_call_id: tool_call.id))
         end
       else
-        reply = RubyLLM::Message.new(role: :assistant, content: turn.fetch(:content), input_tokens: tokens[0], output_tokens: tokens[1], model_id: turn[:model])
+        content = turn.fetch(:content)
+        (turn[:chunks] || [ content ]).each { |piece| block&.call(RubyLLM::Chunk.new(role: :assistant, content: piece)) }
+        reply = RubyLLM::Message.new(role: :assistant, content: content, input_tokens: tokens[0], output_tokens: tokens[1], model_id: turn[:model])
         run(:after_message, reply)
         return reply
       end

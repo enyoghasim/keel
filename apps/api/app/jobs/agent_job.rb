@@ -6,7 +6,7 @@ class AgentJob < ApplicationJob
     agent_run = AgentRun.find(agent_run_id)
     return unless agent_run.status == "pending"
 
-    Agent::Runner.call(agent_run) do |step|
+    Agent::Runner.call(agent_run, on_delta: ->(text) { AgentChannel.broadcast_to(agent_run, { "event" => "delta", "text" => text }) }) do |step|
       AgentChannel.broadcast_to(agent_run, { "event" => "step", "step" => step.as_payload })
     end
     AgentChannel.broadcast_to(agent_run, { "event" => "run", "run" => agent_run.reload.as_payload })

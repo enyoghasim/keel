@@ -19,7 +19,7 @@ vi.mock('@rails/actioncable', () => ({
 const ngozi: Person = {
   id: 2,
   name: 'Ngozi Okafor',
-  email: 'ngozi@nubo.test',
+  email: 'ngozi@factorial.test',
   title: 'Account Executive',
   department_id: null,
   manager_id: 1,
@@ -130,6 +130,41 @@ describe('CommandBar', () => {
     await user.click(within(answer).getByRole('button', { name: 'Show trace (1 step)' }))
     const trace = await screen.findByRole('dialog', { name: 'Agent trace' })
     expect(within(trace).getByText('check_policy')).toBeInTheDocument()
+  })
+
+  it('streams the answer in piece by piece as "delta" events arrive, instead of waiting for the run to finish', async () => {
+    const user = userEvent.setup()
+    // Its own run id, distinct from `pending`/`completed` above: AgentChannel
+    // subscriptions are shared by identifier across the whole module, so
+    // reusing id 5 here could pick up a listener another test left behind.
+    const streamingPending: AgentRun = { ...pending, id: 55, message: 'How many people are in Sales?' }
+    const streamingRunning: AgentRun = { ...streamingPending, status: 'running' }
+    mockApi({
+      'GET /api/companies/1/session': envelope(ngozi),
+      'GET /api/companies/1/agent_runs': envelope([]),
+      'POST /api/companies/1/agent_runs': { status: 202, body: { success: true, message: '', data: streamingPending } },
+      'GET /api/companies/1/agent_runs/55': envelope(streamingRunning),
+    })
+    await renderApp('/assemble')
+
+    await user.click(screen.getByRole('button', { name: /ask keel or search/i }))
+    const bar = await screen.findByRole('dialog', { name: 'Ask Keel' })
+    await user.type(within(bar).getByRole('combobox'), 'How many people are in Sales?{Enter}')
+    const answer = await within(bar).findByRole('region', { name: 'Agent answer' })
+    expect(within(answer).getByText('Thinking…')).toBeInTheDocument()
+
+    const subscription = agentSubscription()
+    expect(subscription[0]).toEqual({ channel: 'AgentChannel', agent_run_id: 55 })
+
+    act(() => subscription[1].received({ event: 'delta', text: 'Sales has ' }))
+    expect(await within(answer).findByText('Sales has', { exact: false })).toBeInTheDocument()
+    expect(within(answer).queryByText('Thinking…')).not.toBeInTheDocument()
+
+    act(() => subscription[1].received({ event: 'delta', text: 'Sales has four people.' }))
+    expect(await within(answer).findByText('Sales has four people.')).toBeInTheDocument()
+
+    act(() => subscription[1].received({ event: 'run', run: { ...streamingRunning, status: 'completed', final_text: 'Sales has four people.' } }))
+    expect(await within(answer).findByText('Sales has four people.')).toBeInTheDocument()
   })
 
   it('links an answer that made a proposal to the proposals page', async () => {

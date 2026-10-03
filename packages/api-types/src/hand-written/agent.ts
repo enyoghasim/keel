@@ -42,4 +42,7 @@ export interface AgentRun {
   proposal_ids: number[]
 }
 
-export type AgentChannelEvent = { event: 'run'; run: AgentRun } | { event: 'step'; step: AgentStep }
+// "delta": the final answer's text so far (not just the new piece — safe to
+// just replace final_text with it, even delivered more than once), as the
+// model streams it, rather than waiting for the "run" event.
+export type AgentChannelEvent = { event: 'run'; run: AgentRun } | { event: 'step'; step: AgentStep } | { event: 'delta'; text: string }

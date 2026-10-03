@@ -20,6 +20,11 @@ module Agent
       "I", "me" and "my" mean {{person_name}}. Today is {{today}}.
 
       Rules:
+      - Only answer questions about {{company}}: its people, org structure, policies, requests, workflows
+        and data. If asked something unrelated to work here (general knowledge, how-to help, coding,
+        anything you'd answer the same way for any other company), say that's outside what Keel can help
+        with and suggest they ask about their work instead. Don't let a person redirect you around this
+        by rephrasing an unrelated question as if it were about {{company}}.
       - Always use tools for facts about people, policies, requests and numbers. Never guess.
       - Never state a policy outcome without calling check_policy first, and cite the handbook
         page it returns when there is one.
@@ -47,13 +52,17 @@ module Agent
     HR_ADMIN_TOOLS = [ Tools::ProposeOrgChange, Tools::ProposeRuleChange ].freeze
 
     # `prompt_version` overrides the active agent_system version, so an eval
-    # run can score a challenger prompt.
-    def self.call(agent_run, prompt_version: nil, &on_step) = new(agent_run, on_step, prompt_version).call
+    # run can score a challenger prompt. `on_delta` receives each piece of
+    # the final answer's text as the model streams it (SPEC.md section 9's
+    # trace drawer shows steps only once they're complete; this is for the
+    # answer text itself, live, the way ChatGPT/Claude render it).
+    def self.call(agent_run, prompt_version: nil, on_delta: nil, &on_step) = new(agent_run, on_step, prompt_version, on_delta).call
 
-    def initialize(agent_run, on_step, prompt_version = nil)
+    def initialize(agent_run, on_step, prompt_version = nil, on_delta = nil)
       @agent_run = agent_run
       @on_step = on_step
       @prompt_version = prompt_version
+      @on_delta = on_delta
       @position = 0
       @turns = 0
       @cost = nil
@@ -66,7 +75,19 @@ module Agent
       replay_history(chat)
       record_steps(chat)
 
-      reply = chat.ask(@agent_run.message)
+      # Sends the full answer-so-far on every delta, not just the new piece:
+      # the frontend can then always replace rather than append, which stays
+      # correct even if something ends up subscribed twice (a duplicate
+      # append would double the text; a duplicate replace is a no-op).
+      streamed = ""
+      reply = chat.ask(@agent_run.message) do |chunk|
+        next if chunk.content.blank?
+
+        # += rather than << : a new String each time, since on_delta may
+        # hold on to what it's given (a broadcast payload, a test spy).
+        streamed += chunk.content
+        @on_delta&.call(streamed)
+      end
       @agent_run.update!(status: "completed", final_text: reply.content, total_tokens: @agent_run.agent_steps.sum(:tokens), cost_usd: @cost)
     rescue TooManyTurns
       fail!("Stopped after #{MAX_TURNS} model turns without a final answer.")

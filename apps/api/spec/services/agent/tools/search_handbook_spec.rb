@@ -7,7 +7,7 @@ RSpec.describe Agent::Tools::SearchHandbook do
   let(:company) { create(:company) }
   let(:asker) { create(:person, company: company) }
   let(:tool) { described_class.new(Agent::Context.new(company: company, person: asker, agent_run: nil)) }
-  let(:document) { create(:source_document, company: company, filename: "nubo-handbook.pdf") }
+  let(:document) { create(:source_document, company: company, filename: "factorial-handbook.pdf") }
 
   def call(args) = JSON.parse(tool.call(args))
 
@@ -29,7 +29,7 @@ RSpec.describe Agent::Tools::SearchHandbook do
 
       expect(result["mode"]).to eq("semantic")
       expect(result["results"].first).to eq(
-        "quote" => travel.text, "page" => 7, "document" => "nubo-handbook.pdf", "chunk_id" => travel.id
+        "quote" => travel.text, "page" => 7, "document" => "factorial-handbook.pdf", "chunk_id" => travel.id
       )
       expect(result["results"].map { _1["page"] }).to eq([ 7, 3 ])
     end

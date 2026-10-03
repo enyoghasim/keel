@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { api } from '../../lib/api'
 import { navGroups } from '../layout/nav-items'
+import { AgentMarkdown } from './agent-markdown'
 import { AnswerFeedback } from './answer-feedback'
 import { latestPerConversation, type AgentConversation } from './use-agent-conversation'
-import { useAgentRun } from './use-agent-run'
+import { useAgentRun, useCachedAgentRun } from './use-agent-run'
 
 const groupClass = 'text-[11px] text-muted-foreground [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5'
 
@@ -29,16 +30,24 @@ function AgentTurn({
 
   const working = run.status === 'pending' || run.status === 'running'
   const toolSteps = run.steps.filter((s) => s.kind === 'tool')
+  // Streams in over AgentChannel's "delta" events as the model answers —
+  // show it as it arrives rather than waiting for the run to complete.
+  const streamedText = run.final_text
 
   return (
     <section aria-label="Agent answer" className="space-y-2 px-4 py-3">
       <p className="text-[12px] font-medium text-muted-foreground">{run.message}</p>
-      {working && (
+      {working && !streamedText && (
         <p role="status" className="text-[13px] text-muted-foreground">
           {toolSteps.length > 0 ? `Working… used ${toolSteps.map((s) => s.tool_name).join(', ')}` : 'Thinking…'}
         </p>
       )}
-      {run.status === 'completed' && <p className="whitespace-pre-wrap text-[14px] leading-relaxed">{run.final_text}</p>}
+      {streamedText && (
+        <div>
+          <AgentMarkdown>{streamedText}</AgentMarkdown>
+          {working && <span aria-hidden="true" className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse bg-foreground align-text-bottom" />}
+        </div>
+      )}
       {run.status === 'completed' && <AnswerFeedback companyId={companyId} run={run} />}
       {run.status === 'failed' && <p className="text-[13px] text-destructive">{run.error_message}</p>}
       <div className="flex flex-wrap gap-2">
@@ -75,7 +84,9 @@ function Thread({
 }) {
   const [text, setText] = useState('')
   const latest = runs.at(-1)
-  const latestRun = useAgentRun(companyId, latest?.id ?? 0).data?.data
+  // Reads the cache the matching AgentTurn's own useAgentRun keeps live,
+  // rather than opening a second subscription to the same run.
+  const latestRun = useCachedAgentRun(companyId, latest?.id ?? 0).data?.data
   const working = latestRun ? latestRun.status === 'pending' || latestRun.status === 'running' : false
   const bottom = useRef<HTMLDivElement>(null)
 
