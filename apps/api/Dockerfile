@@ -43,9 +43,11 @@ RUN bundle install && \
     # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
     bundle exec bootsnap precompile -j 1 --gemfile
 
-# Copy application code and the shared schema package it loads at boot
+# Copy application code, the shared schema package it loads at boot, and
+# the eval fixtures Evals::CaseLoader reads from ../../fixtures/evals
 COPY apps/api .
 COPY packages/schemas /packages/schemas
+COPY fixtures /fixtures
 
 # Precompile bootsnap code for faster boot times.
 # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
@@ -64,10 +66,11 @@ RUN groupadd --system --gid 1000 rails && \
     mkdir -p /rails/storage /rails/tmp /rails/log && chown rails:rails /rails/storage /rails/tmp /rails/log
 USER 1000:1000
 
-# Copy built artifacts: gems, application, shared schemas
+# Copy built artifacts: gems, application, shared schemas, eval fixtures
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
 COPY --chown=rails:rails --from=build /packages /packages
+COPY --chown=rails:rails --from=build /fixtures /fixtures
 
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
