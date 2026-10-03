@@ -8,7 +8,7 @@ Keel reads the documents a company already has (a messy employee spreadsheet and
 docker compose up --build      # then open http://localhost:8080
 ```
 
-Sign in as `ifeoma.adeyemi@nubo.test` with password `password` (Head of People, an HR admin).
+Sign in as `demo.hr@factorial.co` with password `password` (Head of People, an HR admin).
 
 - [About the project](#about-the-project)
 - [Run it (Docker)](#run-it-docker)
@@ -33,11 +33,12 @@ Say a 70-person logistics company promotes Ada to Head of Operations and moves S
 | **Assemble** (`/assemble`) | Upload a roster CSV and a handbook PDF. An LLM maps the messy columns, the org chart builds itself live on screen, and policies are extracted as rules, each stored with the exact handbook sentence it came from. Anything vague is flagged as an ambiguity for a human to resolve; a rule whose quote isn't verbatim in the handbook is dropped. |
 | **Graph** (`/graph`) | The company graph: people, departments, managers and roles. |
 | **Policies** (`/policies`) | Rules with their source quotes, ambiguities to resolve, a scenario tester ("Engineering, conference ticket, €950" → auto-approved, rule highlighted), conflict detection between rules, and versioned publishing. |
-| **Workflows** (`/workflows`, `/inbox`) | Approval flows that reference roles, not people, resolved at the moment each step becomes active. A dry-run test mode, and an inbox where approvers approve, reject or override (with a reason). |
+| **Workflows** (`/workflows`, `/inbox`) | Approval flows that reference roles, not people, resolved at the moment each step becomes active. Steps are directly editable — add, reorder, remove, configure a task or notify step — not just AI-drafted from a plain-English instruction: a draft workflow saves immediately, and an edit to a live one goes through the same change-proposal review either way. A dry-run test mode, and an inbox where approvers approve, reject or override (with a reason). |
 | **Agent** (`⌘K`) | Ask "Can I expense a €1,200 client dinner?" or "Move Sales under Ada". The agent calls tools; the deterministic engine decides. Every step is traced. |
 | **Proposals** (`/proposals`) | Every AI-originated write becomes a change proposal with a computed impact report (chains rerouted, chains broken, approval-load changes) and a plain-English explanation. Nothing applies until a human approves it. |
 | **Insights** (`/insights`) | Natural-language analytics. The question becomes a typed query object, shown to the user; the query is run by a deterministic builder, never generated SQL. |
 | **Trust** (`/trust`) | The eval harness: three suites, behavioural scoring, compile stability, LLM-as-judge checked against hand labels, versioned prompts with a side-by-side comparison, and a queue that turns real human corrections into new test cases. |
+| **Integrations** (Settings) | Connect Slack (an incoming webhook — no account needed) and Google Calendar (OAuth2) so a workflow step bound to one fires a real message or creates a real event, instead of only logging that someone should have been told. |
 | **MCP server** (`/mcp`) | A subset of Keel's tools exposed over the Model Context Protocol, so Claude Desktop and other MCP clients can ask Keel who approves their leave. Authenticated with personal access tokens from Settings. |
 
 ### Three design rules
@@ -109,13 +110,13 @@ The first start takes a few minutes: it builds two images, creates the databases
 | What | Where |
 | --- | --- |
 | The app (React UI, API, WebSocket and MCP, all behind one port) | **http://localhost:8080** |
-| Demo sign-in | `ifeoma.adeyemi@nubo.test` / `password` (HR admin) |
-| An employee, to try the agent as | `ngozi.eze@nubo.test` / `password` (Sales; her manager is `tunde.bakare@nubo.test`) |
+| Demo sign-in | `demo.hr@factorial.co` / `password` (HR admin) |
+| An employee, to try the agent as | `catarina.rodrigues@factorial.co` / `password` (Sales; her manager is `carlos.martinez@factorial.co`) |
 | Change the port | `KEEL_PORT=3000 docker compose up` or set it in `.env` |
 
 PostgreSQL and the Rails server are not published on the host: only the web port is. Containers: `db` (Postgres 16 with pgvector), `api` (Rails, with background jobs in the same process), `web` (nginx serving the built React app and proxying to `api`).
 
-On a blank database the first start loads **Nubo Logistics**, a 78-person demo company with a handbook, rules, workflows and three months of request history. To start empty and assemble your own company from a CSV and a PDF on `/assemble`, set `SEED_DEMO=false` before the first `up` (or wipe the data with `docker compose down -v`).
+On a blank database the first start loads **Demo Factorial**, a 28-person demo company with a handbook, rules, workflows and three months of request history. To start empty and assemble your own company from a CSV and a PDF on `/assemble`, set `SEED_DEMO=false` before the first `up` (or wipe the data with `docker compose down -v`).
 
 Handy commands:
 
@@ -126,6 +127,12 @@ docker compose down -v                # stop and delete all data (database + upl
 docker compose exec api bin/rails evals:load   # load the eval fixtures into the Trust page
 ```
 
+### A public URL, for remote testing
+
+`docker compose up` also starts a `tunnel` service: a free [Tunnelmole](https://tunnelmole.com) tunnel in front of `web`, printing a public `https://*.tunnelmole.net` URL you can hand to an MCP client that isn't on your machine, or open from a phone. `db`, `api` and `web` stay quiet in the foreground on purpose (Compose's `attach: false`) so that URL — and each service's own Created/Started/Healthy line — isn't buried in request logs; nothing is lost, `docker compose logs api` (or `web`, `db`) still has everything.
+
+Don't want a public URL for this run? `docker compose up api web` (lists the services explicitly, leaving out `tunnel`).
+
 ### Configuration
 
 Everything has a default, so a plain `docker compose up` works. To change anything, copy [`.env.example`](.env.example) to `.env` (Compose reads it automatically).
@@ -135,16 +142,18 @@ Everything has a default, so a plain `docker compose up` works. To change anythi
 | `KEEL_PORT` | `8080` | The one port Keel is served on. |
 | `OPENAI_API_KEY` | none | Turns on the AI features: Assemble, the `⌘K` agent, Insights, evals. |
 | `ANTHROPIC_API_KEY` | none | Optional, for Anthropic models via ruby_llm. |
-| `SEED_DEMO` | `true` | Load the Nubo Logistics demo company on a blank database. |
-| `DEMO_RESET` | `false` | For a public demo: show **Reset demo** on Settings (to an hr_admin), which wipes the deployment and reloads Nubo Logistics. Destructive, so off by default. |
+| `SEED_DEMO` | `true` | Load the Demo Factorial demo company on a blank database. |
+| `DEMO_RESET` | `false` | For a public demo: show **Reset demo** on Settings (to an hr_admin), which wipes the deployment and reloads Demo Factorial. Destructive, so off by default. |
 | `DATABASE_PASSWORD` | `postgres` | Postgres password. Change it if anything else can reach the database. |
 | `SECRET_KEY_BASE` | a local-only placeholder | Rails signs sessions with it. Set your own (`openssl rand -hex 64`) for any deployment others can reach. |
+| `AR_ENCRYPTION_PRIMARY_KEY`, `AR_ENCRYPTION_DETERMINISTIC_KEY`, `AR_ENCRYPTION_KEY_DERIVATION_SALT` | local-only placeholders | Encrypt stored integration credentials (the Slack webhook URL, Calendar OAuth tokens) at rest. Generate your own (`bin/rails db:encryption:init`) for any deployment others can reach. |
+| `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_REDIRECT_URI` | none | Connects Settings > Integrations to Google Calendar — see [`.env.example`](.env.example) for how to create the OAuth client. Slack needs no env setup; it's connected from inside the app. |
 
 With an OpenAI key set, handbook chunks of the demo company are embedded on start so the agent's handbook search uses vector search; to embed after adding a key later, run `docker compose exec api bin/rails handbook:embed`.
 
 ### Connecting an MCP client
 
-On **Settings**, create a personal access token. Keel's MCP endpoint is `http://localhost:8080/mcp`; point an MCP client at it with the token as a bearer token. Every call is recorded and listed on the Settings page.
+On **Settings**, create a personal access token. Keel's MCP endpoint is `http://localhost:8080/mcp`; point an MCP client at it with the token as a bearer token. Every call is recorded and listed on the Settings page. For a client that isn't on your machine, use the public URL `docker compose up` already printed (see [above](#a-public-url-for-remote-testing)) in place of `localhost:8080`.
 
 ---
 
@@ -200,7 +209,7 @@ cd apps/api
 cp .env.example .env             # database host and, optionally, model keys
 bundle install
 bin/rails db:prepare
-bin/rails db:seed                # the Nubo Logistics demo company
+bin/rails db:seed                # the Demo Factorial demo company
 bin/rails evals:load             # eval fixtures for the Trust page
 cd ../..
 
