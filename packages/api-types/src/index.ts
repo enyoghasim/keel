@@ -75,3 +75,4 @@ export type {
   AgentFeedbackReason,
 } from './hand-written/agent'
 export type { PersonalAccessToken, CreatedPersonalAccessToken, McpCall } from './hand-written/personal-access-token'
+export type { Integration, IntegrationKind, IntegrationStatus } from './hand-written/integration'

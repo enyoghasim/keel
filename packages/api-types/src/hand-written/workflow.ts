@@ -20,12 +20,18 @@ export interface WorkflowStep {
   title?: string
   assignee?: string
   when?: Condition
+  // A task/notify step bound to a connected integration (Settings >
+  // Integrations) fires a real side effect — a Slack message, a Calendar
+  // event — when it becomes active (StepSideEffectJob). Approval steps are
+  // never bound; they come straight from the matched policy rule.
+  integration?: { kind: 'slack' | 'google_calendar' }
 }
 
 export interface Workflow {
   id: number
   name: string
   status: WorkflowStatus
+  version: number
   trigger: WorkflowTrigger
   steps: WorkflowStep[]
   created_at: string
@@ -54,10 +60,13 @@ export interface WorkflowTestRunResult {
 // `unchanged` means the model's workflow was identical to the current one.
 export type WorkflowEditStatus = 'pending' | 'proposed' | 'unchanged' | 'failed'
 
+export type WorkflowEditSource = 'instruction' | 'steps'
+
 export interface WorkflowEdit {
   id: number
   workflow_id: number
-  instruction: string
+  instruction: string | null
+  source: WorkflowEditSource
   status: WorkflowEditStatus
   change_proposal_id: number | null
   error_message: string | null

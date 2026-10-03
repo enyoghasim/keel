@@ -45,14 +45,26 @@
           },
           "when": {
             "$ref": "#/$defs/condition"
+          },
+          "integration": {
+            "$ref": "#/$defs/integration"
           }
         }
       }
     }
   },
   "$defs": {
+    "integration": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "description": "Binds this step to a connected integration (Settings > Integrations) so it fires a real side effect — a Slack message for a notify step, a Calendar event for a task step — instead of only logging or waiting on a human. Never set this on an approval step.",
+      "properties": {
+        "kind": { "type": "string", "enum": ["slack", "google_calendar"] }
+      }
+    },
     "condition": {
-      "oneOf": [
+      "anyOf": [
         {
           "type": "object",
           "required": [
@@ -120,7 +132,13 @@
                 "between"
               ]
             },
-            "value": {}
+            "value": {
+              "anyOf": [
+                { "type": "string" },
+                { "type": "number" },
+                { "type": "array", "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] } }
+              ]
+            }
           }
         }
       ]

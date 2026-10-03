@@ -120,7 +120,9 @@ export interface WorkflowImpactReport {
 export interface WorkflowDiff {
   workflow_id: number
   request_kind: string
-  instruction: string
+  // null when the edit was authored directly (WorkflowEditor's editor),
+  // not from a "describe a change" instruction.
+  instruction: string | null
   before: WorkflowStep[]
   after: WorkflowStep[]
 }
