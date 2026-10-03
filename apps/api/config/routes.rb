@@ -25,8 +25,9 @@ Rails.application.routes.draw do
         post :publish, on: :member
       end
       resources :requests, only: [ :index, :create, :show ]
-      resources :workflows, only: [ :index, :show ] do
+      resources :workflows, only: [ :index, :show, :update ] do
         post :test_run, on: :member
+        post :publish, on: :member
         resources :edits, controller: "workflow_edits", only: [ :create, :show ]
       end
       resources :change_proposals, only: [ :index, :create, :show ] do
@@ -35,6 +36,9 @@ Rails.application.routes.draw do
         get :trace, on: :member
       end
       resources :personal_access_tokens, only: [ :index, :create, :destroy ]
+      resources :integrations, only: [ :index, :create, :destroy ]
+      get "integrations/google_calendar/authorize", to: "google_calendar_oauth#authorize"
+      get "integrations/google_calendar/callback", to: "google_calendar_oauth#callback"
       resources :mcp_calls, only: [ :index ]
       resources :insights, only: [ :index, :create, :show ]
       resources :eval_runs, only: [ :index, :create, :show ]

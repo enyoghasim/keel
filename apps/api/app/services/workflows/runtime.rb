@@ -123,11 +123,28 @@ module Workflows
         step_definition = workflow_run.workflow.steps.find { _1["key"] == next_step.step_key }
         if step_definition&.fetch("type") == "notify"
           next_step.update!(status: "done", acted_at: Time.current)
+          enqueue_side_effect(next_step, step_definition)
           next
         end
 
+        # A task's side effect (e.g. a Calendar event) is a best-effort
+        # assist fired the moment the task becomes the active step, not
+        # what unblocks it — still wait here for a human's "Complete".
+        enqueue_side_effect(next_step, step_definition) if step_definition&.fetch("type") == "task"
         return
       end
+    end
+
+    # Most steps have no integration binding — only enqueue when one does,
+    # and only the first time this step becomes active: advance! revisits
+    # the same still-pending task step on every later call (each approval
+    # elsewhere in the chain re-walks from the top), so without this guard
+    # a task bound to an integration would fire its side effect repeatedly.
+    def enqueue_side_effect(step_run, step_definition)
+      return unless step_definition["integration"] && step_run.external_status.nil?
+
+      step_run.update!(external_status: "pending")
+      StepSideEffectJob.perform_later(step_run.id)
     end
 
     def resolve!(step_run, request)

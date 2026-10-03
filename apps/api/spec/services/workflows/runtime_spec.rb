@@ -1,6 +1,8 @@
 require "rails_helper"
 
 RSpec.describe Workflows::Runtime do
+  include ActiveJob::TestHelper
+
   # Mirrors SPEC.md section 8's request lifecycle: one example per real-world
   # path through start/advance/act, not per method.
   def runtime_for(company) = described_class.new(Org::GraphSnapshot.load(company))
@@ -109,6 +111,53 @@ RSpec.describe Workflows::Runtime do
 
     runtime.act(it_step, action: "complete")
     expect(request.reload.status).to eq("approved")
+  end
+
+  it "enqueues the side effect job once a notify step bound to an integration fires, leaving an unbound one alone" do
+    company = create(:company)
+    manager = create(:person, company: company)
+    requester = create(:person, company: company, manager: manager)
+    request = create(:request, company: company, requester: requester, kind: "equipment", payload: { "amount_eur" => 2000 })
+    create(:workflow, company: company, trigger: { "request_kind" => "equipment" }, steps: [
+      { "key" => "manager", "type" => "approval" },
+      { "key" => "finance", "type" => "notify", "assignee" => "role:finance_lead", "integration" => { "kind" => "slack" } },
+      { "key" => "hr", "type" => "notify", "assignee" => "role:hr_admin" }
+    ])
+    create(:person, :finance_lead, company: company)
+    runtime = runtime_for(company)
+    result = runtime.start(request, rules: [ big_expense_rule([ "manager_of(requester)" ]) ])
+    manager_step = result.workflow_run.step_runs.order(:id).first
+
+    expect { runtime.act(manager_step, action: "approve") }.to have_enqueued_job(StepSideEffectJob)
+
+    finance_step = result.workflow_run.step_runs.find_by(step_key: "finance")
+    hr_step = result.workflow_run.step_runs.find_by(step_key: "hr")
+    expect(finance_step).to have_attributes(status: "done", external_status: "pending")
+    expect(hr_step).to have_attributes(status: "done", external_status: nil)
+  end
+
+  it "enqueues the side effect job for a task step bound to an integration once it becomes active, not before the approval ahead of it, and not twice" do
+    company = create(:company)
+    manager = create(:person, company: company)
+    create(:person, :it_admin, company: company)
+    requester = create(:person, company: company, manager: manager)
+    request = create(:request, company: company, requester: requester, kind: "equipment", payload: { "amount_eur" => 900 })
+    create(:workflow, company: company, trigger: { "request_kind" => "equipment" }, steps: [
+      { "key" => "manager", "type" => "approval" },
+      { "key" => "it", "type" => "task", "assignee" => "role:it_admin", "integration" => { "kind" => "google_calendar" } }
+    ])
+    runtime = runtime_for(company)
+
+    result = nil
+    expect { result = runtime.start(request, rules: [ big_expense_rule([ "manager_of(requester)" ]) ]) }
+      .not_to have_enqueued_job(StepSideEffectJob)
+
+    manager_step = result.workflow_run.step_runs.find_by(step_key: "manager")
+    it_step = result.workflow_run.step_runs.find_by(step_key: "it")
+    expect(it_step).to have_attributes(status: "pending", external_status: nil)
+
+    expect { runtime.act(manager_step, action: "approve") }.to have_enqueued_job(StepSideEffectJob).with(it_step.id).exactly(1).times
+    expect(it_step.reload).to have_attributes(status: "pending", external_status: "pending")
   end
 
   it "does not create a step run for a notify step whose condition doesn't match" do
