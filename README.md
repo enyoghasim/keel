@@ -133,6 +133,8 @@ docker compose exec api bin/rails evals:load   # load the eval fixtures into the
 
 Don't want a public URL for this run? `docker compose up api web` (lists the services explicitly, leaving out `tunnel`).
 
+Two things worth knowing: Tunnelmole's client only proxies plain HTTP, not WebSocket, so Action Cable's live updates (Assemble's progress, the agent's live trace, eval runs) won't stream over the tunnel URL — the work still completes server-side, a refresh shows the result. Only `/mcp` was the actual goal here, and it isn't WebSocket-based. Second, `tunnel` shares `web`'s network namespace (the only way to reach it, since Tunnelmole's client always targets "localhost") — if you rebuild `web` on its own during development, also `docker compose up -d --force-recreate tunnel`, or it's left pointing at a container that no longer exists.
+
 ### Configuration
 
 Everything has a default, so a plain `docker compose up` works. To change anything, copy [`.env.example`](.env.example) to `.env` (Compose reads it automatically).
