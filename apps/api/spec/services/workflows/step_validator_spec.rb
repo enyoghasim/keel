@@ -28,4 +28,34 @@ RSpec.describe Workflows::StepValidator do
 
     expect(errors.size).to eq(2)
   end
+
+  it "doesn't check an approval step's assignee against the reference pattern — WorkflowGenerator joins multiple approver refs there for display, and Runtime never reads it" do
+    steps = [ step("approval", type: "approval", assignee: "manager_of(requester), role:finance_lead"), step("it") ]
+
+    expect(described_class.call(steps)).to eq([])
+  end
+
+  describe ".restore_approvals" do
+    let(:approval) { step("approval", type: "approval", assignee: "manager_of(requester)") }
+    let(:notify) { step("hr_notify", type: "notify", assignee: "role:hr_admin") }
+
+    # Approval steps are policy-owned (AGENTS.md rule 2) — whoever is
+    # rewriting the workflow (an LLM, or now a human editor) doesn't get to
+    # touch them, whatever they submit.
+    it "swaps a rewritten approval step for the original of the same key" do
+      submitted = [ { **approval, "assignee" => "role:ceo" }, notify ]
+
+      expect(described_class.restore_approvals(submitted, [ approval, notify ])).to eq([ approval, notify ])
+    end
+
+    it "puts a dropped approval step back where it was" do
+      expect(described_class.restore_approvals([ notify ], [ approval, notify ])).to eq([ approval, notify ])
+    end
+
+    it "drops an approval step invented out of nowhere" do
+      invented = step("made_up", type: "approval", assignee: "role:ceo")
+
+      expect(described_class.restore_approvals([ notify, invented ], [ notify ])).to eq([ notify ])
+    end
+  end
 end

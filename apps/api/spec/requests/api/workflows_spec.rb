@@ -92,4 +92,106 @@ RSpec.describe "Api::Workflows", type: :request do
       expect(response.parsed_body["success"]).to eq(false)
     end
   end
+
+  describe "POST /api/companies/:company_id/workflows/:id/publish" do
+    let(:company) { create(:company) }
+    let(:hr) { create(:person, :hr_admin, company: company) }
+    let(:workflow) { create(:workflow, :draft, company: company) }
+    let(:base) { "/api/companies/#{company.id}/workflows/#{workflow.id}" }
+
+    it "activates a draft workflow as its next version" do
+      sign_in(hr)
+
+      post "#{base}/publish", as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(workflow.reload).to have_attributes(status: "active", version: 2)
+      expect(response.parsed_body["data"]).to include("status" => "active", "version" => 2)
+    end
+
+    it "is for hr_admins only" do
+      sign_in(create(:person, company: company))
+
+      post "#{base}/publish", as: :json
+
+      expect(response).to have_http_status(:forbidden)
+      expect(workflow.reload.status).to eq("draft")
+    end
+
+    it "requires sign-in" do
+      post "#{base}/publish", as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
+  describe "PATCH /api/companies/:company_id/workflows/:id" do
+    let(:company) { create(:company) }
+    let(:hr) { create(:person, :hr_admin, company: company) }
+    let(:approval) { { "key" => "approval", "type" => "approval", "assignee" => "manager_of(requester)" } }
+    let(:workflow) { create(:workflow, :draft, company: company, steps: [ approval ]) }
+    let(:base) { "/api/companies/#{company.id}/workflows/#{workflow.id}" }
+
+    it "saves a draft workflow's steps directly, with no proposal" do
+      sign_in(hr)
+      notify = { "key" => "hr_notify", "type" => "notify", "assignee" => "role:hr_admin" }
+
+      patch base, params: { steps: [ approval, notify ] }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(workflow.reload).to have_attributes(steps: [ approval, notify ], version: 2)
+      expect(ChangeProposal.count).to eq(0)
+    end
+
+    it "keeps the approval step exactly as it is, whatever is submitted for it" do
+      sign_in(hr)
+
+      patch base, params: { steps: [ { **approval, "assignee" => "role:ceo" } ] }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(workflow.reload.steps).to eq([ approval ])
+    end
+
+    it "puts a dropped approval step back" do
+      sign_in(hr)
+      notify = { "key" => "hr_notify", "type" => "notify", "assignee" => "role:hr_admin" }
+
+      patch base, params: { steps: [ notify ] }, as: :json
+
+      expect(workflow.reload.steps).to eq([ approval, notify ])
+    end
+
+    it "refuses an active workflow — edit it through a proposal instead" do
+      workflow.update!(status: "active")
+      sign_in(hr)
+
+      patch base, params: { steps: [ approval ] }, as: :json
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "refuses structurally invalid steps, e.g. a duplicate key" do
+      sign_in(hr)
+
+      patch base, params: { steps: [ approval, { "key" => "approval", "type" => "notify", "assignee" => "role:hr_admin" } ] }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["message"]).to match(/used more than once/)
+      expect(workflow.reload.steps).to eq([ approval ])
+    end
+
+    it "is for hr_admins only" do
+      sign_in(create(:person, company: company))
+
+      patch base, params: { steps: [ approval ] }, as: :json
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "requires sign-in" do
+      patch base, params: { steps: [ approval ] }, as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
 end

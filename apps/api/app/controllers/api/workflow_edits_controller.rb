@@ -11,7 +11,7 @@ module Api
     before_action :set_workflow
 
     def create
-      edit = @company.workflow_edits.new(workflow: @workflow, person: current_person, instruction: params[:instruction].to_s.strip)
+      edit = params[:steps].present? ? steps_edit : instruction_edit
       return render_error(message: "Describe the change first.", errors: edit.errors.full_messages) unless edit.save
 
       WorkflowEditJob.perform_later(edit.id)
@@ -23,6 +23,16 @@ module Api
     end
 
     private
+
+    def instruction_edit
+      @company.workflow_edits.new(workflow: @workflow, person: current_person, instruction: params[:instruction].to_s.strip)
+    end
+
+    def steps_edit
+      @company.workflow_edits.new(
+        workflow: @workflow, person: current_person, source: "steps", after_steps: params[:steps].map(&:to_unsafe_h)
+      )
+    end
 
     def require_hr_admin!
       return if performed? || current_person.hr_admin?

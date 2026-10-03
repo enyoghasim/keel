@@ -72,4 +72,52 @@ RSpec.describe WorkflowEditJob, type: :job do
 
     expect(Assemble::WorkflowEditor).not_to have_received(:call)
   end
+
+  describe "a human-authored edit (source: steps)" do
+    let(:steps_edit) { create(:workflow_edit, :steps, company: company, workflow: workflow, after_steps: [ approval, it_step ]) }
+
+    it "records the same shape of pending proposal, skipping the model entirely" do
+      allow(Assemble::WorkflowEditor).to receive(:call)
+
+      described_class.perform_now(steps_edit.id)
+
+      proposal = ChangeProposal.last
+      expect(steps_edit.reload).to have_attributes(status: "proposed", change_proposal: proposal, model: nil)
+      expect(proposal).to have_attributes(kind: "workflow", status: "pending", proposed_by: "user")
+      expect(proposal.diff).to eq("workflow_id" => workflow.id, "request_kind" => "expense", "instruction" => nil, "before" => [ approval ], "after" => [ approval, it_step ])
+      expect(Assemble::WorkflowEditor).not_to have_received(:call)
+    end
+
+    it "restores the approval step, whatever the submission tried to make it" do
+      rewritten = create(:workflow_edit, :steps, company: company, workflow: workflow,
+        after_steps: [ { **approval, "assignee" => "role:ceo" }, it_step ])
+
+      described_class.perform_now(rewritten.id)
+
+      expect(ChangeProposal.last.diff["after"]).to eq([ approval, it_step ])
+    end
+
+    it "fails with a plain validation message for structurally invalid steps, with no proposal" do
+      invalid = create(:workflow_edit, :steps, company: company, workflow: workflow, after_steps: [ approval, { **it_step, "assignee" => "Tunde Bakare" } ])
+
+      described_class.perform_now(invalid.id)
+
+      expect(invalid.reload).to have_attributes(status: "failed", error_message: a_string_including("unknown assignee reference"))
+      expect(ChangeProposal.count).to eq(0)
+    end
+
+    it "says so, with no proposal, when the submitted steps change nothing" do
+      unchanged = create(:workflow_edit, :steps, company: company, workflow: workflow, after_steps: [ approval ])
+
+      described_class.perform_now(unchanged.id)
+
+      expect(unchanged.reload).to have_attributes(status: "unchanged", change_proposal: nil)
+      expect(ChangeProposal.count).to eq(0)
+    end
+
+    it "broadcasts the outcome" do
+      expect { described_class.perform_now(steps_edit.id) }
+        .to have_broadcasted_to(steps_edit).from_channel(WorkflowEditChannel).with(hash_including("status" => "proposed"))
+    end
+  end
 end

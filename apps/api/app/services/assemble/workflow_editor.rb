@@ -17,28 +17,17 @@ module Assemble
 
     def self.call(workflow:, instruction:)
       schema = Llm::SchemaRegistry.fetch("workflow-edit")
-      data = Llm::StructuredAsk.call(chat: RubyLLM.chat.with_schema(schema), schema: schema, prompt: prompt(workflow, instruction))
+      # strict: false — a step's title/when are ordinary optional properties,
+      # but OpenAI's strict structured-output mode requires every property
+      # to be listed in "required" and 400s otherwise.
+      data = Llm::StructuredAsk.call(chat: RubyLLM.chat.with_schema(schema.merge("strict" => false)), schema: schema, prompt: prompt(workflow, instruction))
 
-      steps = restore_approvals(data.fetch("steps"), workflow.steps)
+      steps = Workflows::StepValidator.restore_approvals(data.fetch("steps"), workflow.steps)
       errors = Workflows::StepValidator.call(steps)
       raise InvalidWorkflow, errors.join("; ") if errors.any?
 
       Result.new(steps: steps, summary: data.fetch("summary"), before: workflow.steps)
     end
-
-    # Any approval step the model returns is swapped for the original of the
-    # same key (one it invented is dropped); originals it left out go back
-    # at their old position.
-    def self.restore_approvals(steps, current)
-      originals = current.select { _1["type"] == "approval" }.index_by { _1["key"] }
-      kept = steps.filter_map { |step| step["type"] == "approval" ? originals[step["key"]] : step }
-
-      current.each_with_index do |step, index|
-        kept.insert([ index, kept.size ].min, step) if step["type"] == "approval" && kept.none? { _1["key"] == step["key"] }
-      end
-      kept
-    end
-    private_class_method :restore_approvals
 
     def self.prompt(workflow, instruction)
       <<~PROMPT
@@ -53,8 +42,10 @@ module Assemble
         remove or edit one. Use a "task" step for work someone must do and a "notify" step for
         a heads-up. Give each step a short unique snake_case key and a role reference like
         "role:it_admin" or an org reference like "manager_of(requester)" as its assignee —
-        never a person's name. To make a step conditional, add a "when" condition. Keep every
-        step you aren't asked to change as it is.
+        never a person's name. To make a step conditional, add a "when" condition. If asked for
+        a step that posts to Slack or creates a Calendar event, add an "integration" of
+        {"kind": "slack"} or {"kind": "google_calendar"} to that step — never to an approval
+        step. Keep every step you aren't asked to change as it is.
       PROMPT
     end
     private_class_method :prompt

@@ -21,6 +21,20 @@ RSpec.describe "Api::WorkflowEdits", type: :request do
       expect(WorkflowEdit.find(body["id"])).to have_attributes(company: company, person: hr)
     end
 
+    it "accepts directly-authored steps instead of an instruction" do
+      sign_in(hr)
+      steps = [ { "key" => "approval", "type" => "approval" }, { "key" => "it", "type" => "task", "assignee" => "role:it_admin" } ]
+
+      expect {
+        post "/api/companies/#{company.id}/workflows/#{workflow.id}/edits", params: { steps: steps }, as: :json
+      }.to have_enqueued_job(WorkflowEditJob)
+
+      expect(response).to have_http_status(:accepted)
+      body = response.parsed_body["data"]
+      expect(body).to include("source" => "steps", "status" => "pending", "instruction" => nil)
+      expect(WorkflowEdit.find(body["id"]).after_steps).to eq(steps)
+    end
+
     it "rejects a blank instruction" do
       sign_in(hr)
 
