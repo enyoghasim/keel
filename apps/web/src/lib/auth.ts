@@ -38,10 +38,17 @@ export function useSignOut(companyId: string) {
 
   return useMutation({
     mutationFn: () => api.delete<Envelope<null>>(`/companies/${companyId}/session`),
-    // Removed rather than invalidated: a background refetch of a query that
-    // already has data keeps serving that stale data through a 401 (React
-    // Query's stale-while-revalidate behaviour), which would leave the old
-    // person showing. Removing it forces a clean refetch from "no data".
-    onSuccess: () => queryClient.removeQueries({ queryKey: sessionQueryKey(companyId) }),
+    // A hard reload, not a cache dance: removing this query's cache entry
+    // only refetches it for whatever observer React Query decides is still
+    // "active" at that instant, which in practice left some mounted
+    // observers (AuthGate's among them) never re-checking and still
+    // showing the signed-in page. DemoResetPanel hits the identical
+    // problem — a server-side identity change React Query can't be
+    // trusted to propagate everywhere — and solves it the same way: throw
+    // the whole client state away and start the browser over from nothing.
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: sessionQueryKey(companyId) })
+      window.location.assign('/')
+    },
   })
 }

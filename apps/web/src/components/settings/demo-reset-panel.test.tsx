@@ -32,7 +32,7 @@ describe('DemoResetPanel', () => {
 
   it('resets once confirmed and goes back to the start page', async () => {
     const user = userEvent.setup()
-    const fetchMock = mockApi({ 'POST /api/companies/1/demo_reset': { body: { success: true, message: 'Demo reset to Nubo Logistics.', data: {} } } })
+    const fetchMock = mockApi({ 'POST /api/companies/1/demo_reset': { body: { success: true, message: 'Demo reset to Demo Factorial.', data: {} } } })
     vi.stubGlobal('location', { ...window.location, assign })
     renderPanel()
 

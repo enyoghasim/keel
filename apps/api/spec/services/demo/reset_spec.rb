@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe Demo::Reset do
   # SPEC.md section 18's "Reset demo": visitors will try things, so one call puts
-  # the deployment back to a freshly seeded Nubo Logistics. The seed itself has
+  # the deployment back to a freshly seeded Demo Factorial. The seed itself has
   # its own coverage and is slow, so it is stubbed here.
   before { allow(described_class).to receive(:seed) }
 

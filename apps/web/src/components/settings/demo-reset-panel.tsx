@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card'
 /**
  * "Reset demo" (SPEC.md section 18): visitors to a public demo will change
  * things, so an hr_admin can wipe the deployment back to a freshly seeded
- * Nubo Logistics. Destructive, so it asks twice, and the server only offers it
+ * Demo Factorial. Destructive, so it asks twice, and the server only offers it
  * where DEMO_RESET is on. Everyone is signed out afterwards, because the
  * people they were no longer exist.
  */
@@ -31,7 +31,7 @@ export function DemoResetPanel({ companyId }: { companyId: string }) {
     <Card role="region" aria-label="Reset demo">
       <h2 className="text-[15px] font-semibold">Reset demo</h2>
       <p className="mt-1 text-[13px] text-muted-foreground">
-        Wipes everything on this deployment (people, policies, requests, proposals, tokens) and reloads Nubo Logistics.
+        Wipes everything on this deployment (people, policies, requests, proposals, tokens) and reloads Demo Factorial.
         Everyone is signed out.
       </p>
       {confirming ? (

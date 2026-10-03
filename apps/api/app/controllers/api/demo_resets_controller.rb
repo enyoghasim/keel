@@ -1,6 +1,6 @@
 module Api
-  # "Reset demo" (SPEC.md section 18): wipes the deployment and reloads Nubo
-  # Logistics. Destructive, so it answers 404 unless DEMO_RESET=true was set on
+  # "Reset demo" (SPEC.md section 18): wipes the deployment and reloads Demo
+  # Factorial. Destructive, so it answers 404 unless DEMO_RESET=true was set on
   # purpose, and then only to an hr_admin.
   class DemoResetsController < ApplicationController
     include CompanyScoped
@@ -13,7 +13,7 @@ module Api
     def create
       Demo::Reset.call
       cookies.delete(:keel_session)
-      render_success(data: {}, message: "Demo reset to Nubo Logistics.")
+      render_success(data: {}, message: "Demo reset to Demo Factorial.")
     end
 
     private

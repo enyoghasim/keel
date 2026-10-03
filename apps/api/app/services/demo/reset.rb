@@ -1,6 +1,6 @@
 module Demo
   # SPEC.md section 18's "Reset demo": puts a public demo deployment back to a
-  # freshly seeded Nubo Logistics after visitors have changed it. Destructive,
+  # freshly seeded Demo Factorial after visitors have changed it. Destructive,
   # so it only runs where DEMO_RESET=true is set deliberately.
   class Reset
     # Job queue, cache and cable tables belong to the running app, not to the demo's data.
