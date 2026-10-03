@@ -13,7 +13,7 @@
   },
   "$defs": {
     "condition": {
-      "oneOf": [
+      "anyOf": [
         {
           "type": "object",
           "required": ["all"],
@@ -51,19 +51,25 @@
               "type": "string",
               "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "in", "not_in", "between"]
             },
-            "value": {}
+            "value": {
+              "anyOf": [
+                { "type": "string" },
+                { "type": "number" },
+                { "type": "array", "items": { "anyOf": [{ "type": "string" }, { "type": "number" }] } }
+              ]
+            }
           }
         }
       ]
     },
     "action": {
-      "oneOf": [
+      "anyOf": [
         {
           "type": "object",
           "required": ["decision"],
           "additionalProperties": false,
           "properties": {
-            "decision": { "const": "auto_approve" }
+            "decision": { "type": "string", "const": "auto_approve" }
           }
         },
         {
@@ -71,7 +77,7 @@
           "required": ["decision", "reason"],
           "additionalProperties": false,
           "properties": {
-            "decision": { "const": "reject" },
+            "decision": { "type": "string", "const": "reject" },
             "reason": { "type": "string" }
           }
         },
@@ -80,7 +86,7 @@
           "required": ["decision", "approvers"],
           "additionalProperties": false,
           "properties": {
-            "decision": { "const": "require_approval" },
+            "decision": { "type": "string", "const": "require_approval" },
             "approvers": { "type": "array", "items": { "type": "string" } }
           }
         }

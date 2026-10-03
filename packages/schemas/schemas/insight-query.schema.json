@@ -8,11 +8,9 @@
     "query": { "$ref": "#/$defs/query" },
     "clarification": {
       "type": "string",
-      "minLength": 1,
-      "description": "A short question back to the user, e.g. 'Do you mean calendar Q3 or your fiscal quarter?'"
+      "description": "A short question back to the user, e.g. 'Do you mean calendar Q3 or your fiscal quarter?'. Exactly one of query/clarification should be set — Insights::Interpreter treats a present, non-empty clarification as taking precedence, since OpenAI's structured-output schema can't express a top-level 'exactly one of' itself (no oneOf/anyOf/allOf at the schema root)."
     }
   },
-  "oneOf": [{ "required": ["query"] }, { "required": ["clarification"] }],
   "$defs": {
     "query": {
       "title": "InsightQuery",
@@ -68,7 +66,7 @@
         },
         "op": { "type": "string", "enum": ["eq", "neq", "in"] },
         "value": {
-          "oneOf": [
+          "anyOf": [
             { "type": "string" },
             { "type": "array", "minItems": 1, "items": { "type": "string" } }
           ]

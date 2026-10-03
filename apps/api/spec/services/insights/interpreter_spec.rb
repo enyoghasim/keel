@@ -24,7 +24,7 @@ RSpec.describe Insights::Interpreter do
 
     expect(result.query).to eq(query)
     expect(result.clarification).to be_nil
-    expect(chat).to have_received(:with_schema).with(Llm::SchemaRegistry.fetch("insight-query"))
+    expect(chat).to have_received(:with_schema).with(Llm::SchemaRegistry.fetch("insight-query").merge("strict" => false))
   end
 
   it "passes back a clarifying question instead of guessing when the question is ambiguous" do
@@ -34,6 +34,26 @@ RSpec.describe Insights::Interpreter do
 
     expect(result.query).to be_nil
     expect(result.clarification).to eq("Do you mean calendar Q3 or your fiscal quarter?")
+  end
+
+  it "uses the query when the model (without strict mode) fills in both it and an unused blank clarification" do
+    query = { "metric" => "leave_days", "chart" => "bar" }
+    allow(chat).to receive(:ask).and_return(message_with({ "query" => query, "clarification" => "" }))
+
+    result = described_class.call(company: company, question: "Leave days?", today: today)
+
+    expect(result.query).to eq(query)
+    expect(result.clarification).to be_nil
+  end
+
+  it "prefers a non-blank clarification over a query when the model fills in both" do
+    query = { "metric" => "leave_days", "chart" => "bar" }
+    allow(chat).to receive(:ask).and_return(message_with({ "query" => query, "clarification" => "Which month?" }))
+
+    result = described_class.call(company: company, question: "Leave days?", today: today)
+
+    expect(result.query).to be_nil
+    expect(result.clarification).to eq("Which month?")
   end
 
   it "grounds the prompt in today's date and the company's own departments and expense categories, never its people" do

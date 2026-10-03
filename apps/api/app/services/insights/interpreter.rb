@@ -11,10 +11,19 @@ module Insights
     # Pass a block to learn what each ask cost (see Llm::StructuredAsk).
     def self.call(company:, question:, today: Date.current, &on_cost)
       schema = Llm::SchemaRegistry.fetch("insight-query")
-      chat = RubyLLM.chat.with_schema(schema)
+      # strict: false — OpenAI's strict structured-output mode requires every
+      # property to be listed in "required"; our schemas use ordinary
+      # optional properties (group_by, filters, ..., and query/clarification
+      # themselves), so strict mode 400s.
+      chat = RubyLLM.chat.with_schema(schema.merge("strict" => false))
 
       data = Llm::StructuredAsk.call(chat: chat, schema: schema, prompt: prompt(company, question, today), &on_cost)
-      Result.new(query: data["query"], clarification: data["clarification"])
+      # Without strict mode, the model sometimes fills in both query and
+      # clarification (an empty clarification alongside a real query, or
+      # vice versa) instead of omitting the one it didn't use. A present,
+      # non-blank clarification always wins.
+      clarification = data["clarification"].presence
+      Result.new(query: clarification ? nil : data["query"], clarification: clarification)
     end
 
     def self.prompt(company, question, today)
