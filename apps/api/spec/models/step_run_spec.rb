@@ -29,4 +29,13 @@ RSpec.describe StepRun, type: :model do
     expect(step_run.status).to eq("pending")
     expect(step_run.overridden).to eq(false)
   end
+
+  it "leaves external_status nil for a step with no integration" do
+    expect(create(:step_run).external_status).to be_nil
+  end
+
+  it "requires a known external_status when one is set" do
+    expect(build(:step_run, external_status: "sent")).to be_valid
+    expect(build(:step_run, external_status: "lost_in_the_mail")).not_to be_valid
+  end
 end

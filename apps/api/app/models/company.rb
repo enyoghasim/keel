@@ -13,6 +13,7 @@ class Company < ApplicationRecord
   has_many :insight_queries, dependent: :destroy
   has_many :eval_runs, dependent: :destroy
   has_many :agent_runs, dependent: :destroy
+  has_many :integrations, dependent: :destroy
   has_one_attached :roster_csv
 
   validates :name, presence: true

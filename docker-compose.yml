@@ -3,10 +3,17 @@
 #   docker compose up --build
 #
 # then open http://localhost:8080 (change the port with KEEL_PORT in .env).
-# Sign in as ifeoma.adeyemi@nubo.test / password. See README.md.
+# Sign in as demo.hr@factorial.co / password. See README.md.
 #
 # Everything is configured by defaults; to turn the AI features on, copy
 # .env.example to .env and set OPENAI_API_KEY.
+#
+# A free Tunnelmole tunnel comes up alongside the app and prints a public
+# https URL (for an outside MCP client, say) — db/api/web stay quiet in the
+# foreground (`attach: false`, Compose 2.20+) so that link and each
+# service's own Started/Healthy line aren't buried in request logs; nothing
+# is lost, `docker compose logs api` (etc.) still has everything. Skip the
+# tunnel with `docker compose up api web` (lists services explicitly).
 
 services:
   db:
@@ -21,6 +28,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    attach: false
 
   api:
     build:
@@ -35,13 +43,24 @@ services:
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:-keel-local-only-secret-change-me-before-you-deploy-0123456789abcdef0123456789abcdef0123456789abcdef}
       # Background jobs (Assemble, agent, evals) run inside the web process.
       SOLID_QUEUE_IN_PUMA: '1'
-      # Load the Nubo Logistics demo company on a blank database; "false" starts empty.
+      # Load the Demo Factorial demo company on a blank database; "false" starts empty.
       SEED_DEMO: ${SEED_DEMO:-true}
-      # "true" lets an hr_admin wipe the deployment back to Nubo Logistics from Settings. Only for a public demo.
+      # "true" lets an hr_admin wipe the deployment back to Demo Factorial from Settings. Only for a public demo.
       DEMO_RESET: ${DEMO_RESET:-false}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       RAILS_LOG_LEVEL: ${RAILS_LOG_LEVEL:-info}
+      # Encrypts stored integration credentials (Slack webhook, Google Calendar
+      # tokens) at rest. Local-only defaults; replace before exposing Keel
+      # beyond your machine (`bin/rails db:encryption:init` generates your own).
+      AR_ENCRYPTION_PRIMARY_KEY: ${AR_ENCRYPTION_PRIMARY_KEY:-rv0wuvmYTMVQaAriKp2HnAxEU1lI3owR}
+      AR_ENCRYPTION_DETERMINISTIC_KEY: ${AR_ENCRYPTION_DETERMINISTIC_KEY:-WmENU7gr6NXidtOrqkOtZEaR4TnkHDEJ}
+      AR_ENCRYPTION_KEY_DERIVATION_SALT: ${AR_ENCRYPTION_KEY_DERIVATION_SALT:-zLWjNehXbANMjM25wQaEEULQDj2LOXqa}
+      # Optional: connects Settings > Integrations to Google Calendar. Slack
+      # needs no env setup — it's connected from inside the app.
+      GOOGLE_CALENDAR_CLIENT_ID: ${GOOGLE_CALENDAR_CLIENT_ID:-}
+      GOOGLE_CALENDAR_CLIENT_SECRET: ${GOOGLE_CALENDAR_CLIENT_SECRET:-}
+      GOOGLE_CALENDAR_REDIRECT_URI: ${GOOGLE_CALENDAR_REDIRECT_URI:-}
     volumes:
       - keel_storage:/rails/storage
     depends_on:
@@ -54,6 +73,7 @@ services:
       retries: 30
       # The first start migrates and seeds the demo company.
       start_period: 120s
+    attach: false
 
   web:
     build:
@@ -64,6 +84,29 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      # nginx:alpine has no curl; busybox's wget is built in.
+      test: ['CMD-SHELL', 'wget -qO- http://localhost/up || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    attach: false
+
+  # Gives Keel a public https URL via Tunnelmole (MIT-licensed client, no
+  # account needed) — mainly so an outside MCP client can reach /mcp without
+  # port-forwarding or a real deployment. Shares web's network namespace
+  # rather than reaching it over Compose's service DNS, since tmole only
+  # ever forwards to "localhost" and there's no first-party Tunnelmole
+  # image to configure otherwise. The public URL prints to this service's
+  # own log, which is why it's the one service left attached.
+  tunnel:
+    image: node:22-alpine
+    network_mode: 'service:web'
+    depends_on:
+      web:
+        condition: service_healthy
+    command: sh -c "npm install --global tunnelmole >/dev/null 2>&1 && tmole 80"
+    restart: unless-stopped
 
 volumes:
   keel_db:

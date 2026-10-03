@@ -1,6 +1,20 @@
 # This file is copied to spec/ when you run 'rails generate rspec:install'
 require 'spec_helper'
 ENV['RAILS_ENV'] ||= 'test'
+# Fixed dummy ActiveRecord Encryption keys so specs never need real secrets
+# (config/initializers/active_record_encryption.rb reads these at boot, so
+# they must be set before config/environment loads).
+ENV['AR_ENCRYPTION_PRIMARY_KEY'] ||= 'test' * 8
+ENV['AR_ENCRYPTION_DETERMINISTIC_KEY'] ||= 'test' * 8
+ENV['AR_ENCRYPTION_KEY_DERIVATION_SALT'] ||= 'test' * 8
+# Dummy Google Calendar OAuth client so Calendar::TokenRefresher,
+# Calendar::EventCreator and GoogleCalendarOauthController specs never need
+# a real Google Cloud project — every Google call itself is stubbed. ||=
+# isn't enough: docker-compose sets these to "" (via ${VAR:-}) whenever
+# .env leaves them blank, and "" is truthy in Ruby.
+ENV['GOOGLE_CALENDAR_CLIENT_ID'] = 'test-client-id' if ENV['GOOGLE_CALENDAR_CLIENT_ID'].to_s.empty?
+ENV['GOOGLE_CALENDAR_CLIENT_SECRET'] = 'test-client-secret' if ENV['GOOGLE_CALENDAR_CLIENT_SECRET'].to_s.empty?
+ENV['GOOGLE_CALENDAR_REDIRECT_URI'] = 'http://localhost:8080/api/companies/1/integrations/google_calendar/callback' if ENV['GOOGLE_CALENDAR_REDIRECT_URI'].to_s.empty?
 require_relative '../config/environment'
 # Prevent database truncation if the environment is production
 abort("The Rails environment is running in production mode!") if Rails.env.production?

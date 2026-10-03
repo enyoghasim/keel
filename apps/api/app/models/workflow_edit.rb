@@ -9,11 +9,14 @@ class WorkflowEdit < ApplicationRecord
   belongs_to :change_proposal, optional: true
 
   STATUSES = %w[pending proposed unchanged failed].freeze
+  SOURCES = %w[instruction steps].freeze
 
-  validates :instruction, presence: true
+  validates :instruction, presence: true, if: -> { source == "instruction" }
+  validates :after_steps, presence: true, if: -> { source == "steps" }
   validates :status, inclusion: { in: STATUSES }
+  validates :source, inclusion: { in: SOURCES }
 
-  FIELDS = %i[id workflow_id instruction status change_proposal_id error_message created_at].freeze
+  FIELDS = %i[id workflow_id instruction source status change_proposal_id error_message created_at].freeze
 
   # The one shape Api::WorkflowEditsController renders and
   # WorkflowEditChannel broadcasts, so the page treats both the same.
