@@ -45,7 +45,8 @@
                 "payload.category",
                 "payload.days",
                 "payload.notice_days"
-              ]
+              ],
+              "description": "payload.category only exists on expense and equipment requests (e.g. 'travel', 'laptop') — never add a payload.category condition when extracting leave, remote or onboarding rules, since those requests carry no category field at all. A rule never needs to re-check its own policy's category either way: a rule only ever runs for requests of the category it was extracted for."
             },
             "op": {
               "type": "string",

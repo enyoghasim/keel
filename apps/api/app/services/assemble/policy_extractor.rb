@@ -27,6 +27,31 @@ module Assemble
       not paraphrase it. Every vague phrase that needs a human decision must appear in
       that rule's ambiguities, with a question and options, rather than being guessed.
 
+      Only use a payload.category condition when extracting expense or equipment rules,
+      where the handbook names real categories (travel, laptop, general, ...). Never add
+      one for leave, remote or onboarding rules — those requests carry no category field,
+      so a condition on it can never match. A rule also never needs to check that it's
+      being evaluated for the right category: that's already guaranteed by which policy
+      it belongs to, before the rule's own conditions are even considered. Likewise, when
+      a sentence states a default or baseline threshold without naming a specific category
+      (e.g. "expenses of €400 or less are approved automatically"), don't add a category
+      condition to it at all — it's meant to apply across categories, with more specific
+      rules (travel, equipment, ...) overriding it by priority, not by a narrower category
+      match you invent.
+
+      When an action is require_approval, write each approver in its approvers array as a
+      reference, never a plain-English role or job title: "manager_of(requester)" for the
+      requester's manager, "role:finance_lead"/"role:it_admin"/"role:hr_admin" for a named
+      role, "head_of(requester.department)" for the department head. Never write "manager",
+      "finance lead", "HR" or any other plain word there — the engine only resolves these
+      exact reference forms, so anything else silently fails to route to anyone.
+
+      A condition must be exactly as narrow as the quote supports, no narrower and no
+      broader. "Alcohol is never reimbursed" means a rule scoped to the alcohol category,
+      not one that rejects every expense; a vague carve-out you can't turn into a precise
+      condition (e.g. "warehouse roles are always on site") belongs in ambiguities instead
+      of a guessed condition that changes what other, unrelated requests do.
+
       {{excerpt}}
     PROMPT
 
