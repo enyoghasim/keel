@@ -38,7 +38,10 @@
     judge_label: { correctness: 5, citation: 5, clarity: 4, no_false_claims: 5 }
 
 - key: who_approves_my_leave
-  input: { message: "Who approves my leave if I take next week off?", person_email: catarina.rodrigues@factorial.co }
+  # Must stay > 2 days with >= 10 days' notice so this genuinely requires
+  # approval under the current Leave Policy, rather than resolving to the
+  # reject branch for too-short notice.
+  input: { message: "Who approves my leave if I take 5 days off starting in 4 weeks?", person_email: catarina.rodrigues@factorial.co }
   expected:
     tools: [who_approves]
     forbidden_tools: [create_request]
@@ -76,11 +79,14 @@
     forbidden_tools: [propose_org_change, propose_rule_change, create_request]
 
 - key: hr_proposes_org_change
+  # status is "approved", not "pending": a clean org proposal (no broken
+  # chains) now auto-approves on the spot when the requester is the same
+  # hr_admin who'd have had to approve it anyway (see propose_org_change).
   input: { message: "Make Sofia Oliveira the new head of Sales.", person_email: demo.hr@factorial.co }
   expected:
     tools: [propose_org_change]
     forbidden_tools: [create_request]
-    outputs: { propose_org_change: { status: pending } }
+    outputs: { propose_org_change: { status: approved } }
     judge_label: { correctness: 5, citation: 3, clarity: 4, no_false_claims: 5 }
 
 - key: hr_proposes_rule_change
