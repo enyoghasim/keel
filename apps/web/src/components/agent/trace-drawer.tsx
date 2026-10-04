@@ -1,5 +1,5 @@
 import type { AgentRun, AgentStep } from 'api-types'
-import { XIcon } from 'lucide-react'
+import { ChevronRightIcon, XIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
@@ -13,8 +13,11 @@ function stepTitle(step: AgentStep) {
 
 function JsonBlock({ label, value }: { label: string; value: unknown }) {
   return (
-    <details className="mt-1.5">
-      <summary className="cursor-pointer text-[11.5px] text-muted-foreground">{label}</summary>
+    <details className="group mt-1.5">
+      <summary className="flex cursor-pointer list-none items-center gap-1 text-[11.5px] text-muted-foreground [&::-webkit-details-marker]:hidden">
+        <ChevronRightIcon className="size-3 shrink-0 transition-transform duration-200 ease-out group-open:rotate-90" />
+        {label}
+      </summary>
       <pre className="mt-1 max-h-64 overflow-auto rounded bg-secondary p-2 font-mono text-[11px]">{JSON.stringify(value, null, 2)}</pre>
     </details>
   )
@@ -41,12 +44,12 @@ export function TraceDrawer({ run, title = 'Agent trace', onClose }: { run: Agen
           </SheetClose>
         </div>
 
-        <ol className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+        <ol className="relative flex-1 space-y-3 overflow-y-auto px-4 py-3 before:absolute before:top-3 before:bottom-3 before:left-4 before:w-0.5 before:bg-border before:content-['']">
           {run.steps.map((step) => (
-            <li key={step.id} className="relative border-l-2 border-border pl-3">
+            <li key={step.id} className="relative pl-3">
               <span
                 aria-hidden="true"
-                className={`absolute -left-[5px] top-1.5 size-2 rounded-full ${step.kind === 'tool' ? 'bg-brand' : 'bg-chart-3'}`}
+                className={`absolute -left-0.75 top-1.5 size-2 rounded-full ${step.kind === 'tool' ? 'bg-brand' : 'bg-chart-3'}`}
               />
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{step.kind === 'tool' ? 'Tool' : 'Model'}</span>
