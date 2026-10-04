@@ -124,7 +124,7 @@ Handy commands:
 docker compose logs -f api            # watch the Rails server and jobs
 docker compose down                   # stop; data is kept in volumes
 docker compose down -v                # stop and delete all data (database + uploads)
-docker compose exec api bin/rails evals:load   # load the eval fixtures into the Trust page
+docker compose exec api bin/rails evals:load   # re-sync eval fixtures after editing fixtures/evals/*.yml (loaded automatically on every `up`)
 ```
 
 ### A public URL, for remote testing

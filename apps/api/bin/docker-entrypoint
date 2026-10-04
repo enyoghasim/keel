@@ -14,6 +14,11 @@ if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   if [ "${SEED_DEMO:-true}" != "false" ]; then
     ./bin/rails db:seed
   fi
+
+  # Eval cases aren't company data (fixtures/evals/*.yml), so they don't
+  # live in db:seed — but the Trust page is useless without them, and
+  # CaseLoader upserts by key, so it's safe to run on every boot.
+  ./bin/rails evals:load
 fi
 
 exec "${@}"
