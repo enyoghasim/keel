@@ -3,8 +3,11 @@ module Agent
     # The "Change" kind of agent request (SPEC.md section 9): turns the
     # model's structured operations into a ChangeProposal with a computed
     # impact report (Impact::OrgImpact) and links it to this run's trace.
-    # Nothing about the org changes here — AGENTS.md rule 2: a human
-    # approves the proposal on /proposals and only then is it applied.
+    # AGENTS.md rule 2: a human approves the proposal, and only then is it
+    # applied — see auto_approve! below for when that human is the same
+    # hr_admin asking and nothing broke, which decides it immediately
+    # instead of waiting for a separate trip to /proposals. Anything with
+    # broken chains still lands there pending, untouched.
     # Idempotent within a run, like create_request.
     class ProposeOrgChange < Base
       OPERATIONS = %w[move_person change_manager set_department_head assign_role].freeze
@@ -17,9 +20,13 @@ module Agent
 
       tool_name "propose_org_change"
       description "Propose a change to the org chart — move a person to a department, change someone's manager, " \
-                  "set a department head or assign a role. This does NOT change anything: it records a proposal " \
-                  "with a computed impact report that an HR admin must approve. Use search_people and org_lookup " \
-                  "first to find the right ids. Only hr_admin people can use it."
+                  "set a department head or assign a role. Records a proposal with a computed impact report; if " \
+                  "nothing breaks, it's approved immediately since only an hr_admin could approve it anyway and " \
+                  "that's who's asking. If it breaks approval chains, it's left pending for manual review with " \
+                  "\"approve anyway\" on the Proposals page instead. Use search_people and org_lookup first to " \
+                  "find the right ids — a department_id comes from org_lookup's or search_people's " \
+                  "department_id field for someone already in it, never guessed from the department's name. " \
+                  "Only hr_admin people can use it."
       params({
         type: "object", additionalProperties: false, required: %w[title operations],
         properties: {
@@ -48,10 +55,14 @@ module Agent
       def execute(title:, operations:)
         require_hr_admin!("propose org changes")
 
-        diff = operations.map { build_operation(_1.to_h.stringify_keys) }
-        @created[[ title, diff ]] ||= create_proposal(title, diff)
+        # Keyed on the raw call, not the computed diff: an auto-approved
+        # proposal (see create_proposal) applies immediately, so a repeat of
+        # the same call later in the run would otherwise compute a different
+        # "from" and miss the cache.
+        key = [ title, operations ]
+        @created[key] ||= create_proposal(title, operations.map { build_operation(_1.to_h.stringify_keys) })
 
-        summarize(@created[[ title, diff ]])
+        summarize(@created[key])
       end
 
       private
@@ -83,10 +94,28 @@ module Agent
       end
 
       def create_proposal(title, diff)
-        company.change_proposals.create!(
-          kind: "org", title: title, diff: diff, proposed_by: "agent", agent_run: context.agent_run,
-          impact: Impact::OrgImpact.call(company: company, diff: diff)
+        impact = Impact::OrgImpact.call(company: company, diff: diff)
+        proposal = company.change_proposals.create!(
+          kind: "org", title: title, diff: diff, proposed_by: "agent", agent_run: context.agent_run, impact: impact
         )
+        auto_approve!(proposal) if impact["broken"].empty?
+        proposal
+      end
+
+      # require_hr_admin! above already guarantees the person asking is an
+      # hr_admin — the same, and only, gate ChangeProposalsController#approve
+      # checks (SPEC.md section 10). So when nothing broke, this person could
+      # walk straight to /proposals and approve their own request anyway;
+      # skip that extra click and decide it now instead. Still a human
+      # decision (rule 2) — just this person's, made at request time — and
+      # still recorded with decided_by/decided_at like any other approval.
+      # A proposal with broken chains still needs the manual "approve
+      # anyway" + reason flow, same as it would for any other reviewer.
+      def auto_approve!(proposal)
+        ActiveRecord::Base.transaction do
+          proposal.apply_org_diff!(company)
+          proposal.update!(status: "approved", decided_by_id: person.id, decided_at: Time.current)
+        end
       end
 
       # The stored impact has one entry per person per scenario; the model
@@ -94,11 +123,16 @@ module Agent
       def people_affected(proposal, category) = proposal.impact[category].map { _1["person_id"] }.uniq.size
 
       def summarize(proposal)
+        note = if proposal.status == "approved"
+          "Approved automatically — you're the hr_admin who'd have had to approve it anyway."
+        else
+          "Nothing has changed yet. An HR admin has to review and approve this proposal on the Proposals page."
+        end
+
         {
           "proposal_id" => proposal.id, "status" => proposal.status, "link" => "/proposals",
           "rerouted" => people_affected(proposal, "rerouted"), "broken" => people_affected(proposal, "broken"),
-          "self_approval" => people_affected(proposal, "self_approval"),
-          "note" => "Nothing has changed yet. An HR admin has to review and approve this proposal on the Proposals page."
+          "self_approval" => people_affected(proposal, "self_approval"), "note" => note
         }
       end
     end
