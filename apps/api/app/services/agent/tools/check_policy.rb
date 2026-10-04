@@ -25,7 +25,8 @@ module Agent
           "explanation" => decision.explanation,
           "approvers" => company.people.where(id: decision.approvers).includes(:department).map { person_summary(_1) },
           "errors" => decision.errors,
-          "citations" => citations(request_kind, decision.rule_keys)
+          "citations" => citations(request_kind, decision.rule_keys),
+          "policy_id" => company.policies.find_by(category: request_kind, status: "active")&.id
         }
       end
 

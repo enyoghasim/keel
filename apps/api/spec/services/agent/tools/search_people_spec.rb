@@ -18,7 +18,7 @@ RSpec.describe Agent::Tools::SearchPeople do
 
     expect(by_name["people"]).to eq([
       { "id" => ngozi.id, "name" => "Ngozi Okafor", "title" => "Account Executive", "department" => "Sales",
-        "manager" => "Ada Nwosu", "roles" => [] }
+        "department_id" => sales.id, "manager" => "Ada Nwosu", "roles" => [] }
     ])
     expect(by_department["people"].map { _1["name"] }).to eq([ "Ngozi Okafor" ])
   end

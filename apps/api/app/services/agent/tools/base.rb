@@ -59,7 +59,10 @@ module Agent
       def person_summary(record)
         return nil if record.nil?
 
-        { "id" => record.id, "name" => record.name, "title" => record.title, "department" => record.department&.name }
+        {
+          "id" => record.id, "name" => record.name, "title" => record.title,
+          "department" => record.department&.name, "department_id" => record.department_id
+        }
       end
     end
   end
