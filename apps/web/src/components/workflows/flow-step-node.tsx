@@ -10,14 +10,16 @@ const KIND_LABEL: Record<FlowNodeData['kind'], string> = {
   notify: 'Notify',
 }
 
-// Solid, saturated chip per kind (white icon on top) plus a matching left
+// Solid, saturated chip per kind (icon + text in that colour's matching
+// foreground token, never a hardcoded white — these backgrounds flip to
+// light in dark mode, so a fixed white would wash out) plus a matching left
 // accent bar on the card — the colour is what reads at a glance; the text
 // label is there for anyone who can't rely on colour alone.
 const KIND_CHIP: Record<FlowNodeData['kind'], string> = {
-  trigger: 'bg-foreground',
-  approval: 'bg-info',
-  task: 'bg-success',
-  notify: 'bg-brand',
+  trigger: 'bg-foreground text-background',
+  approval: 'bg-info text-info-foreground',
+  task: 'bg-success text-success-foreground',
+  notify: 'bg-brand text-brand-foreground',
 }
 
 const KIND_ACCENT: Record<FlowNodeData['kind'], string> = {
@@ -74,8 +76,8 @@ export function FlowStepNode({ data }: NodeProps<Node<FlowNodeData>>) {
     >
       {kind !== 'trigger' && <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />}
       <div className="flex items-center justify-between gap-2">
-        <span className={`flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2 text-[11px] font-medium text-white ${KIND_CHIP[kind]}`}>
-          <span className="grid size-4 place-items-center rounded-full bg-white/20">
+        <span className={`flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2 text-[11px] font-medium ${KIND_CHIP[kind]}`}>
+          <span className="grid size-4 place-items-center rounded-full bg-current/20">
             <Icon className="size-2.5" />
           </span>
           {KIND_LABEL[kind]}
