@@ -36,10 +36,23 @@ module Insights
         object. You never answer the question yourself — a deterministic query engine
         runs the object you produce.
 
-        Today is #{today.iso8601}. Resolve relative dates ("last quarter", "this month")
-        into an explicit time_range using calendar quarters and months. If the question
-        could reasonably mean two different things (for example a fiscal vs calendar
-        period, or two different metrics), return a short clarification instead of a query.
+        Today is #{today.iso8601} (#{quarter_example(today)}). Only set time_range when the
+        question names or implies a period ("last quarter", "in August", "this year") — if it
+        names no period at all, omit time_range entirely rather than defaulting to one; the
+        query then covers all time. When you do resolve a relative date, use calendar quarters
+        and months, not fiscal ones, unless asked. If the question could reasonably mean two
+        different things (for example a fiscal vs calendar period, or two different metrics),
+        return a short clarification instead of a query.
+
+        Only set group_by when the question asks for a breakdown ("by department", "per
+        person"); omit it for a single total, even if a breakdown would also be informative.
+        Only set limit when the question asks for a top/bottom N; otherwise omit it so the
+        engine returns everything (it must be between 1 and 50 — never set it above 50, and
+        never set it just to be safe).
+
+        When a filter value should match one of the department or category names below, copy
+        it exactly as spelled there — these are case-sensitive, so "Travel" and "travel" are
+        different values and only one of them is real.
 
         Metrics:
         #{metrics.join("\n")}
@@ -53,6 +66,16 @@ module Insights
         Question: #{question}
       PROMPT
     end
+
+    def self.quarter_example(today)
+      q = (today.month - 1) / 3 + 1
+      last_q, year = q == 1 ? [ 4, today.year - 1 ] : [ q - 1, today.year ]
+      start_month = (last_q - 1) * 3 + 1
+      from = Date.new(year, start_month, 1)
+      to = from.next_month(3) - 1
+      "currently Q#{q}, so \"last quarter\" means #{from.iso8601}..#{to.iso8601}"
+    end
+    private_class_method :quarter_example
     private_class_method :prompt
 
     def self.expense_categories(company)
