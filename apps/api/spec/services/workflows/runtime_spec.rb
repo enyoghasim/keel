@@ -50,6 +50,91 @@ RSpec.describe Workflows::Runtime do
     expect(result.workflow_run.step_runs.sole).to have_attributes(step_key: "system", status: "done")
   end
 
+  it "still runs a terminal auto-approved decision's non-approval steps against a matching workflow, skipping the approval step entirely" do
+    company = create(:company)
+    it_admin = create(:person, :it_admin, company: company)
+    requester = create(:person, company: company)
+    request = create(:request, company: company, requester: requester, payload: { "amount_eur" => 100 })
+    create(:workflow, company: company, trigger: { "request_kind" => "expense" }, steps: [
+      { "key" => "approval", "type" => "approval" },
+      { "key" => "log", "type" => "task", "assignee" => "role:it_admin" }
+    ])
+    small_expense_rule = Rules::RuleDefinition.new(
+      key: "small_expense", priority: 1,
+      conditions: { "field" => "payload.amount_eur", "op" => "lte", "value" => 500 },
+      actions: { "decision" => "auto_approve" },
+    )
+
+    result = runtime_for(company).start(request, rules: [ small_expense_rule ])
+
+    expect(result.status).to eq("approved")
+    steps = result.workflow_run.step_runs
+    expect(steps.pluck(:step_key)).to eq([ "log" ])
+    expect(steps.first).to have_attributes(resolved_person_id: it_admin.id, status: "pending")
+  end
+
+  it "still runs a terminal rejected decision's non-approval steps, and finishing them doesn't flip the request back to approved" do
+    company = create(:company)
+    hr_admin = create(:person, :hr_admin, company: company)
+    requester = create(:person, company: company)
+    request = create(:request, company: company, requester: requester, kind: "leave", payload: { "days" => 3, "notice_days" => 1 })
+    create(:workflow, company: company, trigger: { "request_kind" => "leave" }, steps: [
+      { "key" => "approval", "type" => "approval" },
+      { "key" => "notify_hr", "type" => "notify", "assignee" => "role:hr_admin" }
+    ])
+    notice_period_rule = Rules::RuleDefinition.new(
+      key: "notice_period", priority: 1,
+      conditions: { "field" => "payload.notice_days", "op" => "lt", "value" => 14 },
+      actions: { "decision" => "reject", "reason" => "insufficient notice" },
+    )
+
+    result = runtime_for(company).start(request, rules: [ notice_period_rule ])
+
+    expect(result.status).to eq("rejected")
+    notify_step = result.workflow_run.step_runs.sole
+    expect(notify_step).to have_attributes(step_key: "notify_hr", status: "done", resolved_person_id: hr_admin.id)
+    expect(result.workflow_run.reload.status).to eq("done")
+    expect(request.reload.status).to eq("rejected")
+  end
+
+  it "falls back to a single system step when a terminal decision's matching workflow has no applicable non-approval steps" do
+    company = create(:company)
+    requester = create(:person, company: company)
+    request = create(:request, company: company, requester: requester, payload: { "amount_eur" => 100 })
+    create(:workflow, company: company, trigger: { "request_kind" => "expense" }, steps: [
+      { "key" => "approval", "type" => "approval" },
+      { "key" => "log", "type" => "task", "assignee" => "role:it_admin",
+        "when" => { "field" => "payload.amount_eur", "op" => "gt", "value" => 100_000 } }
+    ])
+    small_expense_rule = Rules::RuleDefinition.new(
+      key: "small_expense", priority: 1,
+      conditions: { "field" => "payload.amount_eur", "op" => "lte", "value" => 500 },
+      actions: { "decision" => "auto_approve" },
+    )
+
+    result = runtime_for(company).start(request, rules: [ small_expense_rule ])
+
+    expect(result.status).to eq("approved")
+    expect(result.workflow_run.step_runs.sole).to have_attributes(step_key: "system", status: "done")
+    expect(result.workflow_run.reload.status).to eq("done")
+  end
+
+  it "still bypasses the workflow entirely for a blocked decision, even when one matches" do
+    company = create(:company)
+    requester = create(:person, :without_manager, company: company)
+    request = create(:request, company: company, requester: requester, payload: { "amount_eur" => 900 })
+    create(:workflow, company: company, trigger: { "request_kind" => "expense" }, steps: [
+      { "key" => "approval", "type" => "approval" },
+      { "key" => "log", "type" => "task", "assignee" => "role:it_admin" }
+    ])
+
+    result = runtime_for(company).start(request, rules: [ big_expense_rule([ "manager_of(requester)" ]) ])
+
+    expect(result.status).to eq("blocked")
+    expect(result.workflow_run.workflow).to be_nil
+    expect(result.workflow_run.step_runs.sole).to have_attributes(step_key: "system", status: "done")
+  end
+
   it "raises when a request needs approval but no active workflow matches its kind" do
     company = create(:company)
     manager = create(:person, company: company)

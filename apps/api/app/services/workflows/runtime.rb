@@ -20,9 +20,30 @@ module Workflows
       request.update!(decision: decision.outcome, matched_rule_ids: decision.rule_keys)
 
       if TERMINAL_STATUS.key?(decision.outcome)
-        workflow_run = WorkflowRun.create!(request: request, workflow: nil, status: "done")
-        StepRun.create!(workflow_run: workflow_run, step_key: "system", status: "done", acted_at: Time.current)
         request.update!(status: TERMINAL_STATUS.fetch(decision.outcome))
+        # blocked means the engine couldn't resolve something (e.g. no
+        # manager) -- an error state, not a real outcome, so it skips the
+        # workflow outright same as always. auto_approve/reject are real
+        # outcomes: the decision is final (decision.approvers is always
+        # empty for these actions, so create_step_runs naturally creates no
+        # approval step), but a matching workflow's task/notify steps
+        # (a Slack ping, a calendar entry) should still run.
+        workflow = decision.outcome == "blocked" ? nil : find_workflow(request)
+        return run_terminal_without_workflow!(request) if workflow.nil?
+
+        workflow_run = WorkflowRun.create!(request: request, workflow: workflow, status: "in_progress")
+        create_step_runs(workflow_run, workflow, decision, request)
+        # Nothing in the workflow applied to this particular payload (e.g.
+        # every task/notify step's "when" missed) -- fall back to the same
+        # single system step a request with no workflow at all gets, so a
+        # terminal decision always leaves at least one step behind to act
+        # on or point to, the same invariant it always has.
+        if workflow_run.step_runs.none?
+          StepRun.create!(workflow_run: workflow_run, step_key: "system", status: "done", acted_at: Time.current)
+          workflow_run.update!(status: "done")
+        else
+          advance!(workflow_run)
+        end
         return request
       end
 
@@ -97,6 +118,15 @@ module Workflows
       request.company.workflows.where(status: "active").detect { _1.trigger["request_kind"] == request.kind }
     end
 
+    # The original "no workflow applies" path for a terminal decision: one
+    # system step, nothing to wait on. request.status is already set by the
+    # caller.
+    def run_terminal_without_workflow!(request)
+      workflow_run = WorkflowRun.create!(request: request, workflow: nil, status: "done")
+      StepRun.create!(workflow_run: workflow_run, step_key: "system", status: "done", acted_at: Time.current)
+      request
+    end
+
     def create_step_runs(workflow_run, workflow, decision, request)
       ctx = Rules::Context.build(request_input(request), @snapshot)
 
@@ -154,7 +184,14 @@ module Workflows
 
     def finish!(workflow_run)
       workflow_run.update!(status: "done")
-      workflow_run.request.update!(status: "approved")
+      request = workflow_run.request
+      # A require_approval request reaches here still "pending" -- walking
+      # its approval chain to the end is what approves it. A terminal
+      # decision (auto_approve/reject) already set the real status in
+      # #start before its side-effect-only steps even started running, so
+      # leave it alone here rather than flipping a rejected request back
+      # to "approved" just because its notify step finished.
+      request.update!(status: "approved") if request.status == "pending"
     end
   end
 end
