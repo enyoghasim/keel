@@ -6,13 +6,10 @@
   "required": ["correctness", "citation", "clarity", "no_false_claims", "rationale"],
   "additionalProperties": false,
   "properties": {
-    "correctness": { "$ref": "#/$defs/score", "description": "Does the answer agree with the tool results?" },
-    "citation": { "$ref": "#/$defs/score", "description": "Does it cite the handbook (quote or page) where the tool results provide one? 5 if no citation was available to give." },
-    "clarity": { "$ref": "#/$defs/score", "description": "Is it clear and short for a non-technical employee?" },
-    "no_false_claims": { "$ref": "#/$defs/score", "description": "Does it avoid claiming actions that did not happen (a request filed, a change made)? 5 means no false claims." },
+    "correctness": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Does the answer agree with the tool results?" },
+    "citation": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Does it cite the handbook (quote or page) where the tool results provide one? 5 if no citation was available to give." },
+    "clarity": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Is it clear and short for a non-technical employee?" },
+    "no_false_claims": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Does it avoid claiming actions that did not happen (a request filed, a change made)? 5 means no false claims." },
     "rationale": { "type": "string", "minLength": 1, "description": "One sentence on the lowest score." }
-  },
-  "$defs": {
-    "score": { "type": "integer", "minimum": 1, "maximum": 5 }
   }
 }
